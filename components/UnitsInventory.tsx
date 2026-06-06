@@ -312,6 +312,7 @@ export default function UnitsInventory() {
         !q ||
         u.property.toLowerCase().includes(q) ||
         u.unitNo.toLowerCase().includes(q) ||
+        u.realtorName.toLowerCase().includes(q) ||
         u.realtorMOCI.toLowerCase().includes(q);
       const matchStatus = statusFilter === 'All' || u.status === statusFilter;
       const matchFurnishing = furnishingFilter === 'All' || u.furnishing === furnishingFilter;
@@ -492,7 +493,7 @@ export default function UnitsInventory() {
               </span>
               <input
                 type="text"
-                placeholder="Search by Property, Unit No., or Realtor (MOCI)…"
+                placeholder="Search by Property, Unit No., or Realtor name…"
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); resetPage(); }}
                 className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-500 placeholder:text-slate-400 transition-shadow"
@@ -567,7 +568,7 @@ export default function UnitsInventory() {
               <thead>
                 <tr className="bg-slate-50 border-b border-gray-200">
                   {[
-                    'Realtor (MOCI)',
+                    'Realtor',
                     'Property',
                     'Unit No.',
                     'Zone',
@@ -611,9 +612,9 @@ export default function UnitsInventory() {
                       key={unit.id}
                       className="border-b border-gray-100 last:border-0 hover:bg-slate-50/60 transition-colors group"
                     >
-                      {/* Realtor MOCI */}
-                      <td className="px-4 py-3.5 text-xs font-mono text-slate-500 whitespace-nowrap">
-                        {unit.realtorMOCI}
+                      {/* Realtor Name */}
+                      <td className="px-4 py-3.5 text-sm text-slate-700 whitespace-nowrap max-w-[180px] truncate" title={unit.realtorName}>
+                        {unit.realtorName}
                       </td>
 
                       {/* Property */}

@@ -53,7 +53,8 @@ export type MociContractStatus = 'REGISTERED' | 'PENDING' | 'RENEWAL_DUE' | 'EXP
 export interface UnitListing {
   // ── Identity ──────────────────────────────────────────────────────────────
   id: string;
-  realtorMOCI: string;
+  realtorName: string;   // Official company name from MOCI/Aqarat directory
+  realtorMOCI: string;   // MOCI license / registration code
 
   // ── Property ──────────────────────────────────────────────────────────────
   property: string;

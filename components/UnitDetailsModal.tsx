@@ -74,7 +74,11 @@ function PropertyTab({ unit }: { unit: UnitListing }) {
     <div className="space-y-4">
       <SectionCard title="Identification">
         <FieldRow
-          label="Realtor (MOCI)"
+          label="Realtor"
+          value={<strong className="font-semibold">{unit.realtorName}</strong>}
+        />
+        <FieldRow
+          label="MOCI License"
           value={
             <span className="font-mono text-sm bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded">
               {unit.realtorMOCI}
@@ -344,7 +348,7 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
     `Type: ${unit.subType} | ${unit.furnishing}\n` +
     `Rent: QAR ${unit.rent.toLocaleString()}/month\n` +
     `Status: ${unit.status.replace('_', ' ')}\n` +
-    `Realtor (MOCI): ${unit.realtorMOCI}`;
+    `Realtor: ${unit.realtorName} (${unit.realtorMOCI})`;
 
   const handleWhatsApp = () =>
     window.open(`https://wa.me/?text=${encodeURIComponent(sharePayload)}`, '_blank');

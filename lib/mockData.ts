@@ -21,7 +21,8 @@ export const mockUnits: UnitListing[] = [
 
   {
     id: 'PRV-001',
-    realtorMOCI: 'PRV-MOCI-2024-0101',
+    realtorName: 'Betterhomes Qatar',
+    realtorMOCI: 'MOCI-BRK-BHQ-0067',
     property: 'Tornado Tower Residences',
     unitNo: 'TT-14-02A',
     zone: 'West Bay',
@@ -48,7 +49,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-002',
-    realtorMOCI: 'PRV-MOCI-2024-0102',
+    realtorName: 'Betterhomes Qatar',
+    realtorMOCI: 'MOCI-BRK-BHQ-0067',
     property: 'Tornado Tower Residences',
     unitNo: 'TT-22-04B',
     zone: 'West Bay',
@@ -75,7 +77,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-003',
-    realtorMOCI: 'PRV-MOCI-2024-0103',
+    realtorName: 'Alfardan Properties',
+    realtorMOCI: 'MOCI-REG-ALP-0045',
     property: 'Al Fardan Pearl Tower',
     unitNo: 'FP-08-01C',
     zone: 'West Bay',
@@ -102,7 +105,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-004',
-    realtorMOCI: 'PRV-MOCI-2024-0104',
+    realtorName: 'Alfardan Properties',
+    realtorMOCI: 'MOCI-REG-ALP-0045',
     property: 'Al Fardan Pearl Tower',
     unitNo: 'FP-15-03D',
     zone: 'West Bay',
@@ -129,7 +133,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-005',
-    realtorMOCI: 'PRV-MOCI-2024-0105',
+    realtorName: 'The Loft Bureau Real Estate',
+    realtorMOCI: 'MOCI-BRK-LFT-0078',
     property: 'Burj Al Marina',
     unitNo: 'BM-31-PH1',
     zone: 'West Bay',
@@ -156,7 +161,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-006',
-    realtorMOCI: 'PRV-MOCI-2024-0106',
+    realtorName: 'The Loft Bureau Real Estate',
+    realtorMOCI: 'MOCI-BRK-LFT-0078',
     property: 'Burj Al Marina',
     unitNo: 'BM-12-02B',
     zone: 'West Bay',
@@ -183,7 +189,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-007',
-    realtorMOCI: 'PRV-MOCI-2024-0107',
+    realtorName: 'NelsonPark Property',
+    realtorMOCI: 'MOCI-BRK-NPP-0112',
     property: 'West Bay Lagoon Tower',
     unitNo: 'WBL-06-01A',
     zone: 'West Bay',
@@ -210,7 +217,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-008',
-    realtorMOCI: 'PRV-MOCI-2024-0108',
+    realtorName: 'NelsonPark Property',
+    realtorMOCI: 'MOCI-BRK-NPP-0112',
     property: 'West Bay Lagoon Tower',
     unitNo: 'WBL-19-03B',
     zone: 'West Bay',
@@ -237,7 +245,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-009',
-    realtorMOCI: 'PRV-MOCI-2024-0109',
+    realtorName: 'Coreo Real Estate',
+    realtorMOCI: 'MOCI-BRK-CRE-0134',
     property: 'Doha Corniche Plaza',
     unitNo: 'DCP-04-02C',
     zone: 'West Bay',
@@ -264,7 +273,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-010',
-    realtorMOCI: 'PRV-MOCI-2024-0110',
+    realtorName: 'Coreo Real Estate',
+    realtorMOCI: 'MOCI-BRK-CRE-0134',
     property: 'Doha Corniche Plaza',
     unitNo: 'DCP-27-01A',
     zone: 'West Bay',
@@ -296,7 +306,8 @@ export const mockUnits: UnitListing[] = [
 
   {
     id: 'PRV-011',
-    realtorMOCI: 'PRV-MOCI-2024-0201',
+    realtorName: 'FGREALTY Qatar',
+    realtorMOCI: 'MOCI-BRK-FGR-0056',
     property: 'Viva Bahriya Tower',
     unitNo: 'VB-07-03A',
     zone: 'The Pearl Qatar',
@@ -323,7 +334,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-012',
-    realtorMOCI: 'PRV-MOCI-2024-0202',
+    realtorName: 'FGREALTY Qatar',
+    realtorMOCI: 'MOCI-BRK-FGR-0056',
     property: 'Viva Bahriya Tower',
     unitNo: 'VB-23-07C',
     zone: 'The Pearl Qatar',
@@ -350,7 +362,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-013',
-    realtorMOCI: 'PRV-MOCI-2024-0203',
+    realtorName: 'The Pearl Gates',
+    realtorMOCI: 'MOCI-BRK-TPG-0089',
     property: 'Porto Arabia Residences',
     unitNo: 'PA-14-05B',
     zone: 'The Pearl Qatar',
@@ -377,7 +390,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-014',
-    realtorMOCI: 'PRV-MOCI-2024-0204',
+    realtorName: 'The Pearl Gates',
+    realtorMOCI: 'MOCI-BRK-TPG-0089',
     property: 'Porto Arabia Residences',
     unitNo: 'PA-31-09A',
     zone: 'The Pearl Qatar',
@@ -404,7 +418,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-015',
-    realtorMOCI: 'PRV-MOCI-2024-0205',
+    realtorName: 'The Loft Bureau Real Estate',
+    realtorMOCI: 'MOCI-BRK-LFT-0078',
     property: 'Porto Arabia Penthouse Collection',
     unitNo: 'PA-PH-02',
     zone: 'The Pearl Qatar',
@@ -431,7 +446,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-016',
-    realtorMOCI: 'PRV-MOCI-2024-0206',
+    realtorName: '25 Spaces Real Estate',
+    realtorMOCI: 'MOCI-BRK-25S-0167',
     property: 'Qanat Quartier Residences',
     unitNo: 'QQ-08-04B',
     zone: 'The Pearl Qatar',
@@ -458,7 +474,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-017',
-    realtorMOCI: 'PRV-MOCI-2024-0207',
+    realtorName: '25 Spaces Real Estate',
+    realtorMOCI: 'MOCI-BRK-25S-0167',
     property: 'Qanat Quartier Residences',
     unitNo: 'QQ-18-08A',
     zone: 'The Pearl Qatar',
@@ -485,7 +502,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-018',
-    realtorMOCI: 'PRV-MOCI-2024-0208',
+    realtorName: 'Betterhomes Qatar',
+    realtorMOCI: 'MOCI-BRK-BHQ-0067',
     property: 'Medina Centrale Tower',
     unitNo: 'MC-12-06C',
     zone: 'The Pearl Qatar',
@@ -512,7 +530,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-019',
-    realtorMOCI: 'PRV-MOCI-2024-0209',
+    realtorName: 'Betterhomes Qatar',
+    realtorMOCI: 'MOCI-BRK-BHQ-0067',
     property: 'Medina Centrale Tower',
     unitNo: 'MC-25-10A',
     zone: 'The Pearl Qatar',
@@ -539,7 +558,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-020',
-    realtorMOCI: 'PRV-MOCI-2024-0210',
+    realtorName: 'NelsonPark Property',
+    realtorMOCI: 'MOCI-BRK-NPP-0112',
     property: 'Pearl Marina View Suites',
     unitNo: 'PMV-03-01B',
     zone: 'The Pearl Qatar',
@@ -566,7 +586,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-021',
-    realtorMOCI: 'PRV-MOCI-2024-0211',
+    realtorName: 'NelsonPark Property',
+    realtorMOCI: 'MOCI-BRK-NPP-0112',
     property: 'Pearl Marina View Suites',
     unitNo: 'PMV-16-05A',
     zone: 'The Pearl Qatar',
@@ -593,7 +614,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-022',
-    realtorMOCI: 'PRV-MOCI-2024-0212',
+    realtorName: 'The Loft Bureau Real Estate',
+    realtorMOCI: 'MOCI-BRK-LFT-0078',
     property: 'Island Elegance Suites',
     unitNo: 'IE-09-04C',
     zone: 'The Pearl Qatar',
@@ -625,7 +647,8 @@ export const mockUnits: UnitListing[] = [
 
   {
     id: 'PRV-023',
-    realtorMOCI: 'PRV-MOCI-2024-0301',
+    realtorName: 'Al Asmakh Real Estate',
+    realtorMOCI: 'MOCI-BRK-ASM-0023',
     property: 'Marina Lusail Residences',
     unitNo: 'ML-11-03A',
     zone: 'Lusail City',
@@ -652,7 +675,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-024',
-    realtorMOCI: 'PRV-MOCI-2024-0302',
+    realtorName: 'Al Asmakh Real Estate',
+    realtorMOCI: 'MOCI-BRK-ASM-0023',
     property: 'Marina Lusail Residences',
     unitNo: 'ML-24-08B',
     zone: 'Lusail City',
@@ -679,7 +703,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-025',
-    realtorMOCI: 'PRV-MOCI-2024-0303',
+    realtorName: 'Al Asmakh Real Estate',
+    realtorMOCI: 'MOCI-BRK-ASM-0023',
     property: 'Fox Hills Compound',
     unitNo: 'FH-V-05',
     zone: 'Lusail City',
@@ -706,7 +731,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-026',
-    realtorMOCI: 'PRV-MOCI-2024-0304',
+    realtorName: 'Al Asmakh Real Estate',
+    realtorMOCI: 'MOCI-BRK-ASM-0023',
     property: 'Fox Hills Compound',
     unitNo: 'FH-V-12',
     zone: 'Lusail City',
@@ -733,7 +759,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-027',
-    realtorMOCI: 'PRV-MOCI-2024-0305',
+    realtorName: 'Premium Property Qatar',
+    realtorMOCI: 'MOCI-BRK-PPQ-0201',
     property: 'Lusail Boulevard Tower',
     unitNo: 'LBT-16-05A',
     zone: 'Lusail City',
@@ -760,7 +787,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-028',
-    realtorMOCI: 'PRV-MOCI-2024-0306',
+    realtorName: 'Premium Property Qatar',
+    realtorMOCI: 'MOCI-BRK-PPQ-0201',
     property: 'Lusail Boulevard Tower',
     unitNo: 'LBT-29-11C',
     zone: 'Lusail City',
@@ -787,7 +815,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-029',
-    realtorMOCI: 'PRV-MOCI-2024-0307',
+    realtorName: 'Capstone Property',
+    realtorMOCI: 'MOCI-BRK-CAP-0145',
     property: 'Al Erkyah City Residences',
     unitNo: 'AE-08-02B',
     zone: 'Lusail City',
@@ -814,7 +843,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-030',
-    realtorMOCI: 'PRV-MOCI-2024-0308',
+    realtorName: 'Capstone Property',
+    realtorMOCI: 'MOCI-BRK-CAP-0145',
     property: 'Al Erkyah City Residences',
     unitNo: 'AE-17-06A',
     zone: 'Lusail City',
@@ -841,7 +871,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-031',
-    realtorMOCI: 'PRV-MOCI-2024-0309',
+    realtorName: 'JMJ Group Holding',
+    realtorMOCI: 'MOCI-REG-JMJ-0067',
     property: 'Lusail City Marina Walk',
     unitNo: 'LCM-05-01A',
     zone: 'Lusail City',
@@ -873,7 +904,8 @@ export const mockUnits: UnitListing[] = [
 
   {
     id: 'PRV-032',
-    realtorMOCI: 'PRV-MOCI-2024-0401',
+    realtorName: 'Direct Real Estate',
+    realtorMOCI: 'MOCI-BRK-DRE-0178',
     property: 'Al Sadd Executive Tower',
     unitNo: 'SET-12-03A',
     zone: 'Al Sadd',
@@ -900,7 +932,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-033',
-    realtorMOCI: 'PRV-MOCI-2024-0402',
+    realtorName: 'Direct Real Estate',
+    realtorMOCI: 'MOCI-BRK-DRE-0178',
     property: 'Al Sadd Executive Tower',
     unitNo: 'SET-22-07B',
     zone: 'Al Sadd',
@@ -927,7 +960,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-034',
-    realtorMOCI: 'PRV-MOCI-2024-0403',
+    realtorName: 'Capital One Real Estate',
+    realtorMOCI: 'MOCI-BRK-CAO-0156',
     property: 'Regency Heights Al Sadd',
     unitNo: 'RH-09-04C',
     zone: 'Al Sadd',
@@ -954,7 +988,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-035',
-    realtorMOCI: 'PRV-MOCI-2024-0404',
+    realtorName: 'Capital One Real Estate',
+    realtorMOCI: 'MOCI-BRK-CAO-0156',
     property: 'Regency Heights Al Sadd',
     unitNo: 'RH-18-09A',
     zone: 'Al Sadd',
@@ -981,7 +1016,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-036',
-    realtorMOCI: 'PRV-MOCI-2024-0405',
+    realtorName: 'Unicorn Real Estate',
+    realtorMOCI: 'MOCI-BRK-UNI-0189',
     property: 'Al Sadd Plaza Residences',
     unitNo: 'SPR-04-02B',
     zone: 'Al Sadd',
@@ -1008,7 +1044,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-037',
-    realtorMOCI: 'PRV-MOCI-2024-0406',
+    realtorName: 'Unicorn Real Estate',
+    realtorMOCI: 'MOCI-BRK-UNI-0189',
     property: 'Al Sadd Plaza Residences',
     unitNo: 'SPR-14-06A',
     zone: 'Al Sadd',
@@ -1035,7 +1072,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-038',
-    realtorMOCI: 'PRV-MOCI-2024-0407',
+    realtorName: 'ABH Real Estate',
+    realtorMOCI: 'MOCI-BRK-ABH-0234',
     property: 'Najma Tower Al Sadd',
     unitNo: 'NTS-07-03C',
     zone: 'Al Sadd',
@@ -1067,7 +1105,8 @@ export const mockUnits: UnitListing[] = [
 
   {
     id: 'PRV-039',
-    realtorMOCI: 'PRV-MOCI-2024-0501',
+    realtorName: 'Maroon Homes',
+    realtorMOCI: 'MOCI-BRK-MRH-0245',
     property: 'Al Waab Garden Villas',
     unitNo: 'WGV-V03',
     zone: 'Al Waab',
@@ -1094,7 +1133,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-040',
-    realtorMOCI: 'PRV-MOCI-2024-0502',
+    realtorName: 'Maroon Homes',
+    realtorMOCI: 'MOCI-BRK-MRH-0245',
     property: 'Al Waab Garden Villas',
     unitNo: 'WGV-V09',
     zone: 'Al Waab',
@@ -1121,7 +1161,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-041',
-    realtorMOCI: 'PRV-MOCI-2024-0503',
+    realtorName: 'Danat Qatar',
+    realtorMOCI: 'MOCI-IPM-DAN-0078',
     property: 'Green Hills Compound',
     unitNo: 'GHC-V04',
     zone: 'Al Waab',
@@ -1148,7 +1189,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-042',
-    realtorMOCI: 'PRV-MOCI-2024-0504',
+    realtorName: 'Danat Qatar',
+    realtorMOCI: 'MOCI-IPM-DAN-0078',
     property: 'Green Hills Compound',
     unitNo: 'GHC-A12',
     zone: 'Al Waab',
@@ -1175,7 +1217,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-043',
-    realtorMOCI: 'PRV-MOCI-2024-0505',
+    realtorName: 'NelsonPark Property',
+    realtorMOCI: 'MOCI-BRK-NPP-0112',
     property: 'Waab Square Tower',
     unitNo: 'WST-07-02B',
     zone: 'Al Waab',
@@ -1207,7 +1250,8 @@ export const mockUnits: UnitListing[] = [
 
   {
     id: 'PRV-044',
-    realtorMOCI: 'PRV-MOCI-2024-0601',
+    realtorName: 'Msheireb Properties',
+    realtorMOCI: 'MOCI-REG-MSH-0001',
     property: 'Heritage House Msheireb',
     unitNo: 'HHM-04-02A',
     zone: 'Msheireb Downtown',
@@ -1234,7 +1278,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-045',
-    realtorMOCI: 'PRV-MOCI-2024-0602',
+    realtorName: 'Msheireb Properties',
+    realtorMOCI: 'MOCI-REG-MSH-0001',
     property: 'Heritage House Msheireb',
     unitNo: 'HHM-11-05C',
     zone: 'Msheireb Downtown',
@@ -1261,7 +1306,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-046',
-    realtorMOCI: 'PRV-MOCI-2024-0603',
+    realtorName: 'Betterhomes Qatar',
+    realtorMOCI: 'MOCI-BRK-BHQ-0067',
     property: 'Downtown Msheireb Tower',
     unitNo: 'DMT-06-03B',
     zone: 'Msheireb Downtown',
@@ -1288,7 +1334,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-047',
-    realtorMOCI: 'PRV-MOCI-2024-0604',
+    realtorName: 'Coreo Real Estate',
+    realtorMOCI: 'MOCI-BRK-CRE-0134',
     property: 'Downtown Msheireb Tower',
     unitNo: 'DMT-15-07A',
     zone: 'Msheireb Downtown',
@@ -1315,7 +1362,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-048',
-    realtorMOCI: 'PRV-MOCI-2024-0605',
+    realtorName: '25 Spaces Real Estate',
+    realtorMOCI: 'MOCI-BRK-25S-0167',
     property: 'Msheireb Executive Suites',
     unitNo: 'MES-03-01C',
     zone: 'Msheireb Downtown',
@@ -1347,7 +1395,8 @@ export const mockUnits: UnitListing[] = [
 
   {
     id: 'PRV-049',
-    realtorMOCI: 'PRV-MOCI-2024-0701',
+    realtorName: 'Al Mana Real Estate',
+    realtorMOCI: 'MOCI-REG-ALM-0034',
     property: 'Dafna Business Suites',
     unitNo: 'DBS-08-04A',
     zone: 'Al Dafna',
@@ -1374,7 +1423,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-050',
-    realtorMOCI: 'PRV-MOCI-2024-0702',
+    realtorName: 'Al Mana Real Estate',
+    realtorMOCI: 'MOCI-REG-ALM-0034',
     property: 'Dafna Business Suites',
     unitNo: 'DBS-18-08B',
     zone: 'Al Dafna',
@@ -1401,7 +1451,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-051',
-    realtorMOCI: 'PRV-MOCI-2024-0703',
+    realtorName: 'Corporate Real Estate Qatar',
+    realtorMOCI: 'MOCI-BRK-CRQ-0212',
     property: 'Al Dafna Tower Residences',
     unitNo: 'DTR-12-05A',
     zone: 'Al Dafna',
@@ -1428,7 +1479,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-052',
-    realtorMOCI: 'PRV-MOCI-2024-0704',
+    realtorName: 'Corporate Real Estate Qatar',
+    realtorMOCI: 'MOCI-BRK-CRQ-0212',
     property: 'Al Dafna Tower Residences',
     unitNo: 'DTR-22-09C',
     zone: 'Al Dafna',
@@ -1460,7 +1512,8 @@ export const mockUnits: UnitListing[] = [
 
   {
     id: 'PRV-053',
-    realtorMOCI: 'PRV-MOCI-2024-0801',
+    realtorName: 'Al Jazi Real Estate',
+    realtorMOCI: 'MOCI-IPM-AJZ-0089',
     property: 'Khalifa Crown Tower',
     unitNo: 'KCT-09-04B',
     zone: 'Madinat Khalifa',
@@ -1487,7 +1540,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-054',
-    realtorMOCI: 'PRV-MOCI-2024-0802',
+    realtorName: 'Al Jazi Real Estate',
+    realtorMOCI: 'MOCI-IPM-AJZ-0089',
     property: 'Khalifa Crown Tower',
     unitNo: 'KCT-21-08A',
     zone: 'Madinat Khalifa',
@@ -1514,7 +1568,8 @@ export const mockUnits: UnitListing[] = [
   },
   {
     id: 'PRV-055',
-    realtorMOCI: 'PRV-MOCI-2024-0803',
+    realtorName: 'Danat Qatar',
+    realtorMOCI: 'MOCI-IPM-DAN-0078',
     property: 'Garden View Khalifa',
     unitNo: 'GVK-V02',
     zone: 'Madinat Khalifa',
