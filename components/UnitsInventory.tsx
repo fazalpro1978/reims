@@ -660,10 +660,15 @@ export default function UnitsInventory() {
                       </td>
 
                       {/* Property */}
-                      <td className="px-4 py-3.5 max-w-[200px]">
-                        <span className="block text-sm font-semibold text-slate-900 truncate" title={unit.property}>
-                          {unit.property}
+                      <td className="px-4 py-3.5" title={unit.property}>
+                        <span className="block text-sm font-semibold text-slate-900">
+                          {unit.property.slice(0, 14)}
                         </span>
+                        {unit.property.length > 14 && (
+                          <span className="block text-xs text-slate-400 mt-0.5">
+                            {unit.property.slice(14, 28)}{unit.property.length > 28 ? '…' : ''}
+                          </span>
+                        )}
                       </td>
 
                       {/* Unit No */}
