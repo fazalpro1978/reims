@@ -177,12 +177,11 @@ function FinancialsTab({ unit }: { unit: UnitListing }) {
   const [contractCharges, setContractCharges] = useState<number>(unit.agencyFee);
   const [additionalCharges, setAdditionalCharges] = useState<number>(unit.serviceCharges);
 
-  const firstMonthTotal = monthlyRent + contractCharges + monthlyRent + additionalCharges;
+  const firstMonthTotal = monthlyRent + contractCharges + additionalCharges;
 
   const bannerRows = [
     { label: 'Monthly Rent',       amount: monthlyRent },
     { label: 'Contract Charges',   amount: contractCharges },
-    { label: 'Security Deposit',   amount: monthlyRent },
     { label: 'Additional Charges', amount: additionalCharges },
   ];
 
@@ -234,6 +233,7 @@ function FinancialsTab({ unit }: { unit: UnitListing }) {
             <div className="flex items-baseline gap-2">
               <span className="font-semibold text-slate-800">{formatQAR(monthlyRent)}</span>
               <span className="text-xs text-slate-400">= 1 month&apos;s rent</span>
+              <span className="text-xs font-semibold text-emerald-600">(REFUNDABLE)</span>
             </div>
           }
         />
