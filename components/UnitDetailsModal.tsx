@@ -173,73 +173,113 @@ function PropertyTab({ unit }: { unit: UnitListing }) {
 // ── Tab B: Financials ──────────────────────────────────────────────────────
 
 function FinancialsTab({ unit }: { unit: UnitListing }) {
-  const annualRent = unit.rent * 12;
-  const totalMonthly = unit.rent + unit.serviceCharges;
+  const firstMonthTotal =
+    unit.rent + unit.agencyFee + unit.depositAmount + unit.serviceCharges;
+
+  const lineItems = [
+    {
+      label: 'Monthly Rent',
+      amount: unit.rent,
+      note: '/ month',
+      highlight: true,
+    },
+    {
+      label: 'Contract Charges',
+      amount: unit.agencyFee,
+      note: `${unit.agencyFeePercentage}% agency fee`,
+      highlight: false,
+    },
+    {
+      label: 'Security Deposit',
+      amount: unit.depositAmount,
+      note: `${(unit.depositAmount / unit.rent).toFixed(1)} months' rent`,
+      highlight: false,
+    },
+    {
+      label: 'Additional Charges',
+      amount: unit.serviceCharges,
+      note: 'service & utilities / month',
+      highlight: false,
+    },
+  ];
 
   return (
     <div className="space-y-4">
+
+      {/* ── Rent & Charges breakdown ── */}
       <SectionCard title="Rent & Charges">
-        <FieldRow
-          label="Base Rent"
-          value={
-            <span className="text-lg font-bold text-slate-900">
-              {formatQAR(unit.rent)}
-              <span className="text-sm font-normal text-slate-400"> / month</span>
-            </span>
-          }
-        />
-        <FieldRow
-          label="Annual Rent"
-          value={<span className="font-medium text-slate-700">{formatQAR(annualRent)}</span>}
-        />
-        <FieldRow
-          label="Service / Utility Charges"
-          value={
-            <span>
-              {formatQAR(unit.serviceCharges)}
-              <span className="text-xs text-slate-400 ml-1">/ month</span>
-            </span>
-          }
-        />
-        <FieldRow
-          label="Total Monthly Cost"
-          value={
-            <span className="font-semibold text-slate-900">
-              {formatQAR(totalMonthly)}
-              <span className="text-sm font-normal text-slate-400"> / month</span>
-            </span>
-          }
-        />
+        {lineItems.map(({ label, amount, note, highlight }) => (
+          <FieldRow
+            key={label}
+            label={label}
+            value={
+              <div className="flex items-baseline gap-2">
+                <span className={highlight
+                  ? 'text-lg font-bold text-slate-900'
+                  : 'font-semibold text-slate-800'}>
+                  {formatQAR(amount)}
+                </span>
+                {note && (
+                  <span className="text-xs text-slate-400">{note}</span>
+                )}
+              </div>
+            }
+          />
+        ))}
       </SectionCard>
-      <SectionCard title="Security Deposit">
-        <FieldRow
-          label="Deposit Amount"
-          value={<span className="font-semibold">{formatQAR(unit.depositAmount)}</span>}
-        />
-        <FieldRow
-          label="Equivalent"
-          value={
-            <span className="text-slate-500">
-              {(unit.depositAmount / unit.rent).toFixed(1)} months' rent
-            </span>
-          }
-        />
-      </SectionCard>
-      <div className="rounded-xl bg-slate-900 p-4">
-        <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-2">Summary</p>
-        <div className="grid grid-cols-3 gap-4">
-          {[
-            { label: 'Monthly', val: formatQAR(unit.rent) },
-            { label: 'Annual', val: formatQAR(annualRent) },
-            { label: 'Deposit', val: formatQAR(unit.depositAmount) },
-          ].map(({ label, val }) => (
-            <div key={label}>
-              <p className="text-slate-400 text-xs">{label}</p>
-              <p className="text-white text-sm font-semibold mt-0.5">{val}</p>
+
+      {/* ── 1st Month Payment Banner ── */}
+      <div className="rounded-xl overflow-hidden shadow-sm">
+        {/* Banner header */}
+        <div className="bg-amber-500 px-5 py-3 flex items-center justify-between">
+          <div>
+            <p className="text-amber-950 text-xs font-bold uppercase tracking-wider">
+              Move-In Payment Summary
+            </p>
+            <p className="text-amber-900 text-[11px] mt-0.5 opacity-80">
+              Total amount due upon lease signing
+            </p>
+          </div>
+          <svg className="w-7 h-7 text-amber-800 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75" />
+          </svg>
+        </div>
+
+        {/* Banner body */}
+        <div className="bg-slate-900 px-5 py-5">
+          {/* Total figure */}
+          <div className="flex items-end justify-between mb-4">
+            <div>
+              <p className="text-slate-400 text-[11px] uppercase tracking-widest">
+                Total 1st Month to Pay
+              </p>
+              <p className="text-white text-2xl font-bold mt-1 tabular-nums">
+                {formatQAR(firstMonthTotal)}
+              </p>
             </div>
-          ))}
+            <span className="text-slate-600 text-xs font-mono">QAR</span>
+          </div>
+
+          {/* Breakdown grid */}
+          <div className="border-t border-slate-700 pt-3 space-y-2">
+            {lineItems.map(({ label, amount }) => (
+              <div key={label} className="flex items-center justify-between text-xs">
+                <span className="text-slate-400">{label}</span>
+                <span className="text-slate-300 font-medium tabular-nums">
+                  {formatQAR(amount)}
+                </span>
+              </div>
+            ))}
+            <div className="flex items-center justify-between text-xs pt-2 mt-1 border-t border-slate-700">
+              <span className="text-slate-300 font-semibold uppercase tracking-wider">Total</span>
+              <span className="text-amber-400 font-bold tabular-nums">
+                {formatQAR(firstMonthTotal)}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
+
     </div>
   );
 }
