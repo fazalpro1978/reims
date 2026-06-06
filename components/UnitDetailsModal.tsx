@@ -173,34 +173,16 @@ function PropertyTab({ unit }: { unit: UnitListing }) {
 // ── Tab B: Financials ──────────────────────────────────────────────────────
 
 function FinancialsTab({ unit }: { unit: UnitListing }) {
-  const firstMonthTotal =
-    unit.rent + unit.agencyFee + unit.rent + unit.serviceCharges;
+  const [contractCharges, setContractCharges] = useState<number>(unit.agencyFee);
+  const [additionalCharges, setAdditionalCharges] = useState<number>(unit.serviceCharges);
 
-  const lineItems = [
-    {
-      label: 'Monthly Rent',
-      amount: unit.rent,
-      note: '/ month',
-      highlight: true,
-    },
-    {
-      label: 'Contract Charges',
-      amount: unit.agencyFee,
-      note: `${unit.agencyFeePercentage}% agency fee`,
-      highlight: false,
-    },
-    {
-      label: 'Security Deposit',
-      amount: unit.rent,
-      note: '= 1 month\'s rent',
-      highlight: false,
-    },
-    {
-      label: 'Additional Charges',
-      amount: unit.serviceCharges,
-      note: 'service & utilities / month',
-      highlight: false,
-    },
+  const firstMonthTotal = unit.rent + contractCharges + unit.rent + additionalCharges;
+
+  const bannerRows = [
+    { label: 'Monthly Rent',       amount: unit.rent },
+    { label: 'Contract Charges',   amount: contractCharges },
+    { label: 'Security Deposit',   amount: unit.rent },
+    { label: 'Additional Charges', amount: additionalCharges },
   ];
 
   return (
@@ -208,24 +190,63 @@ function FinancialsTab({ unit }: { unit: UnitListing }) {
 
       {/* ── Rent & Charges breakdown ── */}
       <SectionCard title="Rent & Charges">
-        {lineItems.map(({ label, amount, note, highlight }) => (
-          <FieldRow
-            key={label}
-            label={label}
-            value={
-              <div className="flex items-baseline gap-2">
-                <span className={highlight
-                  ? 'text-lg font-bold text-slate-900'
-                  : 'font-semibold text-slate-800'}>
-                  {formatQAR(amount)}
-                </span>
-                {note && (
-                  <span className="text-xs text-slate-400">{note}</span>
-                )}
-              </div>
-            }
-          />
-        ))}
+
+        {/* Monthly Rent — fixed */}
+        <FieldRow
+          label="Monthly Rent"
+          value={
+            <div className="flex items-baseline gap-2">
+              <span className="text-lg font-bold text-slate-900">{formatQAR(unit.rent)}</span>
+              <span className="text-xs text-slate-400">/ month</span>
+            </div>
+          }
+        />
+
+        {/* Contract Charges — editable */}
+        <FieldRow
+          label="Contract Charges"
+          value={
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-slate-500 select-none">QAR</span>
+              <input
+                type="number"
+                min={0}
+                value={contractCharges}
+                onChange={(e) => setContractCharges(Math.max(0, Number(e.target.value)))}
+                className="w-32 text-right text-sm font-semibold text-slate-900 bg-white border border-slate-300 rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 tabular-nums"
+              />
+            </div>
+          }
+        />
+
+        {/* Security Deposit — fixed (1 month) */}
+        <FieldRow
+          label="Security Deposit"
+          value={
+            <div className="flex items-baseline gap-2">
+              <span className="font-semibold text-slate-800">{formatQAR(unit.rent)}</span>
+              <span className="text-xs text-slate-400">= 1 month&apos;s rent</span>
+            </div>
+          }
+        />
+
+        {/* Additional Charges — editable */}
+        <FieldRow
+          label="Additional Charges"
+          value={
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-slate-500 select-none">QAR</span>
+              <input
+                type="number"
+                min={0}
+                value={additionalCharges}
+                onChange={(e) => setAdditionalCharges(Math.max(0, Number(e.target.value)))}
+                className="w-32 text-right text-sm font-semibold text-slate-900 bg-white border border-slate-300 rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 tabular-nums"
+              />
+            </div>
+          }
+        />
+
       </SectionCard>
 
       {/* ── 1st Month Payment Banner ── */}
@@ -247,7 +268,6 @@ function FinancialsTab({ unit }: { unit: UnitListing }) {
 
         {/* Banner body */}
         <div className="bg-slate-900 px-5 py-5">
-          {/* Total figure */}
           <div className="flex items-end justify-between mb-4">
             <div>
               <p className="text-slate-400 text-[11px] uppercase tracking-widest">
@@ -259,10 +279,8 @@ function FinancialsTab({ unit }: { unit: UnitListing }) {
             </div>
             <span className="text-slate-600 text-xs font-mono">QAR</span>
           </div>
-
-          {/* Breakdown grid */}
           <div className="border-t border-slate-700 pt-3 space-y-2">
-            {lineItems.map(({ label, amount }) => (
+            {bannerRows.map(({ label, amount }) => (
               <div key={label} className="flex items-center justify-between text-xs">
                 <span className="text-slate-400">{label}</span>
                 <span className="text-slate-300 font-medium tabular-nums">
