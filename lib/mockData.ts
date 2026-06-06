@@ -477,7 +477,7 @@ export const mockUnits: UnitListing[] = [
     mociContractStatus: 'REGISTERED',
     mociContractNumber: 'MOCI-2024-PL-0207',
     legalDuration: '2 Years',
-    maintenanceNotes: 'No active tickets. Tenant's renewal processed Sept 2024.',
+    maintenanceNotes: 'No active tickets. Tenant renewal processed Sept 2024.',
     accessLockbox: 'Code: 8830 — Qanat Block 18, Level 8',
     assetHistoryLinks: ['https://drive.google.com/file/d/prv-hist-017-v1'],
     listedDate: '2024-01-10',
