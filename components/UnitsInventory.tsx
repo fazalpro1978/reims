@@ -67,17 +67,38 @@ const KITCHEN_BADGE: Record<KitchenType, string> = {
   Pantry: 'border border-amber-300  text-amber-700  bg-amber-50',
 };
 
+function IconShower() {
+  return (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 22L14 12" />
+      <circle cx="16" cy="8" r="4" />
+      <line x1="11" y1="17" x2="11" y2="19" />
+      <line x1="14" y1="18" x2="14" y2="20" />
+      <line x1="17" y1="17" x2="17" y2="19" />
+    </svg>
+  );
+}
+
+function IconToilet() {
+  return (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="7" y="2" width="10" height="5" rx="1" />
+      <path d="M6 7h12c0 5.5-2.5 9-6 9s-6-3.5-6-9z" />
+    </svg>
+  );
+}
+
 function BathCell({ n }: { n: number }) {
   const full = Math.floor(n);
   const half = n % 1 >= 0.5;
   const shown = Math.min(full, 4);
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex items-center gap-1">
       {Array.from({ length: shown }).map((_, i) => (
-        <span key={i} className="w-2.5 h-2.5 rounded-full bg-blue-200 border border-blue-400 inline-block" />
+        <span key={i} className="text-blue-400"><IconShower /></span>
       ))}
       {full > 4 && <span className="text-[10px] text-slate-400">+{full - 4}</span>}
-      {half && <span className="text-[10px] text-slate-400 ml-0.5">+½</span>}
+      {half && <span className="text-slate-400"><IconToilet /></span>}
       <span className="ml-1 text-sm text-slate-700">{n % 1 === 0 ? n : n.toFixed(1)}</span>
     </div>
   );
