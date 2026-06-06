@@ -52,7 +52,7 @@ const formatQAR = (n: number) => `QAR ${n.toLocaleString('en-US')}`;
 
 function generateShareText(unit: UnitListing): string {
   return (
-    `Property: ${unit.property}, Unit: ${unit.unitNo}, Zone: ${unit.zone}, ` +
+    `Property: ${unit.property}, Unit: ${unit.unitNo}, District: ${unit.zone} (Zone ${unit.zoneCode}), ` +
     `Type: ${unit.subType}, Furnishing: ${unit.furnishing}, ` +
     `Rent: QAR ${unit.rent.toLocaleString()}/month, Status: ${unit.status.replace('_', ' ')}, ` +
     `Realtor (MOCI): ${unit.realtorMOCI}`
@@ -532,7 +532,7 @@ export default function UnitsInventory() {
               onChange={(e) => { setZoneFilter(e.target.value); resetPage(); }}
               className="px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-500 min-w-[150px] cursor-pointer"
             >
-              <option value="All">All Zones</option>
+              <option value="All">All Districts</option>
               {allZones.map((z) => (
                 <option key={z} value={z}>{z}</option>
               ))}
@@ -571,7 +571,7 @@ export default function UnitsInventory() {
                     'Realtor',
                     'Property',
                     'Unit No.',
-                    'Zone',
+                    'District / Area',
                     'Type / Sub-Type',
                     'Furnishing',
                     'Rent (QAR/mo)',
@@ -629,9 +629,10 @@ export default function UnitsInventory() {
                         {unit.unitNo}
                       </td>
 
-                      {/* Zone */}
-                      <td className="px-4 py-3.5 text-sm text-slate-600 whitespace-nowrap">
-                        {unit.zone}
+                      {/* District / Area */}
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <span className="text-sm text-slate-700">{unit.zone}</span>
+                        <span className="ml-1.5 text-[10px] font-mono text-slate-400">Z{unit.zoneCode}</span>
                       </td>
 
                       {/* Type / Sub-Type */}

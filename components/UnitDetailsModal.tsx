@@ -87,7 +87,12 @@ function PropertyTab({ unit }: { unit: UnitListing }) {
         />
         <FieldRow label="Property Name" value={<strong className="font-semibold">{unit.property}</strong>} />
         <FieldRow label="Unit Number" value={<span className="font-mono">{unit.unitNo}</span>} />
-        <FieldRow label="Zone / District" value={unit.zone} />
+        <FieldRow label="District / Area" value={<strong className="font-semibold">{unit.zone}</strong>} />
+        <FieldRow label="Zone Code" value={
+          <span className="font-mono text-sm bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded">
+            Zone {unit.zoneCode}
+          </span>
+        } />
       </SectionCard>
       <SectionCard title="Classification">
         <FieldRow label="Unit Type" value={unit.type} />
@@ -344,7 +349,7 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
   // Build share payload
   const sharePayload =
     `Property: ${unit.property}\n` +
-    `Unit: ${unit.unitNo} | Zone: ${unit.zone}\n` +
+    `Unit: ${unit.unitNo} | District: ${unit.zone} (Zone ${unit.zoneCode})\n` +
     `Type: ${unit.subType} | ${unit.furnishing}\n` +
     `Rent: QAR ${unit.rent.toLocaleString()}/month\n` +
     `Status: ${unit.status.replace('_', ' ')}\n` +
@@ -386,6 +391,7 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
                 <span className="text-slate-400 text-xs font-mono">{unit.unitNo}</span>
                 <span className="text-slate-600 text-xs">·</span>
                 <span className="text-slate-400 text-xs">{unit.zone}</span>
+                <span className="text-slate-600 text-xs font-mono">Z{unit.zoneCode}</span>
               </div>
               <h2 className="text-white text-xl font-semibold mt-2 truncate">{unit.property}</h2>
               <p className="text-slate-400 text-sm mt-0.5">

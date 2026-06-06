@@ -59,7 +59,8 @@ export interface UnitListing {
   // ── Property ──────────────────────────────────────────────────────────────
   property: string;
   unitNo: string;
-  zone: string;
+  zoneCode: number;    // Official Qatar municipality zone number
+  zone: string;        // Official district / area name from Qatar zone registry
   type: UnitType;
   subType: SubType;
 
