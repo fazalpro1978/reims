@@ -31,22 +31,7 @@ export enum UnitType {
   Office = 'Office',
 }
 
-export enum SubType {
-  Studio = 'Studio',
-  BHK_1 = '1 BHK',
-  BHK_2 = '2 BHK',
-  BHK_3 = '3 BHK',
-  BHK_4 = '4 BHK',
-  BHK_5 = '5 BHK',
-  Villa_3BR = '3BR Villa',
-  Villa_4BR = '4BR Villa',
-  Villa_5BR = '5BR Villa',
-  Penthouse = 'Penthouse',
-  Duplex_3BR = '3BR Duplex',
-  Duplex_4BR = '4BR Duplex',
-  Commercial_Small = 'Office (Small)',
-  Commercial_Large = 'Office (Large)',
-}
+export type KitchenType = 'Open' | 'Closed' | 'Yes' | 'Pantry';
 
 export type MociContractStatus = 'REGISTERED' | 'PENDING' | 'RENEWAL_DUE' | 'EXPIRED' | 'DRAFT';
 
@@ -62,7 +47,12 @@ export interface UnitListing {
   zoneCode: number;    // Official Qatar municipality zone number
   zone: string;        // Official district / area name from Qatar zone registry
   type: UnitType;
-  subType: SubType;
+  config: string;      // Bedroom/maid config, e.g. "3 BHK", "4 BHK + Maid"
+
+  // ── Unit Features ─────────────────────────────────────────────────────────
+  bathrooms: number;   // Full baths + 0.5 for half bath/toilet
+  parking: boolean;
+  kitchen: KitchenType;
 
   // ── Classification ────────────────────────────────────────────────────────
   furnishing: Furnishing;

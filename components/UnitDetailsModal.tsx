@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, { useState, useEffect } from 'react';
-import { UnitListing, Status, Furnishing } from '../types/inventory';
+import { UnitListing, Status, Furnishing, KitchenType } from '../types/inventory';
 
 type TabId = 'property' | 'financials' | 'commission' | 'operational';
 
@@ -33,6 +33,13 @@ const FURNISHING_BADGE: Record<Furnishing, string> = {
   [Furnishing.Fully_Furnished]: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20',
   [Furnishing.Semi_Furnished]: 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/20',
   [Furnishing.Unfurnished]: 'bg-slate-100 text-slate-600 ring-1 ring-slate-500/20',
+};
+
+const KITCHEN_BADGE: Record<KitchenType, string> = {
+  Open:   'border border-emerald-300 text-emerald-700 bg-emerald-50',
+  Closed: 'border border-rose-300   text-rose-700   bg-rose-50',
+  Yes:    'border border-green-300  text-green-700  bg-green-50',
+  Pantry: 'border border-amber-300  text-amber-700  bg-amber-50',
 };
 
 const MOCI_BADGE: Record<string, string> = {
@@ -96,7 +103,25 @@ function PropertyTab({ unit }: { unit: UnitListing }) {
       </SectionCard>
       <SectionCard title="Classification">
         <FieldRow label="Unit Type" value={unit.type} />
-        <FieldRow label="Sub-Type Config" value={unit.subType} />
+        <FieldRow label="Config" value={<strong className="font-semibold">{unit.config}</strong>} />
+        <FieldRow label="Bathrooms" value={
+          <span className="font-mono text-sm">{unit.bathrooms % 1 === 0 ? unit.bathrooms : unit.bathrooms.toFixed(1)}</span>
+        } />
+        <FieldRow label="Parking" value={
+          unit.parking
+            ? <span className="inline-flex items-center gap-1 text-emerald-700 text-sm font-medium">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+                Included
+              </span>
+            : <span className="text-slate-400 text-sm">Not included</span>
+        } />
+        <FieldRow label="Kitchen" value={
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${KITCHEN_BADGE[unit.kitchen]}`}>
+            {unit.kitchen}
+          </span>
+        } />
         <FieldRow
           label="Furnishing State"
           value={
@@ -350,7 +375,7 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
   const sharePayload =
     `Property: ${unit.property}\n` +
     `Unit: ${unit.unitNo} | District: ${unit.zone} (Zone ${unit.zoneCode})\n` +
-    `Type: ${unit.subType} | ${unit.furnishing}\n` +
+    `Type: ${unit.type} · ${unit.config} | ${unit.furnishing}\n` +
     `Rent: QAR ${unit.rent.toLocaleString()}/month\n` +
     `Status: ${unit.status.replace('_', ' ')}\n` +
     `Realtor: ${unit.realtorName} (${unit.realtorMOCI})`;
@@ -395,7 +420,7 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
               </div>
               <h2 className="text-white text-xl font-semibold mt-2 truncate">{unit.property}</h2>
               <p className="text-slate-400 text-sm mt-0.5">
-                {unit.type} · {unit.subType} · {unit.furnishing}
+                {unit.type} · {unit.config} · {unit.furnishing}
               </p>
             </div>
             <button

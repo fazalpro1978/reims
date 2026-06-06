@@ -16,6 +16,7 @@ import {
   UnitListing,
   Status,
   Furnishing,
+  KitchenType,
   StatusFilter,
   FurnishingFilter,
   ContextMenuPosition,
@@ -53,9 +54,44 @@ const formatQAR = (n: number) => `QAR ${n.toLocaleString('en-US')}`;
 function generateShareText(unit: UnitListing): string {
   return (
     `Property: ${unit.property}, Unit: ${unit.unitNo}, District: ${unit.zone} (Zone ${unit.zoneCode}), ` +
-    `Type: ${unit.subType}, Furnishing: ${unit.furnishing}, ` +
+    `Type: ${unit.type} · ${unit.config}, Furnishing: ${unit.furnishing}, ` +
     `Rent: QAR ${unit.rent.toLocaleString()}/month, Status: ${unit.status.replace('_', ' ')}, ` +
     `Realtor (MOCI): ${unit.realtorMOCI}`
+  );
+}
+
+const KITCHEN_BADGE: Record<KitchenType, string> = {
+  Open:   'border border-emerald-300 text-emerald-700 bg-emerald-50',
+  Closed: 'border border-rose-300   text-rose-700   bg-rose-50',
+  Yes:    'border border-green-300  text-green-700  bg-green-50',
+  Pantry: 'border border-amber-300  text-amber-700  bg-amber-50',
+};
+
+function BathCell({ n }: { n: number }) {
+  const full = Math.floor(n);
+  const half = n % 1 >= 0.5;
+  const shown = Math.min(full, 4);
+  return (
+    <div className="flex items-center gap-0.5">
+      {Array.from({ length: shown }).map((_, i) => (
+        <span key={i} className="w-2.5 h-2.5 rounded-full bg-blue-200 border border-blue-400 inline-block" />
+      ))}
+      {full > 4 && <span className="text-[10px] text-slate-400">+{full - 4}</span>}
+      {half && <span className="text-[10px] text-slate-400 ml-0.5">+½</span>}
+      <span className="ml-1 text-sm text-slate-700">{n % 1 === 0 ? n : n.toFixed(1)}</span>
+    </div>
+  );
+}
+
+function ParkingCell({ has }: { has: boolean }) {
+  return has ? (
+    <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-emerald-100 text-emerald-600">
+      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+      </svg>
+    </span>
+  ) : (
+    <span className="text-slate-300 text-base leading-none select-none">—</span>
   );
 }
 
@@ -564,7 +600,7 @@ export default function UnitsInventory() {
         ══════════════════════════════════════════════════════════════════════ */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1280px] border-collapse">
+            <table className="w-full min-w-[1680px] border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-gray-200">
                   {[
@@ -572,7 +608,11 @@ export default function UnitsInventory() {
                     'Property',
                     'Unit No.',
                     'District / Area',
-                    'Type / Sub-Type',
+                    'Type',
+                    'Config',
+                    'Bath',
+                    'Parking',
+                    'Kitchen',
                     'Furnishing',
                     'Rent (QAR/mo)',
                     'Status',
@@ -583,7 +623,9 @@ export default function UnitsInventory() {
                     <th
                       key={i}
                       className={`px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap ${
-                        col === 'Rent (QAR/mo)' ? 'text-right' : col === 'Location' || col === 'Media' || col === '' ? 'text-center' : 'text-left'
+                        col === 'Rent (QAR/mo)' ? 'text-right'
+                        : col === 'Location' || col === 'Media' || col === '' || col === 'Parking' ? 'text-center'
+                        : 'text-left'
                       }`}
                     >
                       {col}
@@ -594,7 +636,7 @@ export default function UnitsInventory() {
               <tbody>
                 {paginatedUnits.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-4 py-14 text-center">
+                    <td colSpan={15} className="px-4 py-14 text-center">
                       <p className="text-slate-400 text-sm">No units match the current filter combination.</p>
                       {hasActiveFilters && (
                         <button
@@ -635,11 +677,31 @@ export default function UnitsInventory() {
                         <span className="ml-1.5 text-[10px] font-mono text-slate-400">Z{unit.zoneCode}</span>
                       </td>
 
-                      {/* Type / Sub-Type */}
+                      {/* Type */}
+                      <td className="px-4 py-3.5 text-sm text-slate-500 whitespace-nowrap">
+                        {unit.type}
+                      </td>
+
+                      {/* Config */}
+                      <td className="px-4 py-3.5 text-sm font-medium text-slate-800 whitespace-nowrap">
+                        {unit.config}
+                      </td>
+
+                      {/* Bath */}
                       <td className="px-4 py-3.5 whitespace-nowrap">
-                        <span className="text-xs text-slate-400">{unit.type}</span>
-                        <span className="mx-1 text-slate-300">·</span>
-                        <span className="text-sm text-slate-700">{unit.subType}</span>
+                        <BathCell n={unit.bathrooms} />
+                      </td>
+
+                      {/* Parking */}
+                      <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                        <ParkingCell has={unit.parking} />
+                      </td>
+
+                      {/* Kitchen */}
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${KITCHEN_BADGE[unit.kitchen]}`}>
+                          {unit.kitchen}
+                        </span>
                       </td>
 
                       {/* Furnishing */}
