@@ -173,15 +173,16 @@ function PropertyTab({ unit }: { unit: UnitListing }) {
 // ── Tab B: Financials ──────────────────────────────────────────────────────
 
 function FinancialsTab({ unit }: { unit: UnitListing }) {
+  const [monthlyRent, setMonthlyRent] = useState<number>(unit.rent);
   const [contractCharges, setContractCharges] = useState<number>(unit.agencyFee);
   const [additionalCharges, setAdditionalCharges] = useState<number>(unit.serviceCharges);
 
-  const firstMonthTotal = unit.rent + contractCharges + unit.rent + additionalCharges;
+  const firstMonthTotal = monthlyRent + contractCharges + monthlyRent + additionalCharges;
 
   const bannerRows = [
-    { label: 'Monthly Rent',       amount: unit.rent },
+    { label: 'Monthly Rent',       amount: monthlyRent },
     { label: 'Contract Charges',   amount: contractCharges },
-    { label: 'Security Deposit',   amount: unit.rent },
+    { label: 'Security Deposit',   amount: monthlyRent },
     { label: 'Additional Charges', amount: additionalCharges },
   ];
 
@@ -191,12 +192,19 @@ function FinancialsTab({ unit }: { unit: UnitListing }) {
       {/* ── Rent & Charges breakdown ── */}
       <SectionCard title="Rent & Charges">
 
-        {/* Monthly Rent — fixed */}
+        {/* Monthly Rent — editable */}
         <FieldRow
           label="Monthly Rent"
           value={
-            <div className="flex items-baseline gap-2">
-              <span className="text-lg font-bold text-slate-900">{formatQAR(unit.rent)}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-slate-500 select-none">QAR</span>
+              <input
+                type="number"
+                min={0}
+                value={monthlyRent}
+                onChange={(e) => setMonthlyRent(Math.max(0, Number(e.target.value)))}
+                className="w-32 text-right text-sm font-bold text-slate-900 bg-white border border-slate-300 rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 tabular-nums"
+              />
               <span className="text-xs text-slate-400">/ month</span>
             </div>
           }
@@ -224,7 +232,7 @@ function FinancialsTab({ unit }: { unit: UnitListing }) {
           label="Security Deposit"
           value={
             <div className="flex items-baseline gap-2">
-              <span className="font-semibold text-slate-800">{formatQAR(unit.rent)}</span>
+              <span className="font-semibold text-slate-800">{formatQAR(monthlyRent)}</span>
               <span className="text-xs text-slate-400">= 1 month&apos;s rent</span>
             </div>
           }
