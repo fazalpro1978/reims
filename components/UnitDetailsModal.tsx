@@ -174,7 +174,7 @@ function PropertyTab({ unit }: { unit: UnitListing }) {
 
 function FinancialsTab({ unit }: { unit: UnitListing }) {
   const firstMonthTotal =
-    unit.rent + unit.agencyFee + unit.depositAmount + unit.serviceCharges;
+    unit.rent + unit.agencyFee + unit.rent + unit.serviceCharges;
 
   const lineItems = [
     {
@@ -191,8 +191,8 @@ function FinancialsTab({ unit }: { unit: UnitListing }) {
     },
     {
       label: 'Security Deposit',
-      amount: unit.depositAmount,
-      note: `${(unit.depositAmount / unit.rent).toFixed(1)} months' rent`,
+      amount: unit.rent,
+      note: '= 1 month\'s rent',
       highlight: false,
     },
     {
