@@ -672,9 +672,9 @@ export default function UnitsInventory() {
                       </td>
 
                       {/* District / Area */}
-                      <td className="px-4 py-3.5 whitespace-nowrap">
-                        <span className="text-sm text-slate-700">{unit.zone}</span>
-                        <span className="ml-1.5 text-[10px] font-mono text-slate-400">Z{unit.zoneCode}</span>
+                      <td className="px-4 py-3.5">
+                        <span className="block text-sm font-bold text-slate-900 font-mono">Z-{unit.zoneCode}</span>
+                        <span className="block text-xs text-slate-400 mt-0.5 max-w-[160px] leading-snug">{unit.zone}</span>
                       </td>
 
                       {/* Type */}
