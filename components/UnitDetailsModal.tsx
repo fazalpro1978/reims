@@ -172,10 +172,70 @@ function PropertyTab({ unit }: { unit: UnitListing }) {
 
 // ── Tab B: Financials ──────────────────────────────────────────────────────
 
+function ApplicableToggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className="inline-flex rounded-lg overflow-hidden border border-slate-200 text-xs font-medium">
+      <button
+        type="button"
+        onClick={() => onChange(true)}
+        className={`px-3 py-1.5 transition-colors ${value ? 'bg-emerald-500 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+      >
+        Applicable
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange(false)}
+        className={`px-3 py-1.5 border-l border-slate-200 transition-colors ${!value ? 'bg-slate-400 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+      >
+        Not Applicable
+      </button>
+    </div>
+  );
+}
+
+function DepositRow({ label, applicable, onToggle, amount, onAmount }: {
+  label: string;
+  applicable: boolean;
+  onToggle: (v: boolean) => void;
+  amount: number;
+  onAmount: (v: number) => void;
+}) {
+  return (
+    <FieldRow
+      label={label}
+      value={
+        <div className="flex flex-col gap-2">
+          <ApplicableToggle value={applicable} onChange={onToggle} />
+          {applicable && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-slate-500 select-none">QAR</span>
+              <input
+                type="number"
+                min={0}
+                value={amount}
+                onChange={(e) => onAmount(Math.max(0, Number(e.target.value)))}
+                className="w-32 text-right text-sm font-semibold text-slate-900 bg-white border border-slate-300 rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 tabular-nums"
+              />
+            </div>
+          )}
+        </div>
+      }
+    />
+  );
+}
+
 function FinancialsTab({ unit }: { unit: UnitListing }) {
   const [monthlyRent, setMonthlyRent] = useState<number>(unit.rent);
   const [contractCharges, setContractCharges] = useState<number>(unit.agencyFee);
   const [additionalCharges, setAdditionalCharges] = useState<number>(unit.serviceCharges);
+
+  const [serviceUtility, setServiceUtility] = useState<boolean>(true);
+  const [kahramaaApplicable, setKahramaaApplicable] = useState<boolean>(true);
+  const [kahramaaAmount, setKahramaaAmount] = useState<number>(2000);
+  const [qatarCoolApplicable, setQatarCoolApplicable] = useState<boolean>(true);
+  const [qatarCoolAmount, setQatarCoolAmount] = useState<number>(3000);
+  const [marafeqApplicable, setMarafeqApplicable] = useState<boolean>(true);
+  const [marafeqAmount, setMarafeqAmount] = useState<number>(3000);
 
   const firstMonthTotal = monthlyRent + contractCharges + additionalCharges;
 
@@ -255,6 +315,39 @@ function FinancialsTab({ unit }: { unit: UnitListing }) {
           }
         />
 
+      </SectionCard>
+
+      {/* ── Service & Utility Charges ── */}
+      <SectionCard title="Service & Utility Charges">
+        <FieldRow
+          label="Service & Utility"
+          value={<ApplicableToggle value={serviceUtility} onChange={setServiceUtility} />}
+        />
+        {serviceUtility && (
+          <>
+            <DepositRow
+              label="Kahramaa Deposit"
+              applicable={kahramaaApplicable}
+              onToggle={setKahramaaApplicable}
+              amount={kahramaaAmount}
+              onAmount={setKahramaaAmount}
+            />
+            <DepositRow
+              label="Qatar Cool Deposit"
+              applicable={qatarCoolApplicable}
+              onToggle={setQatarCoolApplicable}
+              amount={qatarCoolAmount}
+              onAmount={setQatarCoolAmount}
+            />
+            <DepositRow
+              label="Marafeq Deposit"
+              applicable={marafeqApplicable}
+              onToggle={setMarafeqApplicable}
+              amount={marafeqAmount}
+              onAmount={setMarafeqAmount}
+            />
+          </>
+        )}
       </SectionCard>
 
       {/* ── 1st Month Payment Banner ── */}
