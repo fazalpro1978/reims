@@ -449,6 +449,234 @@ const PAID_BY_OPTIONS = [
 
 type PaidByOption = typeof PAID_BY_OPTIONS[number];
 
+// ── Client Info ────────────────────────────────────────────────────────────
+
+type ClientType = 'Individual' | 'Company';
+
+interface ClientDocUrls {
+  qid: string;
+  passport: string;
+  cr: string;
+  computerCard: string;
+}
+
+function ClientTypeToggle({ value, onChange }: { value: ClientType; onChange: (v: ClientType) => void }) {
+  return (
+    <div className="inline-flex rounded-lg overflow-hidden border border-[#333333] text-xs font-semibold">
+      {(['Individual', 'Company'] as ClientType[]).map((opt, i) => (
+        <button
+          key={opt}
+          type="button"
+          onClick={() => onChange(opt)}
+          className={`px-4 py-1.5 transition-colors ${i > 0 ? 'border-l border-[#333333]' : ''} ${
+            value === opt
+              ? 'bg-[#c9a84c] text-[#0f0f0f]'
+              : 'bg-[#1e1e1e] text-[#666666] hover:bg-[#252525] hover:text-[#aaaaaa]'
+          }`}
+        >
+          {opt}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const DOC_TYPES: { key: keyof ClientDocUrls; label: string }[] = [
+  { key: 'qid',          label: 'QID' },
+  { key: 'passport',     label: 'Passport' },
+  { key: 'cr',           label: 'CR' },
+  { key: 'computerCard', label: 'Computer Card' },
+];
+
+function ClientInfoSection() {
+  const [clientType,           setClientType]           = useState<ClientType>('Individual');
+  const [fullName,             setFullName]             = useState('');
+  const [idNumber,             setIdNumber]             = useState('');
+  const [nationality,          setNationality]          = useState('');
+  const [mobile,               setMobile]               = useState('');
+  const [email,                setEmail]                = useState('');
+  const [employerDetails,      setEmployerDetails]      = useState('');
+  const [authorizedSignatory,  setAuthorizedSignatory]  = useState('');
+  const [emergencyContact,     setEmergencyContact]     = useState('');
+  const [docs,                 setDocs]                 = useState<ClientDocUrls>({ qid: '', passport: '', cr: '', computerCard: '' });
+  const [uploadedFiles,        setUploadedFiles]        = useState<string[]>([]);
+  const [uploadError,          setUploadError]          = useState('');
+  const [notes,                setNotes]                = useState('');
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (files.length === 0) return;
+    const invalid = files.filter(f => f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf'));
+    if (invalid.length > 0) {
+      setUploadError(`Only PDF files are accepted. Rejected: ${invalid.map(f => f.name).join(', ')}`);
+      return;
+    }
+    setUploadError('');
+    setUploadedFiles(prev => [...prev, ...files.map(f => f.name)]);
+  };
+
+  const removeFile = (idx: number) => setUploadedFiles(prev => prev.filter((_, i) => i !== idx));
+  const setDoc = (key: keyof ClientDocUrls, val: string) => setDocs(prev => ({ ...prev, [key]: val }));
+
+  const inp = 'w-full text-sm text-[#d0d0d0] bg-[#111111] border border-[#333333] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] placeholder:text-[#444444]';
+
+  return (
+    <SectionCard title="Client Info">
+
+      <FieldRow label="Client Type" value={<ClientTypeToggle value={clientType} onChange={setClientType} />} />
+
+      <FieldRow
+        label={clientType === 'Individual' ? 'Full Name' : 'Company Name'}
+        value={
+          <input type="text"
+            placeholder={clientType === 'Individual' ? 'Enter full legal name…' : 'Enter registered company name…'}
+            value={fullName} onChange={e => setFullName(e.target.value)} className={inp} />
+        }
+      />
+
+      <FieldRow
+        label={clientType === 'Individual' ? 'QID Number' : 'CR Number'}
+        value={
+          <input type="text"
+            placeholder={clientType === 'Individual' ? 'e.g. 28012345678' : 'e.g. 12345'}
+            value={idNumber} onChange={e => setIdNumber(e.target.value)} className={`${inp} font-mono`} />
+        }
+      />
+
+      <FieldRow
+        label="Nationality"
+        value={<input type="text" placeholder="e.g. Qatari, Indian, British…" value={nationality} onChange={e => setNationality(e.target.value)} className={inp} />}
+      />
+
+      <FieldRow
+        label="Mobile Number"
+        value={<input type="tel" placeholder="+974 XXXX XXXX" value={mobile} onChange={e => setMobile(e.target.value)} className={inp} />}
+      />
+
+      <FieldRow
+        label="Email Address"
+        value={<input type="email" placeholder="email@example.com" value={email} onChange={e => setEmail(e.target.value)} className={inp} />}
+      />
+
+      <FieldRow
+        label="Employer / Company"
+        value={<input type="text" placeholder="Employer name or company details…" value={employerDetails} onChange={e => setEmployerDetails(e.target.value)} className={inp} />}
+      />
+
+      {clientType === 'Company' && (
+        <FieldRow
+          label="Authorized Signatory"
+          value={
+            <input type="text" placeholder="Signatory full name…"
+              value={authorizedSignatory} onChange={e => setAuthorizedSignatory(e.target.value)} className={inp} />
+          }
+        />
+      )}
+
+      <FieldRow
+        label="Emergency Contact"
+        value={<input type="text" placeholder="Name · +974 XXXX XXXX" value={emergencyContact} onChange={e => setEmergencyContact(e.target.value)} className={inp} />}
+      />
+
+      {/* ── Document Upload URLs ── */}
+      <FieldRow
+        label="Document Uploads"
+        value={
+          <div className="w-full space-y-2">
+            {DOC_TYPES.map(({ key, label }) => (
+              <div key={key} className="flex items-center gap-2.5">
+                <span className="w-[88px] shrink-0 text-[10px] font-bold text-[#555555] uppercase tracking-wider">
+                  {label}
+                </span>
+                <input
+                  type="text"
+                  placeholder="URL or file path…"
+                  value={docs[key]}
+                  onChange={e => setDoc(key, e.target.value)}
+                  className="flex-1 min-w-0 text-xs font-mono text-[#c0c0c0] bg-[#111111] border border-[#2a2a2a] rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#c9a84c] focus:border-[#c9a84c] placeholder:text-[#3a3a3a]"
+                />
+              </div>
+            ))}
+          </div>
+        }
+      />
+
+      {/* ── PDF Upload ── */}
+      <FieldRow
+        label="Upload File"
+        value={
+          <div className="flex flex-col gap-2.5">
+            <label className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-lg border border-dashed border-[#2e2e2e] hover:border-[#c9a84c] bg-[#0d0d0d] hover:bg-[#c9a84c]/5 cursor-pointer transition-colors w-fit group">
+              <svg className="w-4 h-4 text-[#555555] group-hover:text-[#c9a84c] shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+              </svg>
+              <span className="text-sm text-[#666666] group-hover:text-[#c9a84c] transition-colors">
+                Choose PDF file…
+              </span>
+              <span className="text-[9px] font-bold text-[#484848] bg-[#1a1a1a] border border-[#2a2a2a] px-1.5 py-0.5 rounded uppercase tracking-wider">
+                PDF only
+              </span>
+              <input
+                type="file"
+                accept=".pdf,application/pdf"
+                multiple
+                onChange={handleFileUpload}
+                className="sr-only"
+              />
+            </label>
+
+            {uploadError && (
+              <p className="flex items-center gap-1.5 text-xs text-red-400">
+                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 8v4M12 16h.01" />
+                </svg>
+                {uploadError}
+              </p>
+            )}
+
+            {uploadedFiles.length > 0 && (
+              <ul className="space-y-1">
+                {uploadedFiles.map((name, i) => (
+                  <li key={i} className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-[#141414] border border-[#222222]">
+                    <svg className="w-3.5 h-3.5 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" /><path d="M14 2v6h6" />
+                    </svg>
+                    <span className="flex-1 text-xs font-mono text-[#b0b0b0] truncate">{name}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeFile(i)}
+                      aria-label={`Remove ${name}`}
+                      className="text-[#444444] hover:text-red-400 transition-colors text-lg leading-none shrink-0 px-0.5"
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        }
+      />
+
+      {/* ── Notes & Special Conditions ── */}
+      <FieldRow
+        label="Notes & Special Conditions"
+        value={
+          <textarea
+            rows={3}
+            placeholder="Enter any notes, special conditions, or instructions…"
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            className={`${inp} resize-y min-h-[72px]`}
+          />
+        }
+      />
+
+    </SectionCard>
+  );
+}
+
 function CommissionTab({ unit }: { unit: UnitListing }) {
   const [agencyFeeApplicable, setAgencyFeeApplicable] = useState<boolean>(unit.agencyFee > 0);
   const [agencyFeeAmount, setAgencyFeeAmount] = useState<number>(unit.agencyFee);
@@ -580,6 +808,9 @@ function CommissionTab({ unit }: { unit: UnitListing }) {
         />
 
       </SectionCard>
+
+      {/* ── Client Info ── */}
+      <ClientInfoSection />
 
       {/* ── Legal Duration & Conditions ── */}
       <SectionCard title="Legal Duration & Conditions">
