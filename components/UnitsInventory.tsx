@@ -17,6 +17,7 @@ import {
   Status,
   Furnishing,
   KitchenType,
+  UnitType,
   StatusFilter,
   FurnishingFilter,
   ContextMenuPosition,
@@ -337,6 +338,11 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('All');
   const [furnishingFilter, setFurnishingFilter] = useState<FurnishingFilter>('All');
   const [zoneFilter, setZoneFilter] = useState<string>('All');
+  const [typeFilter, setTypeFilter] = useState<UnitType | 'All'>('All');
+  const [configFilter, setConfigFilter] = useState<string>('All');
+  const [realtorFilter, setRealtorFilter] = useState<string>('All');
+  const [minRent, setMinRent] = useState<string>('');
+  const [maxRent, setMaxRent] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
 
   // ── Modal / context menu state ─────────────────────────────────────────────
@@ -349,6 +355,26 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
     () => Array.from(new Set(mockUnits.map((u) => u.zone))).sort(),
     []
   );
+
+  const allTypes = useMemo(
+    () => Array.from(new Set(mockUnits.map((u) => u.type))).sort() as UnitType[],
+    []
+  );
+
+  const allConfigs = useMemo(
+    () => Array.from(new Set(mockUnits.map((u) => u.config))).sort(),
+    []
+  );
+
+  const allRealtors = useMemo(
+    () => Array.from(new Set(mockUnits.map((u) => u.realtorName))).sort(),
+    []
+  );
+
+  const rentRange = useMemo(() => ({
+    min: Math.min(...mockUnits.map((u) => u.rent)),
+    max: Math.max(...mockUnits.map((u) => u.rent)),
+  }), []);
 
   // Full-dataset metrics (not filtered, so metric cards always show totals)
   const metrics = useMemo(
@@ -364,6 +390,8 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
 
   const filteredUnits = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const minR = minRent !== '' ? Number(minRent) : null;
+    const maxR = maxRent !== '' ? Number(maxRent) : null;
     return mockUnits.filter((u) => {
       const matchSearch =
         !q ||
@@ -371,12 +399,18 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
         u.unitNo.toLowerCase().includes(q) ||
         u.realtorName.toLowerCase().includes(q) ||
         u.realtorMOCI.toLowerCase().includes(q);
-      const matchStatus = statusFilter === 'All' || u.status === statusFilter;
-      const matchFurnishing = furnishingFilter === 'All' || u.furnishing === furnishingFilter;
-      const matchZone = zoneFilter === 'All' || u.zone === zoneFilter;
-      return matchSearch && matchStatus && matchFurnishing && matchZone;
+      const matchStatus    = statusFilter    === 'All' || u.status       === statusFilter;
+      const matchFurnishing= furnishingFilter === 'All' || u.furnishing   === furnishingFilter;
+      const matchZone      = zoneFilter       === 'All' || u.zone         === zoneFilter;
+      const matchType      = typeFilter       === 'All' || u.type         === typeFilter;
+      const matchConfig    = configFilter     === 'All' || u.config       === configFilter;
+      const matchRealtor   = realtorFilter    === 'All' || u.realtorName  === realtorFilter;
+      const matchMinRent   = minR === null || u.rent >= minR;
+      const matchMaxRent   = maxR === null || u.rent <= maxR;
+      return matchSearch && matchStatus && matchFurnishing && matchZone &&
+             matchType && matchConfig && matchRealtor && matchMinRent && matchMaxRent;
     });
-  }, [search, statusFilter, furnishingFilter, zoneFilter]);
+  }, [search, statusFilter, furnishingFilter, zoneFilter, typeFilter, configFilter, realtorFilter, minRent, maxRent]);
 
   const totalPages = Math.max(1, Math.ceil(filteredUnits.length / ROWS_PER_PAGE));
   const paginatedUnits = filteredUnits.slice(
@@ -389,15 +423,25 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
 
   const hasActiveFilters =
     search !== '' ||
-    statusFilter !== 'All' ||
+    statusFilter    !== 'All' ||
     furnishingFilter !== 'All' ||
-    zoneFilter !== 'All';
+    zoneFilter      !== 'All' ||
+    typeFilter      !== 'All' ||
+    configFilter    !== 'All' ||
+    realtorFilter   !== 'All' ||
+    minRent !== '' ||
+    maxRent !== '';
 
   const clearFilters = () => {
     setSearch('');
     setStatusFilter('All');
     setFurnishingFilter('All');
     setZoneFilter('All');
+    setTypeFilter('All');
+    setConfigFilter('All');
+    setRealtorFilter('All');
+    setMinRent('');
+    setMaxRent('');
     setCurrentPage(1);
   };
 
@@ -564,68 +608,142 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
             SECTION B: FILTER & UTILITY ENGINE CONSOLE
         ══════════════════════════════════════════════════════════════════════ */}
         <div className="bg-[#181818] rounded-xl border border-[#2a2a2a] p-4">
-          <div className="flex flex-col sm:flex-row gap-3">
-            {/* Unified search */}
-            <div className="relative flex-1 min-w-0">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#505050]">
+
+          {/* ── Filter row — wraps on smaller screens ── */}
+          <div className="flex flex-wrap items-center gap-2">
+
+            {/* Search */}
+            <div className="relative flex-1 min-w-[180px]">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#505050] pointer-events-none">
                 <IconSearch />
               </span>
               <input
                 type="text"
-                placeholder="Search by Property, Unit No., or Realtor name…"
+                placeholder="Search code, realtor, zone…"
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); resetPage(); }}
-                className="w-full pl-9 pr-4 py-2.5 text-sm bg-[#1e1e1e] text-white border border-[#2a2a2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a84c]/40 focus:border-[#c9a84c] placeholder:text-[#505050] transition-shadow"
+                className="w-full pl-9 pr-3 py-2 text-sm bg-[#1e1e1e] text-white border border-[#2a2a2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a84c]/40 focus:border-[#c9a84c] placeholder:text-[#505050]"
               />
             </div>
 
-            {/* Status dropdown */}
+            {/* Status */}
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value as StatusFilter); resetPage(); }}
-              className="px-3 py-2.5 text-sm bg-[#1e1e1e] text-slate-200 border border-[#2a2a2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a84c]/40 focus:border-[#c9a84c] min-w-[150px] cursor-pointer"
+              className="py-2 px-3 text-sm bg-[#1e1e1e] text-[#d0d0d0] border border-[#2a2a2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a84c]/40 focus:border-[#c9a84c] cursor-pointer min-w-[120px]"
             >
-              <option value="All">All Statuses</option>
+              <option value="All">All Status</option>
               {Object.values(Status).map((s) => (
-                <option key={s} value={s}>
-                  {s.replace('_', ' ')}
-                </option>
+                <option key={s} value={s}>{s.replace('_', ' ')}</option>
               ))}
             </select>
 
-            {/* Furnishing dropdown */}
+            {/* Furnishing */}
             <select
               value={furnishingFilter}
               onChange={(e) => { setFurnishingFilter(e.target.value as FurnishingFilter); resetPage(); }}
-              className="px-3 py-2.5 text-sm bg-[#1e1e1e] text-slate-200 border border-[#2a2a2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a84c]/40 focus:border-[#c9a84c] min-w-[165px] cursor-pointer"
+              className="py-2 px-3 text-sm bg-[#1e1e1e] text-[#d0d0d0] border border-[#2a2a2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a84c]/40 focus:border-[#c9a84c] cursor-pointer min-w-[140px]"
             >
-              <option value="All">All Furnishing</option>
+              <option value="All">Any Furnishing</option>
               {Object.values(Furnishing).map((f) => (
                 <option key={f} value={f}>{f}</option>
               ))}
             </select>
 
-            {/* Zone dropdown */}
+            {/* Unit Type */}
+            <select
+              value={typeFilter}
+              onChange={(e) => { setTypeFilter(e.target.value as UnitType | 'All'); resetPage(); }}
+              className="py-2 px-3 text-sm bg-[#1e1e1e] text-[#d0d0d0] border border-[#2a2a2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a84c]/40 focus:border-[#c9a84c] cursor-pointer min-w-[120px]"
+            >
+              <option value="All">All Types</option>
+              {allTypes.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+
+            {/* Config */}
+            <select
+              value={configFilter}
+              onChange={(e) => { setConfigFilter(e.target.value); resetPage(); }}
+              className="py-2 px-3 text-sm bg-[#1e1e1e] text-[#d0d0d0] border border-[#2a2a2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a84c]/40 focus:border-[#c9a84c] cursor-pointer min-w-[130px]"
+            >
+              <option value="All">All Configs</option>
+              {allConfigs.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+
+            {/* Realtor */}
+            <select
+              value={realtorFilter}
+              onChange={(e) => { setRealtorFilter(e.target.value); resetPage(); }}
+              className="py-2 px-3 text-sm bg-[#1e1e1e] text-[#d0d0d0] border border-[#2a2a2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a84c]/40 focus:border-[#c9a84c] cursor-pointer min-w-[130px]"
+            >
+              <option value="All">All Realtors</option>
+              {allRealtors.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+
+            {/* District / Zone */}
             <select
               value={zoneFilter}
               onChange={(e) => { setZoneFilter(e.target.value); resetPage(); }}
-              className="px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-500 min-w-[150px] cursor-pointer"
+              className="py-2 px-3 text-sm bg-[#1e1e1e] text-[#d0d0d0] border border-[#2a2a2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a84c]/40 focus:border-[#c9a84c] cursor-pointer min-w-[130px]"
             >
               <option value="All">All Districts</option>
               {allZones.map((z) => (
                 <option key={z} value={z}>{z}</option>
               ))}
             </select>
+
+            {/* Min Rent */}
+            <input
+              type="number"
+              min={0}
+              placeholder={`Min rent`}
+              value={minRent}
+              onChange={(e) => { setMinRent(e.target.value); resetPage(); }}
+              className="py-2 px-3 text-sm bg-[#1e1e1e] text-[#d0d0d0] border border-[#2a2a2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a84c]/40 focus:border-[#c9a84c] placeholder:text-[#505050] w-28 tabular-nums"
+            />
+
+            {/* Max Rent */}
+            <input
+              type="number"
+              min={0}
+              placeholder={`Max rent`}
+              value={maxRent}
+              onChange={(e) => { setMaxRent(e.target.value); resetPage(); }}
+              className="py-2 px-3 text-sm bg-[#1e1e1e] text-[#d0d0d0] border border-[#2a2a2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a84c]/40 focus:border-[#c9a84c] placeholder:text-[#505050] w-28 tabular-nums"
+            />
+
+            {/* Inline Clear */}
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="py-2 px-3 text-sm text-[#888888] hover:text-[#c9a84c] transition-colors whitespace-nowrap"
+              >
+                Clear
+              </button>
+            )}
+
           </div>
 
-          {/* Filter summary row */}
+          {/* ── Summary row ── */}
           <div className="mt-3 flex items-center justify-between flex-wrap gap-2">
             <p className="text-xs text-[#606060]">
               Showing{' '}
-              <strong className="text-slate-300 font-semibold">{filteredUnits.length}</strong>{' '}
-              of{' '}
-              <strong className="text-slate-700 font-semibold">{mockUnits.length}</strong>{' '}
-              units
+              <strong className="text-[#c0c0c0] font-semibold">{filteredUnits.length}</strong>
+              {' '}of{' '}
+              <strong className="text-[#505050] font-semibold">{mockUnits.length}</strong>
+              {' '}units
+              {(minRent !== '' || maxRent !== '') && (
+                <span className="ml-1 text-[#505050]">
+                  · Rent{minRent !== '' ? ` ≥ QAR ${Number(minRent).toLocaleString()}` : ''}
+                  {maxRent !== '' ? ` ≤ QAR ${Number(maxRent).toLocaleString()}` : ''}
+                </span>
+              )}
             </p>
             {hasActiveFilters && (
               <button
@@ -636,6 +754,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
               </button>
             )}
           </div>
+
         </div>
 
         {/* ══════════════════════════════════════════════════════════════════════
