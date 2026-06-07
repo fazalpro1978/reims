@@ -830,34 +830,23 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
         ) : (
         <div className="bg-[#181818] rounded-xl border border-[#2a2a2a] overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1680px] border-collapse">
+            <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-[#111111] border-b border-[#252525]">
-                  {[
-                    'Realtor',
-                    'Property',
-                    'Unit No.',
-                    'District / Area',
-                    'Type',
-                    'Config',
-                    'Bath',
-                    'Parking',
-                    'Kitchen',
-                    'Furnishing',
-                    'Rent (QAR/mo)',
-                    'Status',
-                    'Location',
-                    'Media',
-                    '',
-                  ].map((col, i) => (
-                    <th
-                      key={i}
-                      className={`px-4 py-3 text-[11px] font-semibold text-[#505050] uppercase tracking-wider whitespace-nowrap ${
-                        col === 'Rent (QAR/mo)' ? 'text-right'
-                        : col === 'Location' || col === 'Media' || col === '' || col === 'Parking' ? 'text-center'
-                        : 'text-left'
-                      }`}
-                    >
+                  {([
+                    ['Realtor',       'text-left'],
+                    ['Property / Unit','text-left'],
+                    ['Zone / District','text-left'],
+                    ['Type · Config',  'text-left'],
+                    ['Bath',           'text-left'],
+                    ['P',              'text-center'],
+                    ['Kitchen',        'text-left'],
+                    ['Furnishing',     'text-left'],
+                    ['Rent (QAR/mo)',  'text-right'],
+                    ['Status',         'text-left'],
+                    ['',               'text-center'],
+                  ] as [string, string][]).map(([col, align], i) => (
+                    <th key={i} className={`px-2.5 py-2.5 text-[10px] font-semibold text-[#505050] uppercase tracking-wider whitespace-nowrap ${align}`}>
                       {col}
                     </th>
                   ))}
@@ -866,13 +855,10 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
               <tbody>
                 {paginatedUnits.length === 0 ? (
                   <tr>
-                    <td colSpan={15} className="px-4 py-14 text-center">
+                    <td colSpan={11} className="px-4 py-14 text-center">
                       <p className="text-[#505050] text-sm">No units match the current filter combination.</p>
                       {hasActiveFilters && (
-                        <button
-                          onClick={clearFilters}
-                          className="mt-2 text-sm text-[#c9a84c] underline underline-offset-2 hover:no-underline"
-                        >
+                        <button onClick={clearFilters} className="mt-2 text-sm text-[#c9a84c] underline underline-offset-2 hover:no-underline">
                           Clear filters
                         </button>
                       )}
@@ -882,114 +868,78 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
                   paginatedUnits.map((unit) => (
                     <tr
                       key={unit.id}
-                      className="border-b border-[#222222] last:border-0 hover:bg-[#1e1e1e] transition-colors group"
+                      onClick={() => handleViewDetails(unit)}
+                      className="border-b border-[#222222] last:border-0 hover:bg-[#1e1e1e] transition-colors cursor-pointer"
                     >
-                      {/* Realtor Name */}
-                      <td className="px-4 py-3.5 text-sm text-slate-300 whitespace-nowrap max-w-[180px] truncate" title={unit.realtorName}>
-                        {unit.realtorName}
+                      {/* Realtor */}
+                      <td className="px-2.5 py-2.5 whitespace-nowrap max-w-[130px]" title={unit.realtorName}>
+                        <span className="text-xs text-[#888888] truncate block">{unit.realtorName}</span>
+                        <span className="text-[10px] font-mono text-[#444444]">{unit.realtorMOCI}</span>
                       </td>
 
-                      {/* Property */}
-                      <td className="px-4 py-3.5" title={unit.property}>
-                        <span className="block text-sm font-semibold text-white">
-                          {unit.property.slice(0, 14)}
-                        </span>
-                        {unit.property.length > 14 && (
-                          <span className="block text-xs text-[#555555] mt-0.5">
-                            {unit.property.slice(14, 28)}{unit.property.length > 28 ? '…' : ''}
-                          </span>
-                        )}
+                      {/* Property / Unit — combined */}
+                      <td className="px-2.5 py-2.5 max-w-[180px]" title={unit.property}>
+                        <span className="block text-xs font-semibold text-white leading-snug truncate">{unit.property}</span>
+                        <span className="block text-[10px] font-mono text-[#555555] mt-0.5">{unit.unitNo}</span>
                       </td>
 
-                      {/* Unit No */}
-                      <td className="px-4 py-3.5 text-xs font-mono text-slate-700 whitespace-nowrap">
-                        {unit.unitNo}
+                      {/* Zone / District — combined */}
+                      <td className="px-2.5 py-2.5 whitespace-nowrap">
+                        <span className="block text-xs font-bold text-[#c9a84c] font-mono">Z-{unit.zoneCode}</span>
+                        <span className="block text-[10px] text-[#555555] mt-0.5 max-w-[120px] truncate">{unit.zone}</span>
                       </td>
 
-                      {/* District / Area */}
-                      <td className="px-4 py-3.5">
-                        <span className="block text-sm font-bold text-[#c9a84c] font-mono">Z-{unit.zoneCode}</span>
-                        <span className="block text-xs text-[#555555] mt-0.5 max-w-[160px] leading-snug">{unit.zone}</span>
-                      </td>
-
-                      {/* Type */}
-                      <td className="px-4 py-3.5 text-sm text-[#606060] whitespace-nowrap">
-                        {unit.type}
-                      </td>
-
-                      {/* Config */}
-                      <td className="px-4 py-3.5 text-sm font-medium text-slate-200 whitespace-nowrap">
-                        {unit.config}
+                      {/* Type · Config — combined */}
+                      <td className="px-2.5 py-2.5 whitespace-nowrap">
+                        <span className="text-xs text-[#888888]">{unit.type}</span>
+                        <span className="text-[10px] text-[#444444]"> · </span>
+                        <span className="text-xs font-medium text-[#c0c0c0]">{unit.config}</span>
                       </td>
 
                       {/* Bath */}
-                      <td className="px-4 py-3.5 whitespace-nowrap">
+                      <td className="px-2.5 py-2.5 whitespace-nowrap">
                         <BathCell n={unit.bathrooms} />
                       </td>
 
                       {/* Parking */}
-                      <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                      <td className="px-2.5 py-2.5 text-center whitespace-nowrap">
                         <ParkingCell has={unit.parking} />
                       </td>
 
                       {/* Kitchen */}
-                      <td className="px-4 py-3.5 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${KITCHEN_BADGE[unit.kitchen]}`}>
+                      <td className="px-2.5 py-2.5 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${KITCHEN_BADGE[unit.kitchen]}`}>
                           {unit.kitchen}
                         </span>
                       </td>
 
                       {/* Furnishing */}
-                      <td className="px-4 py-3.5 text-sm text-slate-300 whitespace-nowrap">
-                        {unit.furnishing}
+                      <td className="px-2.5 py-2.5 whitespace-nowrap">
+                        <span className="text-xs text-[#888888]">
+                          {unit.furnishing === 'Fully Furnished' ? 'Fully Furn.' : unit.furnishing === 'Semi-Furnished' ? 'Semi-Furn.' : 'Unfurnished'}
+                        </span>
                       </td>
 
                       {/* Rent */}
-                      <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                        <span className="text-sm font-bold text-white">{formatQAR(unit.rent)}</span>
+                      <td className="px-2.5 py-2.5 text-right whitespace-nowrap">
+                        <span className="text-xs font-bold text-white">{formatQAR(unit.rent)}</span>
                       </td>
 
-                      {/* Status badge */}
-                      <td className="px-4 py-3.5 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_BADGE[unit.status].classes}`}>
+                      {/* Status */}
+                      <td className="px-2.5 py-2.5 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${STATUS_BADGE[unit.status].classes}`}>
                           {STATUS_BADGE[unit.status].label}
                         </span>
                       </td>
 
-                      {/* Location Map icon */}
-                      <td className="px-4 py-3.5 text-center">
-                        <a
-                          href={unit.locationMapUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="Open in Google Maps"
-                          className="inline-flex items-center justify-center w-7 h-7 rounded-md text-[#c9a84c] hover:text-[#dfc070] hover:bg-[#c9a84c]/10 transition-colors"
-                        >
-                          <IconMap />
-                        </a>
-                      </td>
-
-                      {/* Media icon */}
-                      <td className="px-4 py-3.5 text-center">
-                        <a
-                          href={unit.mediaUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="View media assets"
-                          className="inline-flex items-center justify-center w-7 h-7 rounded-md text-[#c9a84c] hover:text-[#dfc070] hover:bg-[#c9a84c]/10 transition-colors"
-                        >
-                          <IconMedia />
-                        </a>
-                      </td>
-
-                      {/* Action trigger — vertical ellipsis */}
-                      <td className="px-3 py-3.5 text-center w-10">
+                      {/* Actions */}
+                      <td className="px-2 py-2.5 text-center w-8">
                         <button
-                          onClick={(e) => handleEllipsisClick(e, unit)}
+                          onClick={(e) => { e.stopPropagation(); handleEllipsisClick(e, unit); }}
                           aria-label={`Actions for ${unit.unitNo}`}
-                          className={`w-7 h-7 rounded-md flex items-center justify-center text-lg leading-none transition-colors ${
+                          className={`w-6 h-6 rounded-md flex items-center justify-center text-base leading-none transition-colors mx-auto ${
                             contextMenu?.unit.id === unit.id
-                              ? 'bg-slate-100 text-slate-700'
+                              ? 'bg-[#c9a84c] text-[#0f0f0f]'
                               : 'text-[#505050] hover:text-[#c9a84c] hover:bg-[#2a2a2a]'
                           }`}
                         >
