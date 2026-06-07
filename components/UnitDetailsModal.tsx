@@ -13,13 +13,14 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 function SaveBar({ status, onSave, errorMsg }: { status: SaveStatus; onSave: () => void; errorMsg?: string }) {
   return (
-    <div className="flex items-center justify-end gap-3 pt-3 mt-3 border-t border-[#2a2a2a]">
-      {status === 'saved'  && <span className="text-xs text-emerald-400">✓ Saved</span>}
-      {status === 'error'  && <span className="text-xs text-red-400">{errorMsg ?? 'Save failed'}</span>}
+    <div className="sticky top-0 z-20 flex items-center justify-between gap-3 py-2.5 px-4 -mx-6 bg-[#111111] border-b border-[#2a2a2a] mb-1">
+      <span className="text-[10px] font-bold text-[#444444] uppercase tracking-widest">
+        {status === 'saving' ? 'Saving…' : status === 'saved' ? '✓ Saved to database' : status === 'error' ? errorMsg ?? 'Save failed' : 'Unsaved changes'}
+      </span>
       <button
         onClick={onSave}
         disabled={status === 'saving'}
-        className="px-4 py-1.5 text-xs font-semibold bg-[#c9a84c] hover:bg-[#dfc070] text-[#0f0f0f] rounded-lg disabled:opacity-50 transition-colors"
+        className="px-4 py-1.5 text-xs font-bold bg-[#c9a84c] hover:bg-[#dfc070] text-[#0f0f0f] rounded-lg disabled:opacity-50 transition-colors shrink-0"
       >
         {status === 'saving' ? 'Saving…' : 'Save Changes'}
       </button>
