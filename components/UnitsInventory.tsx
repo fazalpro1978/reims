@@ -467,7 +467,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
       return matchSearch && matchStatus && matchFurnishing && matchZone &&
              matchType && matchConfig && matchRealtor && matchMinRent && matchMaxRent;
     });
-  }, [search, statusFilter, furnishingFilter, zoneFilter, typeFilter, configFilter, realtorFilter, minRent, maxRent]);
+  }, [units, search, statusFilter, furnishingFilter, zoneFilter, typeFilter, configFilter, realtorFilter, minRent, maxRent]);
 
   const totalPages = Math.max(1, Math.ceil(filteredUnits.length / ROWS_PER_PAGE));
   const paginatedUnits = filteredUnits.slice(
