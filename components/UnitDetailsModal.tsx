@@ -294,13 +294,24 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState('');
 
+  useEffect(() => {
+    if (!unitUuid) return;
+    supabase.from('units').select('rent,agency_fee,service_charges').eq('id', unitUuid).single()
+      .then(({ data }) => {
+        if (!data) return;
+        setMonthlyRent(Number(data.rent) ?? unit.rent);
+        setContractCharges(Number(data.agency_fee) ?? unit.agencyFee);
+        setAdditionalCharges(Number(data.service_charges) ?? unit.serviceCharges);
+      });
+  }, [unitUuid]);
+
   const handleSave = async () => {
     setSaveStatus('saving');
     const prev = { rent: unit.rent, agency_fee: unit.agencyFee, service_charges: unit.serviceCharges };
     const { error } = await supabase
       .from('units')
       .update({ rent: monthlyRent, agency_fee: contractCharges, service_charges: additionalCharges })
-      .eq('unit_code', unit.id);
+      .eq('id', unitUuid);
     if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
     await insertAuditLog(unitUuid, [
       { field: 'Monthly Rent',       oldValue: String(prev.rent),            newValue: String(monthlyRent) },
