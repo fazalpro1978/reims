@@ -18,11 +18,13 @@ import {
   Furnishing,
   KitchenType,
   UnitType,
+  ListingType,
+  MociContractStatus,
   StatusFilter,
   FurnishingFilter,
   ContextMenuPosition,
 } from '../types/inventory';
-import { mockUnits } from '../lib/mockData';
+import { supabase } from '../lib/supabase/client';
 import UnitDetailsModal from './UnitDetailsModal';
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -345,6 +347,61 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
   const [maxRent, setMaxRent] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
 
+  // ── Live data from Supabase ────────────────────────────────────────────────
+  const [units, setUnits] = useState<UnitListing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dbError, setDbError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchUnits() {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('units')
+        .select('*, unit_operational(maintenance_notes, access_lockbox)')
+        .order('unit_code');
+      if (error) { setDbError(error.message); setLoading(false); return; }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mapped: UnitListing[] = ((data ?? []) as any[]).map((row) => ({
+        id:                  row.unit_code,
+        realtorName:         row.realtor_name,
+        realtorMOCI:         row.realtor_moci,
+        property:            row.property,
+        unitNo:              row.unit_no,
+        zoneCode:            row.zone_code,
+        zone:                row.zone,
+        type:                row.type as UnitType,
+        config:              row.config,
+        bathrooms:           Number(row.bathrooms),
+        parking:             row.parking,
+        kitchen:             row.kitchen as KitchenType,
+        furnishing:          row.furnishing as Furnishing,
+        listingType:         row.listing_type as ListingType,
+        status:              row.status as Status,
+        rent:                Number(row.rent),
+        serviceCharges:      Number(row.service_charges),
+        depositAmount:       Number(row.deposit_amount),
+        agencyFee:           Number(row.agency_fee),
+        mociContractStatus:  row.moci_contract_status as MociContractStatus,
+        mociContractNumber:  row.moci_contract_number ?? '',
+        legalDuration:       row.legal_duration ?? '',
+        contractStartDate:   row.contract_start_date ?? '',
+        contractEndDate:     row.contract_end_date ?? '',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        maintenanceNotes:    (row.unit_operational as any)?.[0]?.maintenance_notes ?? '',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        accessLockbox:       (row.unit_operational as any)?.[0]?.access_lockbox ?? '',
+        assetHistoryLinks:   row.asset_history_links ?? [],
+        locationMapUrl:      row.location_map_url ?? '',
+        mediaUrl:            row.media_url ?? '',
+        listedDate:          row.listed_date ?? '',
+        lastUpdated:         row.updated_at ?? '',
+      }));
+      setUnits(mapped);
+      setLoading(false);
+    }
+    fetchUnits();
+  }, []);
+
   // ── Modal / context menu state ─────────────────────────────────────────────
   const [selectedUnit, setSelectedUnit] = useState<UnitListing | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
@@ -352,47 +409,47 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
   // ── Derived data ──────────────────────────────────────────────────────────
 
   const allZones = useMemo(
-    () => Array.from(new Set(mockUnits.map((u) => u.zone))).sort(),
-    []
+    () => Array.from(new Set(units.map((u) => u.zone))).sort(),
+    [units]
   );
 
   const allTypes = useMemo(
-    () => Array.from(new Set(mockUnits.map((u) => u.type))).sort() as UnitType[],
-    []
+    () => Array.from(new Set(units.map((u) => u.type))).sort() as UnitType[],
+    [units]
   );
 
   const allConfigs = useMemo(
-    () => Array.from(new Set(mockUnits.map((u) => u.config))).sort(),
-    []
+    () => Array.from(new Set(units.map((u) => u.config))).sort(),
+    [units]
   );
 
   const allRealtors = useMemo(
-    () => Array.from(new Set(mockUnits.map((u) => u.realtorName))).sort(),
-    []
+    () => Array.from(new Set(units.map((u) => u.realtorName))).sort(),
+    [units]
   );
 
   const rentRange = useMemo(() => ({
-    min: Math.min(...mockUnits.map((u) => u.rent)),
-    max: Math.max(...mockUnits.map((u) => u.rent)),
-  }), []);
+    min: units.length ? Math.min(...units.map((u) => u.rent)) : 0,
+    max: units.length ? Math.max(...units.map((u) => u.rent)) : 0,
+  }), [units]);
 
   // Full-dataset metrics (not filtered, so metric cards always show totals)
   const metrics = useMemo(
     () => ({
-      total: mockUnits.length,
-      available: mockUnits.filter((u) => u.status === Status.Available).length,
-      leased: mockUnits.filter((u) => u.status === Status.Leased).length,
-      reserved: mockUnits.filter((u) => u.status === Status.Reserved).length,
-      maintenance: mockUnits.filter((u) => u.status === Status.Under_Maintenance).length,
+      total:       units.length,
+      available:   units.filter((u) => u.status === Status.Available).length,
+      leased:      units.filter((u) => u.status === Status.Leased).length,
+      reserved:    units.filter((u) => u.status === Status.Reserved).length,
+      maintenance: units.filter((u) => u.status === Status.Under_Maintenance).length,
     }),
-    []
+    [units]
   );
 
   const filteredUnits = useMemo(() => {
     const q = search.trim().toLowerCase();
     const minR = minRent !== '' ? Number(minRent) : null;
     const maxR = maxRent !== '' ? Number(maxRent) : null;
-    return mockUnits.filter((u) => {
+    return units.filter((u) => {
       const matchSearch =
         !q ||
         u.property.toLowerCase().includes(q) ||
@@ -548,6 +605,13 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
       </header>
 
       <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+        {/* ── DB error banner ── */}
+        {dbError && (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+            Database error: {dbError}
+          </div>
+        )}
 
         {/* ── PAGE TITLE ── */}
         <div>
@@ -736,7 +800,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
               Showing{' '}
               <strong className="text-[#c0c0c0] font-semibold">{filteredUnits.length}</strong>
               {' '}of{' '}
-              <strong className="text-[#505050] font-semibold">{mockUnits.length}</strong>
+              <strong className="text-[#505050] font-semibold">{units.length}</strong>
               {' '}units
               {(minRent !== '' || maxRent !== '') && (
                 <span className="ml-1 text-[#505050]">
@@ -760,6 +824,12 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
         {/* ══════════════════════════════════════════════════════════════════════
             SECTION C: TABULAR DATA PRESENTATION ARRAY
         ══════════════════════════════════════════════════════════════════════ */}
+        {loading ? (
+          <div className="bg-[#181818] rounded-xl border border-[#2a2a2a] p-12 flex flex-col items-center gap-3">
+            <div className="w-6 h-6 border-2 border-[#c9a84c] border-t-transparent rounded-full animate-spin" />
+            <p className="text-[#505050] text-sm">Loading units from database…</p>
+          </div>
+        ) : (
         <div className="bg-[#181818] rounded-xl border border-[#2a2a2a] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1680px] border-collapse">
@@ -984,10 +1054,11 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
             </div>
           )}
         </div>
+        )} {/* end loading conditional */}
 
         {/* Footer note */}
         <p className="text-center text-xs text-[#333333] pb-4">
-          Privé Group RE-IMS · Qatar Property Portfolio · {mockUnits.length} active listings
+          Privé Group RE-IMS · Qatar Property Portfolio · {units.length} active listings
         </p>
       </main>
 
