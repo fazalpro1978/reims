@@ -555,6 +555,24 @@ function ClientInfoSection({ unitUuid }: { unitUuid: string }) {
   const [saveStatus,           setSaveStatus]           = useState<SaveStatus>('idle');
   const [saveError,            setSaveError]            = useState('');
 
+  useEffect(() => {
+    if (!unitUuid) return;
+    supabase.from('unit_clients').select('*').eq('unit_id', unitUuid).single()
+      .then(({ data }) => {
+        if (!data) return;
+        setClientType((data.client_type as ClientType) ?? 'Individual');
+        setFullName(data.full_name ?? '');
+        setIdNumber(data.qid_cr_number ?? '');
+        setNationality(data.nationality ?? '');
+        setMobile(data.mobile_number ?? '');
+        setEmail(data.email ?? '');
+        setEmployerDetails(data.employer ?? '');
+        setAuthorizedSignatory(data.authorized_signatory ?? '');
+        setEmergencyContact(data.emergency_contact ?? '');
+        setNotes(data.notes ?? '');
+      });
+  }, [unitUuid]);
+
   const handleSave = async () => {
     if (!unitUuid) return;
     setSaveStatus('saving');
@@ -922,6 +940,20 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState('');
 
+  useEffect(() => {
+    if (!unitUuid) return;
+    supabase.from('unit_commissions').select('*').eq('unit_id', unitUuid).single()
+      .then(({ data }) => {
+        if (!data) return;
+        setAgencyFeeApplicable(data.agency_fee_applicable ?? false);
+        setAgencyFeeAmount(data.agency_fee_amount ?? 0);
+        setPaidBy((data.paid_by as PaidByOption) ?? 'Real Estate Company');
+        setPaidByOther(data.paid_by_other ?? '');
+        setRegStatus((data.property_reg_status as PropertyRegStatus) ?? getDefaultRegStatus(unit));
+        setRegistrationBy(data.registration_by ?? '');
+      });
+  }, [unitUuid]);
+
   const handleSave = async () => {
     setSaveStatus('saving');
     const { error } = await supabase.from('unit_commissions').upsert({
@@ -1156,6 +1188,31 @@ function OperationalTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: strin
   const [updateLog, setUpdateLog] = useState<LogEntry[]>([]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError,  setSaveError]  = useState('');
+
+  useEffect(() => {
+    if (!unitUuid) return;
+    supabase.from('unit_operational').select('*').eq('unit_id', unitUuid).single()
+      .then(({ data }) => {
+        if (!data) return;
+        const name    = data.focal_point_name  ?? '';
+        const phone   = data.focal_point_phone ?? '';
+        const femail  = data.focal_point_email ?? '';
+        const remarks = data.operator_remarks  ?? '';
+        const notes   = data.maintenance_notes ?? unit.maintenanceNotes;
+        setFocalName(name);
+        setFocalPhone(phone);
+        setFocalEmail(femail);
+        setOperatorRemarks(remarks);
+        setMaintenanceNotes(notes);
+        committed.current = {
+          'Contact Name':      name,
+          'Phone':             phone,
+          'Email':             femail,
+          'Operator Remarks':  remarks,
+          'Maintenance Notes': notes,
+        };
+      });
+  }, [unitUuid]);
 
   const handleSave = async () => {
     setSaveStatus('saving');
