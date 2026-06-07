@@ -42,13 +42,43 @@ const KITCHEN_BADGE: Record<KitchenType, string> = {
   Pantry: 'border border-amber-600/40  text-amber-400  bg-amber-500/10',
 };
 
-const MOCI_BADGE: Record<string, string> = {
-  REGISTERED: 'bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/30',
-  PENDING: 'bg-amber-500/10 text-amber-400 ring-1 ring-inset ring-amber-500/30',
-  RENEWAL_DUE: 'bg-orange-500/10 text-orange-400 ring-1 ring-inset ring-orange-500/30',
-  EXPIRED: 'bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/30',
-  DRAFT: 'bg-[#2a2a2a] text-[#888888] ring-1 ring-inset ring-[#444444]',
+// ── Property Registration Status ───────────────────────────────────────────
+
+const PROPERTY_REG_STATUSES = [
+  'Registered',
+  'Not Registered',
+  'Reserved',
+  'Booked',
+  'Leased',
+  'Pending',
+  'Expired',
+] as const;
+
+type PropertyRegStatus = typeof PROPERTY_REG_STATUSES[number];
+
+const PROP_REG_BADGE: Record<PropertyRegStatus, string> = {
+  'Registered':     'bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/30',
+  'Not Registered': 'bg-[#2a2a2a] text-[#888888] ring-1 ring-inset ring-[#444444]',
+  'Reserved':       'bg-blue-500/10 text-blue-400 ring-1 ring-inset ring-blue-500/30',
+  'Booked':         'bg-purple-500/10 text-purple-400 ring-1 ring-inset ring-purple-500/30',
+  'Leased':         'bg-orange-500/10 text-orange-400 ring-1 ring-inset ring-orange-500/30',
+  'Pending':        'bg-amber-500/10 text-amber-400 ring-1 ring-inset ring-amber-500/30',
+  'Expired':        'bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/30',
 };
+
+const MOCI_TO_REG_STATUS: Record<string, PropertyRegStatus> = {
+  REGISTERED:   'Registered',
+  PENDING:      'Pending',
+  RENEWAL_DUE:  'Pending',
+  EXPIRED:      'Expired',
+  DRAFT:        'Not Registered',
+};
+
+function getDefaultRegStatus(unit: UnitListing): PropertyRegStatus {
+  if (unit.status === Status.Leased)   return 'Registered';
+  if (unit.status === Status.Reserved) return 'Reserved';
+  return MOCI_TO_REG_STATUS[unit.mociContractStatus] ?? 'Not Registered';
+}
 
 // ── Layout primitives ──────────────────────────────────────────────────────
 
@@ -421,13 +451,18 @@ function CommissionTab({ unit }: { unit: UnitListing }) {
   const [paidBy, setPaidBy] = useState<PaidByOption>('Real Estate Company');
   const [paidByOther, setPaidByOther] = useState<string>('');
 
+  const [regStatus, setRegStatus] = useState<PropertyRegStatus>(() => getDefaultRegStatus(unit));
+  const [registrationBy, setRegistrationBy] = useState<string>('');
+
+  const autoRegistered = unit.status === Status.Leased && regStatus === 'Registered';
+  const showRegistrationBy = regStatus === 'Reserved' || regStatus === 'Booked' || regStatus === 'Leased';
+
   return (
     <div className="space-y-4">
 
       {/* ── Agency Commission ── */}
       <SectionCard title="Agency Commission">
 
-        {/* Applicable toggle */}
         <FieldRow
           label="Agency Fee"
           value={<ApplicableToggle value={agencyFeeApplicable} onChange={setAgencyFeeApplicable} />}
@@ -435,7 +470,6 @@ function CommissionTab({ unit }: { unit: UnitListing }) {
 
         {agencyFeeApplicable && (
           <>
-            {/* Fee amount — editable */}
             <FieldRow
               label="Fee Amount"
               value={
@@ -452,7 +486,6 @@ function CommissionTab({ unit }: { unit: UnitListing }) {
               }
             />
 
-            {/* Paid by */}
             <FieldRow
               label="Paid By"
               value={
@@ -483,20 +516,59 @@ function CommissionTab({ unit }: { unit: UnitListing }) {
 
       </SectionCard>
 
-      {/* ── MOCI Contract Registration ── */}
-      <SectionCard title="MOCI Contract Registration">
+      {/* ── Property Registration Status ── */}
+      <SectionCard title="Property Registration Status">
+
         <FieldRow
           label="Registration Status"
           value={
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${MOCI_BADGE[unit.mociContractStatus] ?? 'bg-[#2a2a2a] text-[#888888]'}`}>
-              {unit.mociContractStatus}
-            </span>
+            <div className="flex flex-col gap-2.5">
+              {/* Live status badge */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${PROP_REG_BADGE[regStatus]}`}>
+                  {regStatus}
+                </span>
+                {autoRegistered && (
+                  <span className="text-[10px] text-[#444444] italic">
+                    auto-set · unit is Leased
+                  </span>
+                )}
+              </div>
+              {/* Editable dropdown */}
+              <select
+                value={regStatus}
+                onChange={(e) => setRegStatus(e.target.value as PropertyRegStatus)}
+                className="w-48 px-3 py-1.5 text-sm bg-[#111111] text-[#d0d0d0] border border-[#333333] rounded-md focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] cursor-pointer"
+              >
+                {PROPERTY_REG_STATUSES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
           }
         />
+
+        {/* Registration By — shown only for Reserved / Booked / Leased */}
+        {showRegistrationBy && (
+          <FieldRow
+            label="Registration By"
+            value={
+              <input
+                type="text"
+                placeholder="Enter registering party…"
+                value={registrationBy}
+                onChange={(e) => setRegistrationBy(e.target.value)}
+                className="w-64 text-sm text-[#d0d0d0] bg-[#111111] border border-[#333333] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] placeholder:text-[#444444]"
+              />
+            }
+          />
+        )}
+
         <FieldRow
           label="Contract Number"
           value={<span className="font-mono text-sm">{unit.mociContractNumber}</span>}
         />
+
       </SectionCard>
 
       {/* ── Legal Duration & Conditions ── */}
