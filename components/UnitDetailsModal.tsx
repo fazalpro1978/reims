@@ -943,17 +943,22 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
 
   useEffect(() => {
     if (!unitUuid) return;
-    supabase.from('unit_commissions').select('*').eq('unit_id', unitUuid).single()
-      .then(({ data }) => {
-        if (!data) return;
-        setAgencyFeeApplicable(data.agency_fee_applicable ?? false);
-        setAgencyFeeAmount(data.agency_fee_amount ?? 0);
-        setPaidBy((data.paid_by as PaidByOption) ?? 'Real Estate Company');
-        setPaidByOther(data.paid_by_other ?? '');
-        setRegStatus((data.property_reg_status as PropertyRegStatus) ?? getDefaultRegStatus(unit));
-        setRegistrationBy(data.registration_by ?? '');
-        setContractNumber(unit.mociContractNumber);
-      });
+    Promise.all([
+      supabase.from('unit_commissions').select('*').eq('unit_id', unitUuid).single(),
+      supabase.from('units').select('moci_contract_number').eq('id', unitUuid).single(),
+    ]).then(([{ data: commData }, { data: unitData }]) => {
+      if (commData) {
+        setAgencyFeeApplicable(commData.agency_fee_applicable ?? false);
+        setAgencyFeeAmount(commData.agency_fee_amount ?? 0);
+        setPaidBy((commData.paid_by as PaidByOption) ?? 'Real Estate Company');
+        setPaidByOther(commData.paid_by_other ?? '');
+        setRegStatus((commData.property_reg_status as PropertyRegStatus) ?? getDefaultRegStatus(unit));
+        setRegistrationBy(commData.registration_by ?? '');
+      }
+      if (unitData) {
+        setContractNumber(unitData.moci_contract_number ?? unit.mociContractNumber);
+      }
+    });
   }, [unitUuid]);
 
   const handleSave = async () => {
