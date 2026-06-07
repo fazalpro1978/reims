@@ -68,7 +68,9 @@ export interface UnitListing {
   // ── Legal ─────────────────────────────────────────────────────────────────
   mociContractStatus: MociContractStatus;
   mociContractNumber: string;
-  legalDuration: string;
+  legalDuration: string;      // e.g. "1 Year (Renewable)" — parsed by UI into value + unit
+  contractStartDate: string;  // ISO 8601 date string
+  contractEndDate: string;    // ISO 8601 date string
 
   // ── Operational ───────────────────────────────────────────────────────────
   maintenanceNotes: string;

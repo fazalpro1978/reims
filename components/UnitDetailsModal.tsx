@@ -5,7 +5,7 @@
 // Privé Group RE-IMS · Unit Details Modal
 // ─────────────────────────────────────────────────────────────────────────────
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { UnitListing, Status, Furnishing, KitchenType } from '../types/inventory';
 
 type TabId = 'property' | 'financials' | 'commission' | 'operational';
@@ -677,6 +677,137 @@ function ClientInfoSection() {
   );
 }
 
+// ── Legal Duration & Conditions ────────────────────────────────────────────
+
+type DurationUnit = 'Days' | 'Weeks' | 'Months' | 'Years';
+
+function parseLegalDuration(s: string): { value: number; unit: DurationUnit } {
+  const m = s.trim().match(/^(\d+(?:\.\d+)?)\s*(day|days|week|weeks|month|months|year|years)/i);
+  if (!m) return { value: 1, unit: 'Years' };
+  const n = Number(m[1]);
+  const u = m[2].toLowerCase();
+  if (u.startsWith('day'))   return { value: n, unit: 'Days' };
+  if (u.startsWith('week'))  return { value: n, unit: 'Weeks' };
+  if (u.startsWith('month')) return { value: n, unit: 'Months' };
+  return { value: n, unit: 'Years' };
+}
+
+const toDateValue = (iso: string) => (iso ? iso.split('T')[0] : '');
+
+function LegalDurationSection({ unit }: { unit: UnitListing }) {
+  const parsed = parseLegalDuration(unit.legalDuration);
+
+  const [listedDate,        setListedDate]        = useState<string>(toDateValue(unit.listedDate));
+  const [contractStartDate, setContractStartDate] = useState<string>(toDateValue(unit.contractStartDate));
+  const [contractEndDate,   setContractEndDate]   = useState<string>(toDateValue(unit.contractEndDate));
+  const [durationValue,     setDurationValue]     = useState<number>(parsed.value);
+  const [durationUnit,      setDurationUnit]      = useState<DurationUnit>(parsed.unit);
+  const [lastModified,      setLastModified]      = useState<string>(unit.lastUpdated);
+
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    setLastModified(new Date().toISOString());
+  }, [listedDate, contractStartDate, contractEndDate, durationValue, durationUnit]);
+
+  const formatTimestamp = (iso: string) =>
+    new Date(iso).toLocaleString('en-GB', {
+      day: '2-digit', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: false,
+    });
+
+  const dateInp = 'text-sm text-[#d0d0d0] bg-[#111111] border border-[#333333] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c]';
+
+  return (
+    <SectionCard title="Legal Duration & Conditions">
+
+      {/* Listed Date — editable date picker */}
+      <FieldRow
+        label="Listed Date"
+        value={
+          <input
+            type="date"
+            value={listedDate}
+            onChange={e => setListedDate(e.target.value)}
+            className={dateInp}
+            style={{ colorScheme: 'dark' }}
+          />
+        }
+      />
+
+      {/* Contract Start Date — editable date picker */}
+      <FieldRow
+        label="Contract Start Date"
+        value={
+          <input
+            type="date"
+            value={contractStartDate}
+            onChange={e => setContractStartDate(e.target.value)}
+            className={dateInp}
+            style={{ colorScheme: 'dark' }}
+          />
+        }
+      />
+
+      {/* Contract End Date — editable date picker */}
+      <FieldRow
+        label="Contract End Date"
+        value={
+          <input
+            type="date"
+            value={contractEndDate}
+            onChange={e => setContractEndDate(e.target.value)}
+            className={dateInp}
+            style={{ colorScheme: 'dark' }}
+          />
+        }
+      />
+
+      {/* Contract Duration — numeric input + unit dropdown */}
+      <FieldRow
+        label="Contract Duration"
+        value={
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={1}
+              value={durationValue}
+              onChange={e => setDurationValue(Math.max(1, Number(e.target.value)))}
+              className="w-20 text-center text-sm text-[#d0d0d0] bg-[#111111] border border-[#333333] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] tabular-nums"
+            />
+            <select
+              value={durationUnit}
+              onChange={e => setDurationUnit(e.target.value as DurationUnit)}
+              className="px-3 py-1.5 text-sm bg-[#111111] text-[#d0d0d0] border border-[#333333] rounded-md focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] cursor-pointer"
+            >
+              {(['Days', 'Weeks', 'Months', 'Years'] as DurationUnit[]).map(u => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+          </div>
+        }
+      />
+
+      {/* Last Updated — read-only system timestamp, auto-refreshes on any edit */}
+      <FieldRow
+        label="Last Updated"
+        value={
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-mono text-[#888888]">
+              {formatTimestamp(lastModified)}
+            </span>
+            <span className="text-[9px] font-bold bg-[#1a1a1a] border border-[#252525] text-[#555555] px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
+              auto
+            </span>
+          </div>
+        }
+      />
+
+    </SectionCard>
+  );
+}
+
 function CommissionTab({ unit }: { unit: UnitListing }) {
   const [agencyFeeApplicable, setAgencyFeeApplicable] = useState<boolean>(unit.agencyFee > 0);
   const [agencyFeeAmount, setAgencyFeeAmount] = useState<number>(unit.agencyFee);
@@ -813,11 +944,7 @@ function CommissionTab({ unit }: { unit: UnitListing }) {
       <ClientInfoSection />
 
       {/* ── Legal Duration & Conditions ── */}
-      <SectionCard title="Legal Duration & Conditions">
-        <FieldRow label="Contract Duration" value={unit.legalDuration} />
-        <FieldRow label="Listed Date" value={formatDate(unit.listedDate)} />
-        <FieldRow label="Last Updated" value={formatDate(unit.lastUpdated)} />
-      </SectionCard>
+      <LegalDurationSection unit={unit} />
 
     </div>
   );
