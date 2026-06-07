@@ -445,29 +445,27 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
     [units]
   );
 
-  const filteredUnits = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const minR = minRent !== '' ? Number(minRent) : null;
-    const maxR = maxRent !== '' ? Number(maxRent) : null;
-    return units.filter((u) => {
-      const matchSearch =
-        !q ||
-        u.property.toLowerCase().includes(q) ||
-        u.unitNo.toLowerCase().includes(q) ||
-        u.realtorName.toLowerCase().includes(q) ||
-        u.realtorMOCI.toLowerCase().includes(q);
-      const matchStatus    = statusFilter    === 'All' || u.status       === statusFilter;
-      const matchFurnishing= furnishingFilter === 'All' || u.furnishing   === furnishingFilter;
-      const matchZone      = zoneFilter       === 'All' || u.zone         === zoneFilter;
-      const matchType      = typeFilter       === 'All' || u.type         === typeFilter;
-      const matchConfig    = configFilter     === 'All' || u.config       === configFilter;
-      const matchRealtor   = realtorFilter    === 'All' || u.realtorName  === realtorFilter;
-      const matchMinRent   = minR === null || u.rent >= minR;
-      const matchMaxRent   = maxR === null || u.rent <= maxR;
-      return matchSearch && matchStatus && matchFurnishing && matchZone &&
-             matchType && matchConfig && matchRealtor && matchMinRent && matchMaxRent;
-    });
-  }, [units, search, statusFilter, furnishingFilter, zoneFilter, typeFilter, configFilter, realtorFilter, minRent, maxRent]);
+  const _q = search.trim().toLowerCase();
+  const _minR = minRent !== '' ? Number(minRent) : null;
+  const _maxR = maxRent !== '' ? Number(maxRent) : null;
+  const filteredUnits = units.filter((u) => {
+    const matchSearch =
+      !_q ||
+      u.property.toLowerCase().includes(_q) ||
+      u.unitNo.toLowerCase().includes(_q) ||
+      u.realtorName.toLowerCase().includes(_q) ||
+      (u.realtorMOCI ?? '').toLowerCase().includes(_q);
+    const matchStatus     = statusFilter     === 'All' || u.status      === statusFilter;
+    const matchFurnishing = furnishingFilter  === 'All' || u.furnishing  === furnishingFilter;
+    const matchZone       = zoneFilter        === 'All' || u.zone        === zoneFilter;
+    const matchType       = typeFilter        === 'All' || u.type        === typeFilter;
+    const matchConfig     = configFilter      === 'All' || u.config      === configFilter;
+    const matchRealtor    = realtorFilter     === 'All' || u.realtorName === realtorFilter;
+    const matchMinRent    = _minR === null || u.rent >= _minR;
+    const matchMaxRent    = _maxR === null || u.rent <= _maxR;
+    return matchSearch && matchStatus && matchFurnishing && matchZone &&
+           matchType && matchConfig && matchRealtor && matchMinRent && matchMaxRent;
+  });
 
   const totalPages = Math.max(1, Math.ceil(filteredUnits.length / ROWS_PER_PAGE));
   const paginatedUnits = filteredUnits.slice(
