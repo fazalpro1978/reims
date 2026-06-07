@@ -1092,10 +1092,12 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
           />
         )}
 
-        <FieldRow
-          label="Contract Number"
-          value={<span className="font-mono text-sm">{unit.mociContractNumber}</span>}
-        />
+        {regStatus !== 'Not Registered' && (
+          <FieldRow
+            label="Contract Number"
+            value={<span className="font-mono text-sm">{unit.mociContractNumber || '—'}</span>}
+          />
+        )}
 
       </SectionCard>
 
@@ -1184,6 +1186,9 @@ function OperationalTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: strin
   // ── Maintenance Notes (editable) ──────────────────────────────────────────
   const [maintenanceNotes, setMaintenanceNotes] = useState(unit.maintenanceNotes);
 
+  // ── Access & Security ─────────────────────────────────────────────────────
+  const [accessLockbox, setAccessLockbox] = useState(unit.accessLockbox);
+
   // ── System Update Log ──────────────────────────────────────────────────────
   const [updateLog, setUpdateLog] = useState<LogEntry[]>([]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
@@ -1199,11 +1204,13 @@ function OperationalTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: strin
         const femail  = data.focal_point_email ?? '';
         const remarks = data.operator_remarks  ?? '';
         const notes   = data.maintenance_notes ?? unit.maintenanceNotes;
+        const lockbox = data.access_lockbox    ?? unit.accessLockbox;
         setFocalName(name);
         setFocalPhone(phone);
         setFocalEmail(femail);
         setOperatorRemarks(remarks);
         setMaintenanceNotes(notes);
+        setAccessLockbox(lockbox);
         committed.current = {
           'Contact Name':      name,
           'Phone':             phone,
@@ -1217,11 +1224,12 @@ function OperationalTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: strin
   const handleSave = async () => {
     setSaveStatus('saving');
     const { error } = await supabase.from('unit_operational').update({
-      focal_point_name:  focalName    || null,
-      focal_point_phone: focalPhone   || null,
-      focal_point_email: focalEmail   || null,
+      focal_point_name:  focalName       || null,
+      focal_point_phone: focalPhone      || null,
+      focal_point_email: focalEmail      || null,
       operator_remarks:  operatorRemarks || null,
       maintenance_notes: maintenanceNotes || null,
+      access_lockbox:    accessLockbox   || null,
     }).eq('unit_id', unitUuid);
     if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
     // Persist the in-memory log entries to audit_log table
@@ -1341,12 +1349,18 @@ function OperationalTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: strin
         <FieldRow
           label="Lockbox / Access Code"
           value={
-            <span className="inline-flex items-center gap-2 font-mono text-sm bg-[#c9a84c]/10 text-[#c9a84c] border border-[#c9a84c]/30 px-3 py-1.5 rounded-lg">
-              <svg className="w-3.5 h-3.5 text-[#c9a84c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center gap-2">
+              <svg className="w-3.5 h-3.5 text-[#c9a84c] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
-              {unit.accessLockbox}
-            </span>
+              <input
+                type="text"
+                value={accessLockbox}
+                onChange={e => setAccessLockbox(e.target.value)}
+                placeholder="e.g. Code: 1234 — Floor 3, Door Left"
+                className={`${inp} font-mono`}
+              />
+            </div>
           }
         />
       </SectionCard>
