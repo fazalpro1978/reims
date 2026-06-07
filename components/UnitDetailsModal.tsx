@@ -789,6 +789,26 @@ function parseLegalDuration(s: string): { value: number; unit: DurationUnit } {
 
 const toDateValue = (iso: string) => (iso ? iso.split('T')[0] : '');
 
+function calcEndDate(start: string, value: number, unit: DurationUnit): string {
+  if (!start) return '';
+  const d = new Date(start);
+  if (unit === 'Days')   d.setDate(d.getDate() + value);
+  if (unit === 'Weeks')  d.setDate(d.getDate() + value * 7);
+  if (unit === 'Months') d.setMonth(d.getMonth() + value);
+  if (unit === 'Years')  d.setFullYear(d.getFullYear() + value);
+  return d.toISOString().split('T')[0];
+}
+
+function calcDurationFromDates(start: string, end: string): { value: number; unit: DurationUnit } {
+  if (!start || !end) return { value: 1, unit: 'Years' };
+  const diffDays = Math.round((new Date(end).getTime() - new Date(start).getTime()) / 86400000);
+  if (diffDays <= 0) return { value: 1, unit: 'Days' };
+  if (diffDays % 365 === 0) return { value: diffDays / 365, unit: 'Years' };
+  if (diffDays % 30  === 0) return { value: diffDays / 30,  unit: 'Months' };
+  if (diffDays % 7   === 0) return { value: diffDays / 7,   unit: 'Weeks' };
+  return { value: diffDays, unit: 'Days' };
+}
+
 function LegalDurationSection({ unit, unitUuid }: { unit: UnitListing; unitUuid: string }) {
   const parsed = parseLegalDuration(unit.legalDuration);
 
@@ -801,6 +821,65 @@ function LegalDurationSection({ unit, unitUuid }: { unit: UnitListing; unitUuid:
   const [saveStatus,        setSaveStatus]        = useState<SaveStatus>('idle');
   const [saveError,         setSaveError]         = useState('');
 
+  // Load fresh values from DB on open
+  useEffect(() => {
+    if (!unitUuid) return;
+    supabase.from('units')
+      .select('listed_date,contract_start_date,contract_end_date,legal_duration,updated_at')
+      .eq('id', unitUuid).single()
+      .then(({ data }) => {
+        if (!data) return;
+        setListedDate(toDateValue(data.listed_date ?? ''));
+        const start = toDateValue(data.contract_start_date ?? '');
+        const end   = toDateValue(data.contract_end_date ?? '');
+        setContractStartDate(start);
+        setContractEndDate(end);
+        setLastModified(data.updated_at ?? unit.lastUpdated);
+        if (data.legal_duration) {
+          const p = parseLegalDuration(data.legal_duration);
+          setDurationValue(p.value);
+          setDurationUnit(p.unit);
+        } else if (start && end) {
+          const p = calcDurationFromDates(start, end);
+          setDurationValue(p.value);
+          setDurationUnit(p.unit);
+        }
+      });
+  }, [unitUuid]);
+
+  // Start date changed → recalculate end date from duration
+  const handleStartChange = (start: string) => {
+    setContractStartDate(start);
+    if (start && durationValue) {
+      setContractEndDate(calcEndDate(start, durationValue, durationUnit));
+    }
+    setLastModified(new Date().toISOString());
+  };
+
+  // End date changed manually → recalculate duration
+  const handleEndChange = (end: string) => {
+    setContractEndDate(end);
+    if (end && contractStartDate) {
+      const p = calcDurationFromDates(contractStartDate, end);
+      setDurationValue(p.value);
+      setDurationUnit(p.unit);
+    }
+    setLastModified(new Date().toISOString());
+  };
+
+  // Duration changed → recalculate end date from start
+  const handleDurationValueChange = (val: number) => {
+    setDurationValue(val);
+    if (contractStartDate) setContractEndDate(calcEndDate(contractStartDate, val, durationUnit));
+    setLastModified(new Date().toISOString());
+  };
+
+  const handleDurationUnitChange = (u: DurationUnit) => {
+    setDurationUnit(u);
+    if (contractStartDate) setContractEndDate(calcEndDate(contractStartDate, durationValue, u));
+    setLastModified(new Date().toISOString());
+  };
+
   const handleSave = async () => {
     setSaveStatus('saving');
     const legalDuration = `${durationValue} ${durationUnit}`;
@@ -809,23 +888,17 @@ function LegalDurationSection({ unit, unitUuid }: { unit: UnitListing; unitUuid:
       contract_start_date: contractStartDate || null,
       contract_end_date:   contractEndDate || null,
       legal_duration:      legalDuration,
-    }).eq('unit_code', unit.id);
+    }).eq('id', unitUuid);
     if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
     await insertAuditLog(unitUuid, [
-      { field: 'Listed Date',          oldValue: unit.listedDate,          newValue: listedDate },
-      { field: 'Contract Start Date',  oldValue: unit.contractStartDate,   newValue: contractStartDate },
-      { field: 'Contract End Date',    oldValue: unit.contractEndDate,     newValue: contractEndDate },
-      { field: 'Legal Duration',       oldValue: unit.legalDuration,       newValue: legalDuration },
+      { field: 'Listed Date',         oldValue: unit.listedDate,        newValue: listedDate },
+      { field: 'Contract Start Date', oldValue: unit.contractStartDate, newValue: contractStartDate },
+      { field: 'Contract End Date',   oldValue: unit.contractEndDate,   newValue: contractEndDate },
+      { field: 'Legal Duration',      oldValue: unit.legalDuration,     newValue: legalDuration },
     ]);
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus('idle'), 2500);
   };
-
-  const isFirstRender = useRef(true);
-  useEffect(() => {
-    if (isFirstRender.current) { isFirstRender.current = false; return; }
-    setLastModified(new Date().toISOString());
-  }, [listedDate, contractStartDate, contractEndDate, durationValue, durationUnit]);
 
   const formatTimestamp = (iso: string) =>
     new Date(iso).toLocaleString('en-GB', {
@@ -840,70 +913,61 @@ function LegalDurationSection({ unit, unitUuid }: { unit: UnitListing; unitUuid:
     <>
     <SectionCard title="Legal Duration & Conditions">
 
-      {/* Listed Date — editable date picker */}
+      {/* Listed Date */}
       <FieldRow
         label="Listed Date"
         value={
-          <input
-            type="date"
-            value={listedDate}
-            onChange={e => setListedDate(e.target.value)}
-            className={dateInp}
-            style={{ colorScheme: 'dark' }}
+          <input type="date" value={listedDate}
+            onChange={e => { setListedDate(e.target.value); setLastModified(new Date().toISOString()); }}
+            className={dateInp} style={{ colorScheme: 'dark' }}
           />
         }
       />
 
-      {/* Contract Start Date — editable date picker */}
+      {/* Contract Start Date → auto-calculates end date */}
       <FieldRow
         label="Contract Start Date"
         value={
-          <input
-            type="date"
-            value={contractStartDate}
-            onChange={e => setContractStartDate(e.target.value)}
-            className={dateInp}
-            style={{ colorScheme: 'dark' }}
+          <input type="date" value={contractStartDate}
+            onChange={e => handleStartChange(e.target.value)}
+            className={dateInp} style={{ colorScheme: 'dark' }}
           />
         }
       />
 
-      {/* Contract End Date — editable date picker */}
-      <FieldRow
-        label="Contract End Date"
-        value={
-          <input
-            type="date"
-            value={contractEndDate}
-            onChange={e => setContractEndDate(e.target.value)}
-            className={dateInp}
-            style={{ colorScheme: 'dark' }}
-          />
-        }
-      />
-
-      {/* Contract Duration — numeric input + unit dropdown */}
+      {/* Contract Duration → auto-calculates end date */}
       <FieldRow
         label="Contract Duration"
         value={
           <div className="flex items-center gap-2">
             <input
-              type="number"
-              min={1}
-              value={durationValue}
-              onChange={e => setDurationValue(Math.max(1, Number(e.target.value)))}
+              type="number" min={1} value={durationValue}
+              onChange={e => handleDurationValueChange(Math.max(1, Number(e.target.value)))}
               className="w-20 text-center text-sm text-[#d0d0d0] bg-[#111111] border border-[#333333] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] tabular-nums"
             />
-            <select
-              value={durationUnit}
-              onChange={e => setDurationUnit(e.target.value as DurationUnit)}
+            <select value={durationUnit}
+              onChange={e => handleDurationUnitChange(e.target.value as DurationUnit)}
               className="px-3 py-1.5 text-sm bg-[#111111] text-[#d0d0d0] border border-[#333333] rounded-md focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] cursor-pointer"
             >
               {(['Days', 'Weeks', 'Months', 'Years'] as DurationUnit[]).map(u => (
                 <option key={u} value={u}>{u}</option>
               ))}
             </select>
+            {contractStartDate && contractEndDate && (
+              <span className="text-xs text-[#555555] italic">auto-calculated</span>
+            )}
           </div>
+        }
+      />
+
+      {/* Contract End Date → auto-calculates duration when changed manually */}
+      <FieldRow
+        label="Contract End Date"
+        value={
+          <input type="date" value={contractEndDate}
+            onChange={e => handleEndChange(e.target.value)}
+            className={dateInp} style={{ colorScheme: 'dark' }}
+          />
         }
       />
 
