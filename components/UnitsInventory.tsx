@@ -331,7 +331,7 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail }: Cont
 
 // ── Main export ────────────────────────────────────────────────────────────
 
-export default function UnitsInventory() {
+export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => void }) {
   // ── Filter state ──────────────────────────────────────────────────────────
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('All');
@@ -457,25 +457,47 @@ export default function UnitsInventory() {
     <div className="min-h-screen bg-[#0f0f0f]">
 
       {/* ── HEADER ── */}
-      <header className="bg-slate-900 sticky top-0 z-30 border-b border-slate-800">
-        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
+      <header className="bg-[#0d0d0d] sticky top-0 z-30 border-b border-[#1e1e1e]">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-amber-400 rounded flex items-center justify-center shrink-0">
-              <span className="text-slate-900 font-black text-sm select-none">P</span>
+            {/* Hamburger — desktop (lg+) */}
+            <button
+              onClick={onMenuClick}
+              aria-label="Open navigation menu"
+              className="hidden lg:flex w-8 h-8 rounded-lg bg-[#1a1a1a] hover:bg-[#242424] border border-[#2a2a2a] items-center justify-center text-[#666666] hover:text-[#c9a84c] transition-colors shrink-0"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="w-4 h-4">
+                <path d="M3 6h18M3 12h16M3 18h12" />
+              </svg>
+            </button>
+
+            {/* Logo mark */}
+            <div className="w-8 h-8 bg-[#c9a84c] rounded-lg flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(201,168,76,0.3)]">
+              <span className="text-[#0a0a0a] font-black text-sm select-none">P</span>
             </div>
             <div className="min-w-0">
-              <h1 className="text-white font-semibold text-base leading-tight truncate">
+              <h1 className="text-[#e0e0e0] font-semibold text-base leading-tight truncate">
                 Privé Group
               </h1>
-              <p className="text-slate-400 text-[11px] leading-tight hidden sm:block">
+              <p className="text-[#444444] text-[11px] leading-tight hidden sm:block tracking-wide">
                 Real Estate Information Management System
               </p>
             </div>
           </div>
+
           <div className="flex items-center gap-3">
-            <span className="text-[#505050] text-xs hidden md:block">Admin Console</span>
-            <div className="w-7 h-7 rounded-full bg-amber-400/20 border border-amber-400/30 flex items-center justify-center">
-              <span className="text-amber-400 text-xs font-bold">A</span>
+            <span className="text-[#3a3a3a] text-xs hidden md:block font-medium tracking-wide">Admin Console</span>
+            {/* Divider */}
+            <div className="hidden md:block w-px h-4 bg-[#222222]" />
+            {/* Notifications bell */}
+            <button className="hidden sm:flex w-8 h-8 rounded-lg bg-[#1a1a1a] hover:bg-[#242424] border border-[#222222] items-center justify-center text-[#444444] hover:text-[#c9a84c] transition-colors">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
+              </svg>
+            </button>
+            {/* Avatar */}
+            <div className="w-7 h-7 rounded-full bg-[#c9a84c]/15 border border-[#c9a84c]/25 flex items-center justify-center cursor-default">
+              <span className="text-[#c9a84c] text-xs font-bold select-none">A</span>
             </div>
           </div>
         </div>
