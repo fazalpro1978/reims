@@ -74,10 +74,14 @@ const MOCI_TO_REG_STATUS: Record<string, PropertyRegStatus> = {
   DRAFT:        'Not Registered',
 };
 
+const ACTIVE_STATUSES = new Set<string>([
+  Status.Leased,
+  Status.Reserved,
+  'Booked',
+]);
+
 function getDefaultRegStatus(unit: UnitListing): PropertyRegStatus {
-  if (unit.status === Status.Leased)   return 'Registered';
-  if (unit.status === Status.Reserved) return 'Reserved';
-  return MOCI_TO_REG_STATUS[unit.mociContractStatus] ?? 'Not Registered';
+  return ACTIVE_STATUSES.has(unit.status) ? 'Registered' : 'Not Registered';
 }
 
 // ── Layout primitives ──────────────────────────────────────────────────────
@@ -454,7 +458,8 @@ function CommissionTab({ unit }: { unit: UnitListing }) {
   const [regStatus, setRegStatus] = useState<PropertyRegStatus>(() => getDefaultRegStatus(unit));
   const [registrationBy, setRegistrationBy] = useState<string>('');
 
-  const autoRegistered = unit.status === Status.Leased && regStatus === 'Registered';
+  const autoRegistered = ACTIVE_STATUSES.has(unit.status) && regStatus === 'Registered';
+  const autoNotRegistered = !ACTIVE_STATUSES.has(unit.status) && regStatus === 'Not Registered';
   const showRegistrationBy = regStatus === 'Reserved' || regStatus === 'Booked' || regStatus === 'Leased';
 
   return (
@@ -530,7 +535,12 @@ function CommissionTab({ unit }: { unit: UnitListing }) {
                 </span>
                 {autoRegistered && (
                   <span className="text-[10px] text-[#444444] italic">
-                    auto-set · unit is Leased
+                    auto-set · unit is {unit.status.replace('_', ' ')}
+                  </span>
+                )}
+                {autoNotRegistered && (
+                  <span className="text-[10px] text-[#444444] italic">
+                    auto-set · unit is {unit.status.replace('_', ' ')}
                   </span>
                 )}
               </div>
