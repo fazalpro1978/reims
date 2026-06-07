@@ -1,3 +1,3 @@
-// Auto-generated types will replace this file once `supabase gen types` is run.
-// Placeholder keeps TypeScript happy during initial setup.
-export type Database = Record<string, unknown>;
+// Placeholder until `supabase gen types` is run against the live schema.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Database = any;

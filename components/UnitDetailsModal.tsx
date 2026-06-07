@@ -7,6 +7,34 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { UnitListing, Status, Furnishing, KitchenType } from '../types/inventory';
+import { supabase } from '../lib/supabase/client';
+
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+function SaveBar({ status, onSave, errorMsg }: { status: SaveStatus; onSave: () => void; errorMsg?: string }) {
+  return (
+    <div className="flex items-center justify-end gap-3 pt-3 mt-3 border-t border-[#2a2a2a]">
+      {status === 'saved'  && <span className="text-xs text-emerald-400">✓ Saved</span>}
+      {status === 'error'  && <span className="text-xs text-red-400">{errorMsg ?? 'Save failed'}</span>}
+      <button
+        onClick={onSave}
+        disabled={status === 'saving'}
+        className="px-4 py-1.5 text-xs font-semibold bg-[#c9a84c] hover:bg-[#dfc070] text-[#0f0f0f] rounded-lg disabled:opacity-50 transition-colors"
+      >
+        {status === 'saving' ? 'Saving…' : 'Save Changes'}
+      </button>
+    </div>
+  );
+}
+
+async function insertAuditLog(unitUuid: string, changes: { field: string; oldValue: string; newValue: string }[]) {
+  if (!unitUuid || changes.length === 0) return;
+  const rows = changes
+    .filter(c => c.oldValue !== c.newValue)
+    .map(c => ({ unit_id: unitUuid, field: c.field, old_value: c.oldValue, new_value: c.newValue }));
+  if (rows.length === 0) return;
+  await supabase.from('audit_log').insert(rows);
+}
 
 type TabId = 'property' | 'financials' | 'commission' | 'operational';
 
@@ -258,10 +286,29 @@ function DepositRow({ label, applicable, onToggle, amount, onAmount }: {
   );
 }
 
-function FinancialsTab({ unit }: { unit: UnitListing }) {
+function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string }) {
   const [monthlyRent, setMonthlyRent] = useState<number>(unit.rent);
   const [contractCharges, setContractCharges] = useState<number>(unit.agencyFee);
   const [additionalCharges, setAdditionalCharges] = useState<number>(unit.serviceCharges);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [saveError, setSaveError] = useState('');
+
+  const handleSave = async () => {
+    setSaveStatus('saving');
+    const prev = { rent: unit.rent, agency_fee: unit.agencyFee, service_charges: unit.serviceCharges };
+    const { error } = await supabase
+      .from('units')
+      .update({ rent: monthlyRent, agency_fee: contractCharges, service_charges: additionalCharges })
+      .eq('unit_code', unit.id);
+    if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
+    await insertAuditLog(unitUuid, [
+      { field: 'Monthly Rent',       oldValue: String(prev.rent),            newValue: String(monthlyRent) },
+      { field: 'Contract Charges',   oldValue: String(prev.agency_fee),      newValue: String(contractCharges) },
+      { field: 'Additional Charges', oldValue: String(prev.service_charges), newValue: String(additionalCharges) },
+    ]);
+    setSaveStatus('saved');
+    setTimeout(() => setSaveStatus('idle'), 2500);
+  };
 
   const [serviceUtility, setServiceUtility] = useState<boolean>(true);
   const [kahramaaApplicable, setKahramaaApplicable] = useState<boolean>(true);
@@ -433,6 +480,8 @@ function FinancialsTab({ unit }: { unit: UnitListing }) {
         </div>
       </div>
 
+      <SaveBar status={saveStatus} onSave={handleSave} errorMsg={saveError} />
+
     </div>
   );
 }
@@ -488,7 +537,7 @@ const DOC_TYPES: { key: keyof ClientDocUrls; label: string }[] = [
   { key: 'computerCard', label: 'Computer Card' },
 ];
 
-function ClientInfoSection() {
+function ClientInfoSection({ unitUuid }: { unitUuid: string }) {
   const [clientType,           setClientType]           = useState<ClientType>('Individual');
   const [fullName,             setFullName]             = useState('');
   const [idNumber,             setIdNumber]             = useState('');
@@ -502,6 +551,29 @@ function ClientInfoSection() {
   const [uploadedFiles,        setUploadedFiles]        = useState<string[]>([]);
   const [uploadError,          setUploadError]          = useState('');
   const [notes,                setNotes]                = useState('');
+  const [saveStatus,           setSaveStatus]           = useState<SaveStatus>('idle');
+  const [saveError,            setSaveError]            = useState('');
+
+  const handleSave = async () => {
+    if (!unitUuid) return;
+    setSaveStatus('saving');
+    const { error } = await supabase.from('unit_clients').upsert({
+      unit_id:              unitUuid,
+      client_type:          clientType,
+      full_name:            fullName || null,
+      qid_cr_number:        idNumber || null,
+      nationality:          nationality || null,
+      mobile_number:        mobile || null,
+      email:                email || null,
+      employer:             employerDetails || null,
+      authorized_signatory: clientType === 'Company' ? authorizedSignatory || null : null,
+      emergency_contact:    emergencyContact || null,
+      notes:                notes || null,
+    }, { onConflict: 'unit_id' });
+    if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
+    setSaveStatus('saved');
+    setTimeout(() => setSaveStatus('idle'), 2500);
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -522,6 +594,7 @@ function ClientInfoSection() {
   const inp = 'w-full text-sm text-[#d0d0d0] bg-[#111111] border border-[#333333] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] placeholder:text-[#444444]';
 
   return (
+    <>
     <SectionCard title="Client Info">
 
       <FieldRow label="Client Type" value={<ClientTypeToggle value={clientType} onChange={setClientType} />} />
@@ -674,6 +747,9 @@ function ClientInfoSection() {
       />
 
     </SectionCard>
+
+    <SaveBar status={saveStatus} onSave={handleSave} errorMsg={saveError} />
+    </>
   );
 }
 
@@ -694,7 +770,7 @@ function parseLegalDuration(s: string): { value: number; unit: DurationUnit } {
 
 const toDateValue = (iso: string) => (iso ? iso.split('T')[0] : '');
 
-function LegalDurationSection({ unit }: { unit: UnitListing }) {
+function LegalDurationSection({ unit, unitUuid }: { unit: UnitListing; unitUuid: string }) {
   const parsed = parseLegalDuration(unit.legalDuration);
 
   const [listedDate,        setListedDate]        = useState<string>(toDateValue(unit.listedDate));
@@ -703,6 +779,28 @@ function LegalDurationSection({ unit }: { unit: UnitListing }) {
   const [durationValue,     setDurationValue]     = useState<number>(parsed.value);
   const [durationUnit,      setDurationUnit]      = useState<DurationUnit>(parsed.unit);
   const [lastModified,      setLastModified]      = useState<string>(unit.lastUpdated);
+  const [saveStatus,        setSaveStatus]        = useState<SaveStatus>('idle');
+  const [saveError,         setSaveError]         = useState('');
+
+  const handleSave = async () => {
+    setSaveStatus('saving');
+    const legalDuration = `${durationValue} ${durationUnit}`;
+    const { error } = await supabase.from('units').update({
+      listed_date:         listedDate || null,
+      contract_start_date: contractStartDate || null,
+      contract_end_date:   contractEndDate || null,
+      legal_duration:      legalDuration,
+    }).eq('unit_code', unit.id);
+    if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
+    await insertAuditLog(unitUuid, [
+      { field: 'Listed Date',          oldValue: unit.listedDate,          newValue: listedDate },
+      { field: 'Contract Start Date',  oldValue: unit.contractStartDate,   newValue: contractStartDate },
+      { field: 'Contract End Date',    oldValue: unit.contractEndDate,     newValue: contractEndDate },
+      { field: 'Legal Duration',       oldValue: unit.legalDuration,       newValue: legalDuration },
+    ]);
+    setSaveStatus('saved');
+    setTimeout(() => setSaveStatus('idle'), 2500);
+  };
 
   const isFirstRender = useRef(true);
   useEffect(() => {
@@ -720,6 +818,7 @@ function LegalDurationSection({ unit }: { unit: UnitListing }) {
   const dateInp = 'text-sm text-[#d0d0d0] bg-[#111111] border border-[#333333] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c]';
 
   return (
+    <>
     <SectionCard title="Legal Duration & Conditions">
 
       {/* Listed Date — editable date picker */}
@@ -805,10 +904,13 @@ function LegalDurationSection({ unit }: { unit: UnitListing }) {
       />
 
     </SectionCard>
+
+    <SaveBar status={saveStatus} onSave={handleSave} errorMsg={saveError} />
+    </>
   );
 }
 
-function CommissionTab({ unit }: { unit: UnitListing }) {
+function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string }) {
   const [agencyFeeApplicable, setAgencyFeeApplicable] = useState<boolean>(unit.agencyFee > 0);
   const [agencyFeeAmount, setAgencyFeeAmount] = useState<number>(unit.agencyFee);
   const [paidBy, setPaidBy] = useState<PaidByOption>('Real Estate Company');
@@ -816,6 +918,28 @@ function CommissionTab({ unit }: { unit: UnitListing }) {
 
   const [regStatus, setRegStatus] = useState<PropertyRegStatus>(() => getDefaultRegStatus(unit));
   const [registrationBy, setRegistrationBy] = useState<string>('');
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [saveError, setSaveError] = useState('');
+
+  const handleSave = async () => {
+    setSaveStatus('saving');
+    const { error } = await supabase.from('unit_commissions').upsert({
+      unit_id:              unitUuid,
+      agency_fee_applicable: agencyFeeApplicable,
+      agency_fee_amount:    agencyFeeApplicable ? agencyFeeAmount : null,
+      paid_by:              agencyFeeApplicable ? paidBy : null,
+      paid_by_other:        paidBy === 'Other' ? paidByOther : null,
+      property_reg_status:  regStatus,
+      registration_by:      registrationBy || null,
+    }, { onConflict: 'unit_id' });
+    if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
+    await insertAuditLog(unitUuid, [
+      { field: 'Agency Fee Applicable', oldValue: '', newValue: String(agencyFeeApplicable) },
+      { field: 'Property Reg Status',   oldValue: '', newValue: regStatus },
+    ]);
+    setSaveStatus('saved');
+    setTimeout(() => setSaveStatus('idle'), 2500);
+  };
 
   const autoRegistered = ACTIVE_STATUSES.has(unit.status) && regStatus === 'Registered';
   const autoNotRegistered = !ACTIVE_STATUSES.has(unit.status) && regStatus === 'Not Registered';
@@ -941,10 +1065,12 @@ function CommissionTab({ unit }: { unit: UnitListing }) {
       </SectionCard>
 
       {/* ── Client Info ── */}
-      <ClientInfoSection />
+      <ClientInfoSection unitUuid={unitUuid} />
 
       {/* ── Legal Duration & Conditions ── */}
-      <LegalDurationSection unit={unit} />
+      <LegalDurationSection unit={unit} unitUuid={unitUuid} />
+
+      <SaveBar status={saveStatus} onSave={handleSave} errorMsg={saveError} />
 
     </div>
   );
@@ -1013,7 +1139,7 @@ function SystemUpdateLog({ entries }: { entries: LogEntry[] }) {
   );
 }
 
-function OperationalTab({ unit }: { unit: UnitListing }) {
+function OperationalTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string }) {
   // ── Focal Point Info ──────────────────────────────────────────────────────
   const [focalName,  setFocalName]  = useState('');
   const [focalPhone, setFocalPhone] = useState('');
@@ -1027,6 +1153,34 @@ function OperationalTab({ unit }: { unit: UnitListing }) {
 
   // ── System Update Log ──────────────────────────────────────────────────────
   const [updateLog, setUpdateLog] = useState<LogEntry[]>([]);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [saveError,  setSaveError]  = useState('');
+
+  const handleSave = async () => {
+    setSaveStatus('saving');
+    const { error } = await supabase.from('unit_operational').update({
+      focal_point_name:  focalName    || null,
+      focal_point_phone: focalPhone   || null,
+      focal_point_email: focalEmail   || null,
+      operator_remarks:  operatorRemarks || null,
+      maintenance_notes: maintenanceNotes || null,
+    }).eq('unit_id', unitUuid);
+    if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
+    // Persist the in-memory log entries to audit_log table
+    if (unitUuid && updateLog.length > 0) {
+      await supabase.from('audit_log').insert(
+        updateLog.map(e => ({
+          unit_id:   unitUuid,
+          field:     e.field,
+          old_value: e.oldValue,
+          new_value: e.newValue,
+          changed_at: e.timestamp,
+        }))
+      );
+    }
+    setSaveStatus('saved');
+    setTimeout(() => setSaveStatus('idle'), 2500);
+  };
 
   // Snapshot of last-committed values used to detect real changes on blur
   const committed = useRef<Record<string, string>>({
@@ -1179,6 +1333,8 @@ function OperationalTab({ unit }: { unit: UnitListing }) {
         <SystemUpdateLog entries={updateLog} />
       </SectionCard>
 
+      <SaveBar status={saveStatus} onSave={handleSave} errorMsg={saveError} />
+
     </div>
   );
 }
@@ -1195,6 +1351,13 @@ const TABS: { id: TabId; label: string }[] = [
 export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProps) {
   const [activeTab, setActiveTab] = useState<TabId>('property');
   const [visible, setVisible] = useState(false);
+  const [unitUuid, setUnitUuid] = useState('');
+
+  // Fetch the DB UUID for this unit once on open (needed for child table writes)
+  useEffect(() => {
+    supabase.from('units').select('id').eq('unit_code', unit.id).single()
+      .then(({ data }) => { if (data) setUnitUuid((data as { id: string }).id); });
+  }, [unit.id]);
 
   // Animate in
   useEffect(() => {
@@ -1334,10 +1497,10 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
 
         {/* ── Tab Content (scrollable) ── */}
         <div className="flex-1 overflow-y-auto px-6 py-5 bg-[#181818]" role="tabpanel">
-          {activeTab === 'property' && <PropertyTab unit={unit} />}
-          {activeTab === 'financials' && <FinancialsTab unit={unit} />}
-          {activeTab === 'commission' && <CommissionTab unit={unit} />}
-          {activeTab === 'operational' && <OperationalTab unit={unit} />}
+          {activeTab === 'property'    && <PropertyTab unit={unit} />}
+          {activeTab === 'financials'  && <FinancialsTab unit={unit} unitUuid={unitUuid} />}
+          {activeTab === 'commission'  && <CommissionTab unit={unit} unitUuid={unitUuid} />}
+          {activeTab === 'operational' && <OperationalTab unit={unit} unitUuid={unitUuid} />}
         </div>
 
         {/* ── Footer Share Action Bar ── */}
