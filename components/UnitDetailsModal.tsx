@@ -937,6 +937,7 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
 
   const [regStatus, setRegStatus] = useState<PropertyRegStatus>(() => getDefaultRegStatus(unit));
   const [registrationBy, setRegistrationBy] = useState<string>('');
+  const [contractNumber, setContractNumber] = useState<string>(unit.mociContractNumber);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState('');
 
@@ -951,21 +952,27 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
         setPaidByOther(data.paid_by_other ?? '');
         setRegStatus((data.property_reg_status as PropertyRegStatus) ?? getDefaultRegStatus(unit));
         setRegistrationBy(data.registration_by ?? '');
+        setContractNumber(unit.mociContractNumber);
       });
   }, [unitUuid]);
 
   const handleSave = async () => {
     setSaveStatus('saving');
-    const { error } = await supabase.from('unit_commissions').upsert({
-      unit_id:              unitUuid,
-      agency_fee_applicable: agencyFeeApplicable,
-      agency_fee_amount:    agencyFeeApplicable ? agencyFeeAmount : null,
-      paid_by:              agencyFeeApplicable ? paidBy : null,
-      paid_by_other:        paidBy === 'Other' ? paidByOther : null,
-      property_reg_status:  regStatus,
-      registration_by:      registrationBy || null,
-    }, { onConflict: 'unit_id' });
-    if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
+    const [{ error }, { error: unitError }] = await Promise.all([
+      supabase.from('unit_commissions').upsert({
+        unit_id:               unitUuid,
+        agency_fee_applicable: agencyFeeApplicable,
+        agency_fee_amount:     agencyFeeApplicable ? agencyFeeAmount : null,
+        paid_by:               agencyFeeApplicable ? paidBy : null,
+        paid_by_other:         paidBy === 'Other' ? paidByOther : null,
+        property_reg_status:   regStatus,
+        registration_by:       registrationBy || null,
+      }, { onConflict: 'unit_id' }),
+      supabase.from('units').update({
+        moci_contract_number: contractNumber || null,
+      }).eq('unit_code', unit.id),
+    ]);
+    if (error || unitError) { setSaveError((error ?? unitError)!.message); setSaveStatus('error'); return; }
     await insertAuditLog(unitUuid, [
       { field: 'Agency Fee Applicable', oldValue: '', newValue: String(agencyFeeApplicable) },
       { field: 'Property Reg Status',   oldValue: '', newValue: regStatus },
@@ -1095,7 +1102,15 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
         {regStatus !== 'Not Registered' && (
           <FieldRow
             label="Contract Number"
-            value={<span className="font-mono text-sm">{unit.mociContractNumber || '—'}</span>}
+            value={
+              <input
+                type="text"
+                value={contractNumber}
+                onChange={e => setContractNumber(e.target.value)}
+                placeholder="e.g. MOCI-2024-DF-0701"
+                className="w-64 font-mono text-sm text-[#d0d0d0] bg-[#111111] border border-[#333333] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] placeholder:text-[#444444]"
+              />
+            }
           />
         )}
 
