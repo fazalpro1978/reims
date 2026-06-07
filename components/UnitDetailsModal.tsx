@@ -329,6 +329,8 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   return (
     <div className="space-y-4">
 
+      <SaveBar status={saveStatus} onSave={handleSave} errorMsg={saveError} />
+
       {/* ── Rent & Charges breakdown ── */}
       <SectionCard title="Rent & Charges">
 
@@ -479,8 +481,6 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
           </div>
         </div>
       </div>
-
-      <SaveBar status={saveStatus} onSave={handleSave} errorMsg={saveError} />
 
     </div>
   );
@@ -948,6 +948,8 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   return (
     <div className="space-y-4">
 
+      <SaveBar status={saveStatus} onSave={handleSave} errorMsg={saveError} />
+
       {/* ── Agency Commission ── */}
       <SectionCard title="Agency Commission">
 
@@ -1069,8 +1071,6 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
 
       {/* ── Legal Duration & Conditions ── */}
       <LegalDurationSection unit={unit} unitUuid={unitUuid} />
-
-      <SaveBar status={saveStatus} onSave={handleSave} errorMsg={saveError} />
 
     </div>
   );
@@ -1212,6 +1212,8 @@ function OperationalTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: strin
   return (
     <div className="space-y-4">
 
+      <SaveBar status={saveStatus} onSave={handleSave} errorMsg={saveError} />
+
       {/* ── Property Focal Point Info ── */}
       <SectionCard title="Property Focal Point Info">
         <FieldRow
@@ -1332,8 +1334,6 @@ function OperationalTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: strin
         </div>
         <SystemUpdateLog entries={updateLog} />
       </SectionCard>
-
-      <SaveBar status={saveStatus} onSave={handleSave} errorMsg={saveError} />
 
     </div>
   );
