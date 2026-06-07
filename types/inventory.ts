@@ -64,7 +64,6 @@ export interface UnitListing {
   serviceCharges: number;     // QAR / month
   depositAmount: number;      // QAR one-time
   agencyFee: number;          // QAR
-  agencyFeePercentage: number; // % of annual rent
 
   // ── Legal ─────────────────────────────────────────────────────────────────
   mociContractStatus: MociContractStatus;

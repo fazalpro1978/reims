@@ -405,28 +405,90 @@ function FinancialsTab({ unit }: { unit: UnitListing }) {
 
 // ── Tab C: Commission & Legal ──────────────────────────────────────────────
 
+const PAID_BY_OPTIONS = [
+  'Developer',
+  'Real Estate Company',
+  'Agent',
+  'Client',
+  'Other',
+] as const;
+
+type PaidByOption = typeof PAID_BY_OPTIONS[number];
+
 function CommissionTab({ unit }: { unit: UnitListing }) {
+  const [agencyFeeApplicable, setAgencyFeeApplicable] = useState<boolean>(unit.agencyFee > 0);
+  const [agencyFeeAmount, setAgencyFeeAmount] = useState<number>(unit.agencyFee);
+  const [paidBy, setPaidBy] = useState<PaidByOption>('Real Estate Company');
+  const [paidByOther, setPaidByOther] = useState<string>('');
+
   return (
     <div className="space-y-4">
+
+      {/* ── Agency Commission ── */}
       <SectionCard title="Agency Commission">
+
+        {/* Applicable toggle */}
         <FieldRow
           label="Agency Fee"
-          value={<span className="font-semibold">{formatQAR(unit.agencyFee)}</span>}
+          value={<ApplicableToggle value={agencyFeeApplicable} onChange={setAgencyFeeApplicable} />}
         />
-        <FieldRow
-          label="Fee Percentage"
-          value={`${unit.agencyFeePercentage}% of annual rent`}
-        />
-        <FieldRow
-          label="Annual Rent Basis"
-          value={formatQAR(unit.rent * 12)}
-        />
+
+        {agencyFeeApplicable && (
+          <>
+            {/* Fee amount — editable */}
+            <FieldRow
+              label="Fee Amount"
+              value={
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-[#666666] select-none">QAR</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={agencyFeeAmount}
+                    onChange={(e) => setAgencyFeeAmount(Math.max(0, Number(e.target.value)))}
+                    className="w-36 text-right text-sm font-bold text-[#e0e0e0] bg-[#111111] border border-[#333333] rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] tabular-nums"
+                  />
+                </div>
+              }
+            />
+
+            {/* Paid by */}
+            <FieldRow
+              label="Paid By"
+              value={
+                <div className="flex flex-col gap-2">
+                  <select
+                    value={paidBy}
+                    onChange={(e) => setPaidBy(e.target.value as PaidByOption)}
+                    className="w-52 px-3 py-1.5 text-sm bg-[#111111] text-[#d0d0d0] border border-[#333333] rounded-md focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] cursor-pointer"
+                  >
+                    {PAID_BY_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                  {paidBy === 'Other' && (
+                    <input
+                      type="text"
+                      placeholder="Specify party…"
+                      value={paidByOther}
+                      onChange={(e) => setPaidByOther(e.target.value)}
+                      className="w-52 text-sm text-[#d0d0d0] bg-[#111111] border border-[#333333] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] placeholder:text-[#444444]"
+                    />
+                  )}
+                </div>
+              }
+            />
+          </>
+        )}
+
       </SectionCard>
+
+      {/* ── MOCI Contract Registration ── */}
       <SectionCard title="MOCI Contract Registration">
         <FieldRow
           label="Registration Status"
           value={
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${MOCI_BADGE[unit.mociContractStatus] ?? 'bg-gray-100 text-gray-700'}`}>
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${MOCI_BADGE[unit.mociContractStatus] ?? 'bg-[#2a2a2a] text-[#888888]'}`}>
               {unit.mociContractStatus}
             </span>
           }
@@ -436,11 +498,14 @@ function CommissionTab({ unit }: { unit: UnitListing }) {
           value={<span className="font-mono text-sm">{unit.mociContractNumber}</span>}
         />
       </SectionCard>
+
+      {/* ── Legal Duration & Conditions ── */}
       <SectionCard title="Legal Duration & Conditions">
         <FieldRow label="Contract Duration" value={unit.legalDuration} />
         <FieldRow label="Listed Date" value={formatDate(unit.listedDate)} />
         <FieldRow label="Last Updated" value={formatDate(unit.lastUpdated)} />
       </SectionCard>
+
     </div>
   );
 }
