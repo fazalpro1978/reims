@@ -952,19 +952,177 @@ function CommissionTab({ unit }: { unit: UnitListing }) {
 
 // ── Tab D: Operational ────────────────────────────────────────────────────
 
+interface LogEntry {
+  id: string;
+  timestamp: string;
+  field: string;
+  oldValue: string;
+  newValue: string;
+}
+
+function fmtLogTime(iso: string) {
+  return new Date(iso).toLocaleString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  });
+}
+
+function SystemUpdateLog({ entries }: { entries: LogEntry[] }) {
+  if (entries.length === 0) {
+    return (
+      <div className="py-6 flex flex-col items-center gap-2 text-center">
+        <svg className="w-8 h-8 text-[#2a2a2a]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <p className="text-sm text-[#444444]">No updates recorded yet.</p>
+        <p className="text-xs text-[#333333]">Edits to this record will appear here automatically.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative pl-6 py-2">
+      {/* Vertical timeline rail */}
+      <div className="absolute left-[11px] top-0 bottom-0 w-px bg-[#1e1e1e]" />
+      <ul className="space-y-4">
+        {entries.map((entry) => (
+          <li key={entry.id} className="relative">
+            {/* Timeline dot */}
+            <span className="absolute -left-[19px] top-[3px] w-2.5 h-2.5 rounded-full bg-[#c9a84c]/25 border border-[#c9a84c]/50 shrink-0" />
+            <div className="bg-[#141414] border border-[#1e1e1e] rounded-lg px-3 py-2.5 space-y-1.5">
+              {/* Header row */}
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-xs font-semibold text-[#d0d0d0]">{entry.field}</span>
+                <span className="text-[10px] font-mono text-[#444444] shrink-0">{fmtLogTime(entry.timestamp)}</span>
+              </div>
+              {/* Old → new */}
+              <div className="flex items-start gap-1.5 text-xs">
+                <span className="shrink-0 text-[#3a3a3a] pt-px">from</span>
+                <span className="text-[#555555] line-through break-all">{entry.oldValue || <em className="not-italic text-[#3a3a3a]">empty</em>}</span>
+              </div>
+              <div className="flex items-start gap-1.5 text-xs">
+                <span className="shrink-0 text-[#c9a84c]/60 pt-px">to</span>
+                <span className="text-[#c0c0c0] break-all">{entry.newValue || <em className="not-italic text-[#3a3a3a]">empty</em>}</span>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function OperationalTab({ unit }: { unit: UnitListing }) {
+  // ── Focal Point Info ──────────────────────────────────────────────────────
+  const [focalName,  setFocalName]  = useState('');
+  const [focalPhone, setFocalPhone] = useState('');
+  const [focalEmail, setFocalEmail] = useState('');
+
+  // ── Operator Remarks ──────────────────────────────────────────────────────
+  const [operatorRemarks, setOperatorRemarks] = useState('');
+
+  // ── Maintenance Notes (editable) ──────────────────────────────────────────
+  const [maintenanceNotes, setMaintenanceNotes] = useState(unit.maintenanceNotes);
+
+  // ── System Update Log ──────────────────────────────────────────────────────
+  const [updateLog, setUpdateLog] = useState<LogEntry[]>([]);
+
+  // Snapshot of last-committed values used to detect real changes on blur
+  const committed = useRef<Record<string, string>>({
+    'Contact Name':       '',
+    'Phone':              '',
+    'Email':              '',
+    'Operator Remarks':   '',
+    'Maintenance Notes':  unit.maintenanceNotes,
+  });
+
+  const logChange = (field: string, newValue: string) => {
+    const oldValue = committed.current[field] ?? '';
+    if (oldValue === newValue) return;
+    committed.current = { ...committed.current, [field]: newValue };
+    setUpdateLog(prev => [
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        timestamp: new Date().toISOString(),
+        field,
+        oldValue,
+        newValue,
+      },
+      ...prev,
+    ]);
+  };
+
+  const inp = 'w-full text-sm text-[#d0d0d0] bg-[#111111] border border-[#333333] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] placeholder:text-[#444444]';
+
   return (
     <div className="space-y-4">
+
+      {/* ── Property Focal Point Info ── */}
+      <SectionCard title="Property Focal Point Info">
+        <FieldRow
+          label="Contact Name"
+          value={
+            <input type="text" placeholder="Full name…" value={focalName}
+              onChange={e => setFocalName(e.target.value)}
+              onBlur={e => logChange('Contact Name', e.target.value)}
+              className={inp} />
+          }
+        />
+        <FieldRow
+          label="Phone"
+          value={
+            <input type="tel" placeholder="+974 XXXX XXXX" value={focalPhone}
+              onChange={e => setFocalPhone(e.target.value)}
+              onBlur={e => logChange('Phone', e.target.value)}
+              className={inp} />
+          }
+        />
+        <FieldRow
+          label="Email"
+          value={
+            <input type="email" placeholder="email@example.com" value={focalEmail}
+              onChange={e => setFocalEmail(e.target.value)}
+              onBlur={e => logChange('Email', e.target.value)}
+              className={inp} />
+          }
+        />
+      </SectionCard>
+
+      {/* ── Operator Remarks ── */}
+      <SectionCard title="Operator Remarks">
+        <FieldRow
+          label="Remarks"
+          value={
+            <textarea
+              rows={3}
+              placeholder="Enter operator remarks, instructions, or observations…"
+              value={operatorRemarks}
+              onChange={e => setOperatorRemarks(e.target.value)}
+              onBlur={e => logChange('Operator Remarks', e.target.value)}
+              className={`${inp} resize-y min-h-[72px]`}
+            />
+          }
+        />
+      </SectionCard>
+
+      {/* ── Maintenance Notes ── */}
       <SectionCard title="Maintenance Notes">
         <FieldRow
           label="Current Notes"
           value={
-            <p className="text-sm text-[#c0c0c0] leading-relaxed whitespace-pre-wrap">
-              {unit.maintenanceNotes}
-            </p>
+            <textarea
+              rows={3}
+              value={maintenanceNotes}
+              onChange={e => setMaintenanceNotes(e.target.value)}
+              onBlur={e => logChange('Maintenance Notes', e.target.value)}
+              className={`${inp} resize-y min-h-[72px]`}
+            />
           }
         />
       </SectionCard>
+
+      {/* ── Access & Security ── */}
       <SectionCard title="Access &amp; Security">
         <FieldRow
           label="Lockbox / Access Code"
@@ -978,6 +1136,8 @@ function OperationalTab({ unit }: { unit: UnitListing }) {
           }
         />
       </SectionCard>
+
+      {/* ── Asset History Tracking ── */}
       <SectionCard title="Asset History Tracking">
         {unit.assetHistoryLinks.length === 0 ? (
           <div className="py-4 text-center text-sm text-[#555555]">No asset history documents linked.</div>
@@ -999,6 +1159,26 @@ function OperationalTab({ unit }: { unit: UnitListing }) {
           ))
         )}
       </SectionCard>
+
+      {/* ── System Update Log ── */}
+      <SectionCard title="System Update Log">
+        <div className="flex items-center justify-between px-0 pb-2 pt-1">
+          <span className="text-[11px] text-[#444444]">
+            {updateLog.length} {updateLog.length === 1 ? 'entry' : 'entries'} this session
+          </span>
+          {updateLog.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setUpdateLog([])}
+              className="text-[10px] text-[#444444] hover:text-red-400 transition-colors font-medium"
+            >
+              Clear log
+            </button>
+          )}
+        </div>
+        <SystemUpdateLog entries={updateLog} />
+      </SectionCard>
+
     </div>
   );
 }
