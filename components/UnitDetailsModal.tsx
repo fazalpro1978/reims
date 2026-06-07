@@ -23,51 +23,51 @@ const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
 
 const STATUS_BADGE: Record<Status, string> = {
-  [Status.Available]: 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-600/20',
-  [Status.Leased]: 'bg-orange-100 text-orange-800 ring-1 ring-orange-600/20',
-  [Status.Reserved]: 'bg-blue-100 text-blue-800 ring-1 ring-blue-600/20',
-  [Status.Under_Maintenance]: 'bg-purple-100 text-purple-800 ring-1 ring-purple-600/20',
+  [Status.Available]: 'bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/30',
+  [Status.Leased]: 'bg-orange-500/10 text-orange-400 ring-1 ring-inset ring-orange-500/30',
+  [Status.Reserved]: 'bg-blue-500/10 text-blue-400 ring-1 ring-inset ring-blue-500/30',
+  [Status.Under_Maintenance]: 'bg-purple-500/10 text-purple-400 ring-1 ring-inset ring-purple-500/30',
 };
 
 const FURNISHING_BADGE: Record<Furnishing, string> = {
-  [Furnishing.Fully_Furnished]: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20',
-  [Furnishing.Semi_Furnished]: 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/20',
-  [Furnishing.Unfurnished]: 'bg-slate-100 text-slate-600 ring-1 ring-slate-500/20',
+  [Furnishing.Fully_Furnished]: 'bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/30',
+  [Furnishing.Semi_Furnished]: 'bg-amber-500/10 text-amber-400 ring-1 ring-inset ring-amber-500/30',
+  [Furnishing.Unfurnished]: 'bg-[#2a2a2a] text-[#888888] ring-1 ring-inset ring-[#444444]',
 };
 
 const KITCHEN_BADGE: Record<KitchenType, string> = {
-  Open:   'border border-emerald-300 text-emerald-700 bg-emerald-50',
-  Closed: 'border border-rose-300   text-rose-700   bg-rose-50',
-  Yes:    'border border-green-300  text-green-700  bg-green-50',
-  Pantry: 'border border-amber-300  text-amber-700  bg-amber-50',
+  Open:   'border border-emerald-600/40 text-emerald-400 bg-emerald-500/10',
+  Closed: 'border border-rose-600/40   text-rose-400   bg-rose-500/10',
+  Yes:    'border border-green-600/40  text-green-400  bg-green-500/10',
+  Pantry: 'border border-amber-600/40  text-amber-400  bg-amber-500/10',
 };
 
 const MOCI_BADGE: Record<string, string> = {
-  REGISTERED: 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-600/20',
-  PENDING: 'bg-amber-100 text-amber-800 ring-1 ring-amber-600/20',
-  RENEWAL_DUE: 'bg-orange-100 text-orange-800 ring-1 ring-orange-600/20',
-  EXPIRED: 'bg-red-100 text-red-800 ring-1 ring-red-600/20',
-  DRAFT: 'bg-slate-100 text-slate-600 ring-1 ring-slate-500/20',
+  REGISTERED: 'bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/30',
+  PENDING: 'bg-amber-500/10 text-amber-400 ring-1 ring-inset ring-amber-500/30',
+  RENEWAL_DUE: 'bg-orange-500/10 text-orange-400 ring-1 ring-inset ring-orange-500/30',
+  EXPIRED: 'bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/30',
+  DRAFT: 'bg-[#2a2a2a] text-[#888888] ring-1 ring-inset ring-[#444444]',
 };
 
 // ── Layout primitives ──────────────────────────────────────────────────────
 
 function FieldRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4 py-3 border-b border-gray-100 last:border-0">
-      <dt className="sm:w-48 shrink-0 text-xs font-semibold text-slate-500 uppercase tracking-wide pt-0.5">
+    <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4 py-3 border-b border-[#2a2a2a] last:border-0">
+      <dt className="sm:w-48 shrink-0 text-xs font-semibold text-[#666666] uppercase tracking-wide pt-0.5">
         {label}
       </dt>
-      <dd className="flex-1 text-sm text-slate-900">{value}</dd>
+      <dd className="flex-1 text-sm text-[#d0d0d0]">{value}</dd>
     </div>
   );
 }
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-gray-200 overflow-hidden">
-      <div className="px-4 py-2.5 bg-slate-50 border-b border-gray-200">
-        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{title}</h3>
+    <div className="rounded-xl border border-[#2a2a2a] overflow-hidden">
+      <div className="px-4 py-2.5 bg-[#111111] border-b border-[#2a2a2a]">
+        <h3 className="text-xs font-semibold text-[#666666] uppercase tracking-wider">{title}</h3>
       </div>
       <dl className="px-4">{children}</dl>
     </div>
@@ -87,7 +87,7 @@ function PropertyTab({ unit }: { unit: UnitListing }) {
         <FieldRow
           label="MOCI License"
           value={
-            <span className="font-mono text-sm bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded">
+            <span className="font-mono text-sm bg-[#111111] text-[#c9a84c] px-2.5 py-0.5 rounded">
               {unit.realtorMOCI}
             </span>
           }
@@ -96,7 +96,7 @@ function PropertyTab({ unit }: { unit: UnitListing }) {
         <FieldRow label="Unit Number" value={<span className="font-mono">{unit.unitNo}</span>} />
         <FieldRow label="District / Area" value={<strong className="font-semibold">{unit.zone}</strong>} />
         <FieldRow label="Zone Code" value={
-          <span className="font-mono text-sm bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded">
+          <span className="font-mono text-sm bg-[#111111] text-[#c9a84c] px-2.5 py-0.5 rounded">
             Zone {unit.zoneCode}
           </span>
         } />
@@ -109,13 +109,13 @@ function PropertyTab({ unit }: { unit: UnitListing }) {
         } />
         <FieldRow label="Parking" value={
           unit.parking
-            ? <span className="inline-flex items-center gap-1 text-emerald-700 text-sm font-medium">
+            ? <span className="inline-flex items-center gap-1 text-emerald-400 text-sm font-medium">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                 </svg>
                 Included
               </span>
-            : <span className="text-slate-400 text-sm">Not included</span>
+            : <span className="text-[#555555] text-sm">Not included</span>
         } />
         <FieldRow label="Kitchen" value={
           <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${KITCHEN_BADGE[unit.kitchen]}`}>
@@ -145,7 +145,7 @@ function PropertyTab({ unit }: { unit: UnitListing }) {
           label="Location Map"
           value={
             <a href={unit.locationMapUrl} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 hover:underline text-sm">
+              className="inline-flex items-center gap-1.5 text-[#c9a84c] hover:text-[#dfc070] hover:underline text-sm">
               Open in Google Maps
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -157,7 +157,7 @@ function PropertyTab({ unit }: { unit: UnitListing }) {
           label="Media Assets"
           value={
             <a href={unit.mediaUrl} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 hover:underline text-sm">
+              className="inline-flex items-center gap-1.5 text-[#c9a84c] hover:text-[#dfc070] hover:underline text-sm">
               View Media Library
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -174,18 +174,18 @@ function PropertyTab({ unit }: { unit: UnitListing }) {
 
 function ApplicableToggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
   return (
-    <div className="inline-flex rounded-lg overflow-hidden border border-slate-200 text-xs font-medium">
+    <div className="inline-flex rounded-lg overflow-hidden border border-[#333333] text-xs font-medium">
       <button
         type="button"
         onClick={() => onChange(true)}
-        className={`px-3 py-1.5 transition-colors ${value ? 'bg-emerald-500 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+        className={`px-3 py-1.5 transition-colors ${value ? 'bg-emerald-600 text-white' : 'bg-[#1e1e1e] text-[#666666] hover:bg-[#2a2a2a]'}`}
       >
         Applicable
       </button>
       <button
         type="button"
         onClick={() => onChange(false)}
-        className={`px-3 py-1.5 border-l border-slate-200 transition-colors ${!value ? 'bg-slate-400 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+        className={`px-3 py-1.5 border-l border-[#333333] transition-colors ${!value ? 'bg-[#444444] text-[#e0e0e0]' : 'bg-[#1e1e1e] text-[#666666] hover:bg-[#2a2a2a]'}`}
       >
         Not Applicable
       </button>
@@ -208,13 +208,13 @@ function DepositRow({ label, applicable, onToggle, amount, onAmount }: {
           <ApplicableToggle value={applicable} onChange={onToggle} />
           {applicable && (
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-slate-500 select-none">QAR</span>
+              <span className="text-xs font-medium text-[#666666] select-none">QAR</span>
               <input
                 type="number"
                 min={0}
                 value={amount}
                 onChange={(e) => onAmount(Math.max(0, Number(e.target.value)))}
-                className="w-32 text-right text-sm font-semibold text-slate-900 bg-white border border-slate-300 rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 tabular-nums"
+                className="w-32 text-right text-sm font-semibold text-[#e0e0e0] bg-[#111111] border border-[#333333] rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] tabular-nums"
               />
             </div>
           )}
@@ -256,15 +256,15 @@ function FinancialsTab({ unit }: { unit: UnitListing }) {
           label="Monthly Rent"
           value={
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-slate-500 select-none">QAR</span>
+              <span className="text-xs font-medium text-[#666666] select-none">QAR</span>
               <input
                 type="number"
                 min={0}
                 value={monthlyRent}
                 onChange={(e) => setMonthlyRent(Math.max(0, Number(e.target.value)))}
-                className="w-32 text-right text-sm font-bold text-slate-900 bg-white border border-slate-300 rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 tabular-nums"
+                className="w-32 text-right text-sm font-bold text-[#e0e0e0] bg-[#111111] border border-[#333333] rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] tabular-nums"
               />
-              <span className="text-xs text-slate-400">/ month</span>
+              <span className="text-xs text-[#555555]">/ month</span>
             </div>
           }
         />
@@ -274,13 +274,13 @@ function FinancialsTab({ unit }: { unit: UnitListing }) {
           label="Contract Charges"
           value={
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-slate-500 select-none">QAR</span>
+              <span className="text-xs font-medium text-[#666666] select-none">QAR</span>
               <input
                 type="number"
                 min={0}
                 value={contractCharges}
                 onChange={(e) => setContractCharges(Math.max(0, Number(e.target.value)))}
-                className="w-32 text-right text-sm font-semibold text-slate-900 bg-white border border-slate-300 rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 tabular-nums"
+                className="w-32 text-right text-sm font-semibold text-[#e0e0e0] bg-[#111111] border border-[#333333] rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] tabular-nums"
               />
             </div>
           }
@@ -291,9 +291,9 @@ function FinancialsTab({ unit }: { unit: UnitListing }) {
           label="Security Deposit"
           value={
             <div className="flex items-baseline gap-2">
-              <span className="font-semibold text-slate-800">{formatQAR(monthlyRent)}</span>
-              <span className="text-xs text-slate-400">= 1 month&apos;s rent</span>
-              <span className="text-xs font-semibold text-emerald-600">(REFUNDABLE)</span>
+              <span className="font-semibold text-[#e0e0e0]">{formatQAR(monthlyRent)}</span>
+              <span className="text-xs text-[#555555]">= 1 month&apos;s rent</span>
+              <span className="text-xs font-semibold text-emerald-400">(REFUNDABLE)</span>
             </div>
           }
         />
@@ -303,13 +303,13 @@ function FinancialsTab({ unit }: { unit: UnitListing }) {
           label="Additional Charges"
           value={
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-slate-500 select-none">QAR</span>
+              <span className="text-xs font-medium text-[#666666] select-none">QAR</span>
               <input
                 type="number"
                 min={0}
                 value={additionalCharges}
                 onChange={(e) => setAdditionalCharges(Math.max(0, Number(e.target.value)))}
-                className="w-32 text-right text-sm font-semibold text-slate-900 bg-white border border-slate-300 rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 tabular-nums"
+                className="w-32 text-right text-sm font-semibold text-[#e0e0e0] bg-[#111111] border border-[#333333] rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] tabular-nums"
               />
             </div>
           }
@@ -454,7 +454,7 @@ function OperationalTab({ unit }: { unit: UnitListing }) {
         <FieldRow
           label="Current Notes"
           value={
-            <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+            <p className="text-sm text-[#c0c0c0] leading-relaxed whitespace-pre-wrap">
               {unit.maintenanceNotes}
             </p>
           }
@@ -464,8 +464,8 @@ function OperationalTab({ unit }: { unit: UnitListing }) {
         <FieldRow
           label="Lockbox / Access Code"
           value={
-            <span className="inline-flex items-center gap-2 font-mono text-sm bg-amber-50 text-amber-900 border border-amber-200 px-3 py-1.5 rounded-lg">
-              <svg className="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <span className="inline-flex items-center gap-2 font-mono text-sm bg-[#c9a84c]/10 text-[#c9a84c] border border-[#c9a84c]/30 px-3 py-1.5 rounded-lg">
+              <svg className="w-3.5 h-3.5 text-[#c9a84c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
               {unit.accessLockbox}
@@ -475,7 +475,7 @@ function OperationalTab({ unit }: { unit: UnitListing }) {
       </SectionCard>
       <SectionCard title="Asset History Tracking">
         {unit.assetHistoryLinks.length === 0 ? (
-          <div className="py-4 text-center text-sm text-slate-400">No asset history documents linked.</div>
+          <div className="py-4 text-center text-sm text-[#555555]">No asset history documents linked.</div>
         ) : (
           unit.assetHistoryLinks.map((link, i) => (
             <FieldRow
@@ -483,7 +483,7 @@ function OperationalTab({ unit }: { unit: UnitListing }) {
               label={`Asset Record ${i + 1}`}
               value={
                 <a href={link} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 hover:underline text-sm">
+                  className="inline-flex items-center gap-1.5 text-[#c9a84c] hover:text-[#dfc070] hover:underline text-sm">
                   View Document
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -562,7 +562,7 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
         role="dialog"
         aria-modal="true"
         aria-label={`Unit details: ${unit.property} ${unit.unitNo}`}
-        className={`fixed inset-y-0 right-0 z-50 flex flex-col w-full max-w-2xl bg-white shadow-2xl transition-transform duration-[280ms] ease-out ${visible ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed inset-y-0 right-0 z-50 flex flex-col w-full max-w-2xl bg-[#181818] shadow-2xl transition-transform duration-[280ms] ease-out ${visible ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {/* ── Header ── */}
         <div className="shrink-0 bg-slate-900 px-6 py-5">
@@ -624,7 +624,7 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
         </div>
 
         {/* ── Tab Navigation ── */}
-        <div className="shrink-0 border-b border-gray-200 bg-white px-6">
+        <div className="shrink-0 border-b border-[#2a2a2a] bg-[#181818] px-6">
           <nav className="flex gap-1 overflow-x-auto" role="tablist">
             {TABS.map((tab, i) => (
               <button
@@ -634,11 +634,11 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-1.5 px-1 py-3.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
                   activeTab === tab.id
-                    ? 'border-slate-900 text-slate-900'
-                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                    ? 'border-[#c9a84c] text-[#c9a84c]'
+                    : 'border-transparent text-[#555555] hover:text-[#d0d0d0] hover:border-[#555555]'
                 }`}
               >
-                <span className="w-5 h-5 rounded-full text-xs flex items-center justify-center bg-slate-100 text-slate-500 font-semibold shrink-0">
+                <span className="w-5 h-5 rounded-full text-xs flex items-center justify-center bg-[#2a2a2a] text-[#666666] font-semibold shrink-0">
                   {i + 1}
                 </span>
                 {tab.label}
@@ -648,7 +648,7 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
         </div>
 
         {/* ── Tab Content (scrollable) ── */}
-        <div className="flex-1 overflow-y-auto px-6 py-5" role="tabpanel">
+        <div className="flex-1 overflow-y-auto px-6 py-5 bg-[#181818]" role="tabpanel">
           {activeTab === 'property' && <PropertyTab unit={unit} />}
           {activeTab === 'financials' && <FinancialsTab unit={unit} />}
           {activeTab === 'commission' && <CommissionTab unit={unit} />}
@@ -656,10 +656,10 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
         </div>
 
         {/* ── Footer Share Action Bar ── */}
-        <div className="shrink-0 border-t border-gray-200 bg-gray-50 px-6 py-4">
-          <p className="text-xs text-slate-400 mb-3 font-medium">
+        <div className="shrink-0 border-t border-[#2a2a2a] bg-[#111111] px-6 py-4">
+          <p className="text-xs text-[#555555] mb-3 font-medium">
             Auto-generated payload:{' '}
-            <span className="text-slate-600 italic">
+            <span className="text-[#888888] italic">
               Property: {unit.property}, Unit: {unit.unitNo}, Rent: QAR {unit.rent.toLocaleString()}/month
             </span>
           </p>
@@ -684,7 +684,7 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
             </button>
             <a
               href={unit.locationMapUrl} target="_blank" rel="noopener noreferrer"
-              className="px-4 py-2.5 flex items-center justify-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 border border-gray-300 rounded-lg hover:bg-white transition-colors"
+              className="px-4 py-2.5 flex items-center justify-center gap-1.5 text-sm font-medium text-[#888888] hover:text-[#c9a84c] border border-[#333333] rounded-lg hover:bg-[#2a2a2a] transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -694,7 +694,7 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
             </a>
             <a
               href={unit.mediaUrl} target="_blank" rel="noopener noreferrer"
-              className="px-4 py-2.5 flex items-center justify-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 border border-gray-300 rounded-lg hover:bg-white transition-colors"
+              className="px-4 py-2.5 flex items-center justify-center gap-1.5 text-sm font-medium text-[#888888] hover:text-[#c9a84c] border border-[#333333] rounded-lg hover:bg-[#2a2a2a] transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />

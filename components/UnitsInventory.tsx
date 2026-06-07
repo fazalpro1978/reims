@@ -31,19 +31,19 @@ const ROWS_PER_PAGE = 50;
 const STATUS_BADGE: Record<Status, { label: string; classes: string }> = {
   [Status.Available]: {
     label: 'Available',
-    classes: 'bg-emerald-100 text-emerald-800 ring-1 ring-inset ring-emerald-600/20',
+    classes: 'bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/30',
   },
   [Status.Leased]: {
     label: 'Leased',
-    classes: 'bg-orange-100 text-orange-800 ring-1 ring-inset ring-orange-600/20',
+    classes: 'bg-orange-500/10 text-orange-400 ring-1 ring-inset ring-orange-500/30',
   },
   [Status.Reserved]: {
     label: 'Reserved',
-    classes: 'bg-blue-100 text-blue-800 ring-1 ring-inset ring-blue-600/20',
+    classes: 'bg-blue-500/10 text-blue-400 ring-1 ring-inset ring-blue-500/30',
   },
   [Status.Under_Maintenance]: {
     label: 'Maintenance',
-    classes: 'bg-purple-100 text-purple-800 ring-1 ring-inset ring-purple-600/20',
+    classes: 'bg-purple-500/10 text-purple-400 ring-1 ring-inset ring-purple-500/30',
   },
 };
 
@@ -61,10 +61,10 @@ function generateShareText(unit: UnitListing): string {
 }
 
 const KITCHEN_BADGE: Record<KitchenType, string> = {
-  Open:   'border border-emerald-300 text-emerald-700 bg-emerald-50',
-  Closed: 'border border-rose-300   text-rose-700   bg-rose-50',
-  Yes:    'border border-green-300  text-green-700  bg-green-50',
-  Pantry: 'border border-amber-300  text-amber-700  bg-amber-50',
+  Open:   'border border-emerald-600/40 text-emerald-400 bg-emerald-500/10',
+  Closed: 'border border-rose-600/40   text-rose-400   bg-rose-500/10',
+  Yes:    'border border-green-600/40  text-green-400  bg-green-500/10',
+  Pantry: 'border border-amber-600/40  text-amber-400  bg-amber-500/10',
 };
 
 function IconShower() {
@@ -95,24 +95,24 @@ function BathCell({ n }: { n: number }) {
   return (
     <div className="flex items-center gap-1">
       {Array.from({ length: shown }).map((_, i) => (
-        <span key={i} className="text-blue-400"><IconShower /></span>
+        <span key={i} className="text-[#c9a84c]"><IconShower /></span>
       ))}
-      {full > 4 && <span className="text-[10px] text-slate-400">+{full - 4}</span>}
-      {half && <span className="text-slate-400"><IconToilet /></span>}
-      <span className="ml-1 text-sm text-slate-700">{n % 1 === 0 ? n : n.toFixed(1)}</span>
+      {full > 4 && <span className="text-[10px] text-[#606060]">+{full - 4}</span>}
+      {half && <span className="text-[#555555]"><IconToilet /></span>}
+      <span className="ml-1 text-sm text-slate-300">{n % 1 === 0 ? n : n.toFixed(1)}</span>
     </div>
   );
 }
 
 function ParkingCell({ has }: { has: boolean }) {
   return has ? (
-    <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-emerald-100 text-emerald-600">
+    <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-[#c9a84c]/20 text-[#c9a84c]">
       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
       </svg>
     </span>
   ) : (
-    <span className="text-slate-300 text-base leading-none select-none">—</span>
+    <span className="text-[#333333] text-base leading-none select-none">—</span>
   );
 }
 
@@ -215,14 +215,14 @@ function MetricCard({ label, count, valueColor, isActive, onClick, accentRing }:
   return (
     <button
       onClick={onClick}
-      className={`group text-left bg-white rounded-xl border px-5 py-4 transition-all duration-150 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 ${
-        isActive ? `${accentRing} shadow-md` : 'border-gray-200'
+      className={`group text-left bg-[#1a1a1a] rounded-xl border px-5 py-4 transition-all duration-150 hover:shadow-[0_4px_24px_rgba(0,0,0,0.5)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c9a84c] ${
+        isActive ? `${accentRing} shadow-md` : 'border-[#2a2a2a]'
       }`}
     >
-      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
+      <p className="text-xs font-semibold text-[#606060] uppercase tracking-wider">{label}</p>
       <p className={`text-3xl font-bold mt-1.5 tabular-nums ${valueColor}`}>{count}</p>
       {isActive && (
-        <div className={`mt-2 h-0.5 w-8 rounded-full ${valueColor.replace('text-', 'bg-')}`} />
+        <div className="mt-2 h-0.5 w-8 rounded-full bg-[#c9a84c]" />
       )}
     </button>
   );
@@ -262,9 +262,9 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail }: Cont
   ) => (
     <button
       onClick={() => { onClick(); onClose(); }}
-      className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-sm transition-colors text-left hover:bg-slate-50 focus:outline-none focus-visible:bg-slate-50 ${extraClass}`}
+      className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-sm transition-colors text-left hover:bg-[#252525] focus:outline-none focus-visible:bg-[#252525] ${extraClass}`}
     >
-      <span className="shrink-0 text-slate-400">{icon}</span>
+      <span className="shrink-0 text-[#505050]">{icon}</span>
       {label}
     </button>
   );
@@ -279,7 +279,7 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail }: Cont
       target="_blank"
       rel="noopener noreferrer"
       onClick={onClose}
-      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-50"
+      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-slate-300 transition-colors hover:bg-[#252525]"
     >
       <span className="shrink-0 text-slate-400">{icon}</span>
       {label}
@@ -290,26 +290,26 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail }: Cont
     <div
       ref={ref}
       style={{ top: menu.y, left: menu.x }}
-      className="fixed z-50 w-56 bg-white rounded-xl shadow-[0_8px_32px_-4px_rgba(0,0,0,0.18)] border border-gray-200 py-1.5 overflow-hidden"
+      className="fixed z-50 w-56 bg-[#1a1a1a] rounded-xl shadow-[0_8px_40px_-4px_rgba(0,0,0,0.7)] border border-[#2d2d2d] py-1.5 overflow-hidden"
       role="menu"
     >
-      {item(<IconEye />, 'View Details', () => onViewDetails(menu.unit), 'text-slate-700 font-medium')}
-      {item(<IconEdit />, 'Edit Unit', () => {}, 'text-slate-700')}
+      {item(<IconEye />, 'View Details', () => onViewDetails(menu.unit), 'text-slate-200 font-medium')}
+      {item(<IconEdit />, 'Edit Unit', () => {}, 'text-slate-300')}
       {item(<IconCopy />, 'Duplicate', () => {}, 'text-slate-700')}
 
-      <div className="my-1 mx-1 border-t border-gray-100" />
+      <div className="my-1 mx-1 border-t border-[#2a2a2a]" />
 
       {linkItem(<IconMap />, 'Maps', menu.unit.locationMapUrl)}
       {linkItem(<IconMedia />, 'Media', menu.unit.mediaUrl)}
 
       <div className="my-1 mx-1 border-t border-gray-100" />
-      <p className="px-3.5 pt-1 pb-0.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+      <p className="px-3.5 pt-1 pb-0.5 text-[10px] font-bold text-[#505050] uppercase tracking-widest">
         Share
       </p>
 
       <button
         onClick={() => { onWhatsApp(menu.unit); onClose(); }}
-        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors text-left"
+        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-slate-300 hover:bg-[#252525] transition-colors text-left"
       >
         <span className="text-[#25D366]"><IconWhatsApp /></span>
         WhatsApp
@@ -454,7 +454,7 @@ export default function UnitsInventory() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#0f0f0f]">
 
       {/* ── HEADER ── */}
       <header className="bg-slate-900 sticky top-0 z-30 border-b border-slate-800">
@@ -473,7 +473,7 @@ export default function UnitsInventory() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-slate-400 text-xs hidden md:block">Admin Console</span>
+            <span className="text-[#505050] text-xs hidden md:block">Admin Console</span>
             <div className="w-7 h-7 rounded-full bg-amber-400/20 border border-amber-400/30 flex items-center justify-center">
               <span className="text-amber-400 text-xs font-bold">A</span>
             </div>
@@ -485,8 +485,8 @@ export default function UnitsInventory() {
 
         {/* ── PAGE TITLE ── */}
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Units Inventory</h2>
-          <p className="text-slate-500 text-sm mt-0.5">
+          <h2 className="text-xl font-bold text-white tracking-tight">Units Inventory</h2>
+          <p className="text-[#606060] text-sm mt-0.5">
             Manage, filter, and monitor all Qatar property listings
           </p>
         </div>
@@ -541,11 +541,11 @@ export default function UnitsInventory() {
         {/* ══════════════════════════════════════════════════════════════════════
             SECTION B: FILTER & UTILITY ENGINE CONSOLE
         ══════════════════════════════════════════════════════════════════════ */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="bg-[#181818] rounded-xl border border-[#2a2a2a] p-4">
           <div className="flex flex-col sm:flex-row gap-3">
             {/* Unified search */}
             <div className="relative flex-1 min-w-0">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#505050]">
                 <IconSearch />
               </span>
               <input
@@ -553,7 +553,7 @@ export default function UnitsInventory() {
                 placeholder="Search by Property, Unit No., or Realtor name…"
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); resetPage(); }}
-                className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-500 placeholder:text-slate-400 transition-shadow"
+                className="w-full pl-9 pr-4 py-2.5 text-sm bg-[#1e1e1e] text-white border border-[#2a2a2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a84c]/40 focus:border-[#c9a84c] placeholder:text-[#505050] transition-shadow"
               />
             </div>
 
@@ -561,7 +561,7 @@ export default function UnitsInventory() {
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value as StatusFilter); resetPage(); }}
-              className="px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-500 min-w-[150px] cursor-pointer"
+              className="px-3 py-2.5 text-sm bg-[#1e1e1e] text-slate-200 border border-[#2a2a2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a84c]/40 focus:border-[#c9a84c] min-w-[150px] cursor-pointer"
             >
               <option value="All">All Statuses</option>
               {Object.values(Status).map((s) => (
@@ -575,7 +575,7 @@ export default function UnitsInventory() {
             <select
               value={furnishingFilter}
               onChange={(e) => { setFurnishingFilter(e.target.value as FurnishingFilter); resetPage(); }}
-              className="px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-500 min-w-[165px] cursor-pointer"
+              className="px-3 py-2.5 text-sm bg-[#1e1e1e] text-slate-200 border border-[#2a2a2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a84c]/40 focus:border-[#c9a84c] min-w-[165px] cursor-pointer"
             >
               <option value="All">All Furnishing</option>
               {Object.values(Furnishing).map((f) => (
@@ -598,9 +598,9 @@ export default function UnitsInventory() {
 
           {/* Filter summary row */}
           <div className="mt-3 flex items-center justify-between flex-wrap gap-2">
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-[#606060]">
               Showing{' '}
-              <strong className="text-slate-700 font-semibold">{filteredUnits.length}</strong>{' '}
+              <strong className="text-slate-300 font-semibold">{filteredUnits.length}</strong>{' '}
               of{' '}
               <strong className="text-slate-700 font-semibold">{mockUnits.length}</strong>{' '}
               units
@@ -608,7 +608,7 @@ export default function UnitsInventory() {
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
-                className="text-xs text-slate-500 hover:text-slate-900 underline underline-offset-2 hover:no-underline transition-colors"
+                className="text-xs text-[#c9a84c] hover:text-[#dfc070] underline underline-offset-2 hover:no-underline transition-colors"
               >
                 Clear all filters
               </button>
@@ -619,11 +619,11 @@ export default function UnitsInventory() {
         {/* ══════════════════════════════════════════════════════════════════════
             SECTION C: TABULAR DATA PRESENTATION ARRAY
         ══════════════════════════════════════════════════════════════════════ */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-[#181818] rounded-xl border border-[#2a2a2a] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1680px] border-collapse">
               <thead>
-                <tr className="bg-slate-50 border-b border-gray-200">
+                <tr className="bg-[#111111] border-b border-[#252525]">
                   {[
                     'Realtor',
                     'Property',
@@ -643,7 +643,7 @@ export default function UnitsInventory() {
                   ].map((col, i) => (
                     <th
                       key={i}
-                      className={`px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap ${
+                      className={`px-4 py-3 text-[11px] font-semibold text-[#505050] uppercase tracking-wider whitespace-nowrap ${
                         col === 'Rent (QAR/mo)' ? 'text-right'
                         : col === 'Location' || col === 'Media' || col === '' || col === 'Parking' ? 'text-center'
                         : 'text-left'
@@ -658,11 +658,11 @@ export default function UnitsInventory() {
                 {paginatedUnits.length === 0 ? (
                   <tr>
                     <td colSpan={15} className="px-4 py-14 text-center">
-                      <p className="text-slate-400 text-sm">No units match the current filter combination.</p>
+                      <p className="text-[#505050] text-sm">No units match the current filter combination.</p>
                       {hasActiveFilters && (
                         <button
                           onClick={clearFilters}
-                          className="mt-2 text-sm text-slate-900 underline underline-offset-2 hover:no-underline"
+                          className="mt-2 text-sm text-[#c9a84c] underline underline-offset-2 hover:no-underline"
                         >
                           Clear filters
                         </button>
@@ -673,20 +673,20 @@ export default function UnitsInventory() {
                   paginatedUnits.map((unit) => (
                     <tr
                       key={unit.id}
-                      className="border-b border-gray-100 last:border-0 hover:bg-slate-50/60 transition-colors group"
+                      className="border-b border-[#222222] last:border-0 hover:bg-[#1e1e1e] transition-colors group"
                     >
                       {/* Realtor Name */}
-                      <td className="px-4 py-3.5 text-sm text-slate-700 whitespace-nowrap max-w-[180px] truncate" title={unit.realtorName}>
+                      <td className="px-4 py-3.5 text-sm text-slate-300 whitespace-nowrap max-w-[180px] truncate" title={unit.realtorName}>
                         {unit.realtorName}
                       </td>
 
                       {/* Property */}
                       <td className="px-4 py-3.5" title={unit.property}>
-                        <span className="block text-sm font-semibold text-slate-900">
+                        <span className="block text-sm font-semibold text-white">
                           {unit.property.slice(0, 14)}
                         </span>
                         {unit.property.length > 14 && (
-                          <span className="block text-xs text-slate-400 mt-0.5">
+                          <span className="block text-xs text-[#555555] mt-0.5">
                             {unit.property.slice(14, 28)}{unit.property.length > 28 ? '…' : ''}
                           </span>
                         )}
@@ -699,17 +699,17 @@ export default function UnitsInventory() {
 
                       {/* District / Area */}
                       <td className="px-4 py-3.5">
-                        <span className="block text-sm font-bold text-slate-900 font-mono">Z-{unit.zoneCode}</span>
-                        <span className="block text-xs text-slate-400 mt-0.5 max-w-[160px] leading-snug">{unit.zone}</span>
+                        <span className="block text-sm font-bold text-[#c9a84c] font-mono">Z-{unit.zoneCode}</span>
+                        <span className="block text-xs text-[#555555] mt-0.5 max-w-[160px] leading-snug">{unit.zone}</span>
                       </td>
 
                       {/* Type */}
-                      <td className="px-4 py-3.5 text-sm text-slate-500 whitespace-nowrap">
+                      <td className="px-4 py-3.5 text-sm text-[#606060] whitespace-nowrap">
                         {unit.type}
                       </td>
 
                       {/* Config */}
-                      <td className="px-4 py-3.5 text-sm font-medium text-slate-800 whitespace-nowrap">
+                      <td className="px-4 py-3.5 text-sm font-medium text-slate-200 whitespace-nowrap">
                         {unit.config}
                       </td>
 
@@ -731,13 +731,13 @@ export default function UnitsInventory() {
                       </td>
 
                       {/* Furnishing */}
-                      <td className="px-4 py-3.5 text-sm text-slate-600 whitespace-nowrap">
+                      <td className="px-4 py-3.5 text-sm text-slate-300 whitespace-nowrap">
                         {unit.furnishing}
                       </td>
 
                       {/* Rent */}
                       <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                        <span className="text-sm font-bold text-slate-900">{formatQAR(unit.rent)}</span>
+                        <span className="text-sm font-bold text-white">{formatQAR(unit.rent)}</span>
                       </td>
 
                       {/* Status badge */}
@@ -754,7 +754,7 @@ export default function UnitsInventory() {
                           target="_blank"
                           rel="noopener noreferrer"
                           title="Open in Google Maps"
-                          className="inline-flex items-center justify-center w-7 h-7 rounded-md text-blue-500 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+                          className="inline-flex items-center justify-center w-7 h-7 rounded-md text-[#c9a84c] hover:text-[#dfc070] hover:bg-[#c9a84c]/10 transition-colors"
                         >
                           <IconMap />
                         </a>
@@ -767,7 +767,7 @@ export default function UnitsInventory() {
                           target="_blank"
                           rel="noopener noreferrer"
                           title="View media assets"
-                          className="inline-flex items-center justify-center w-7 h-7 rounded-md text-amber-600 hover:text-amber-800 hover:bg-amber-50 transition-colors"
+                          className="inline-flex items-center justify-center w-7 h-7 rounded-md text-[#c9a84c] hover:text-[#dfc070] hover:bg-[#c9a84c]/10 transition-colors"
                         >
                           <IconMedia />
                         </a>
@@ -781,7 +781,7 @@ export default function UnitsInventory() {
                           className={`w-7 h-7 rounded-md flex items-center justify-center text-lg leading-none transition-colors ${
                             contextMenu?.unit.id === unit.id
                               ? 'bg-slate-100 text-slate-700'
-                              : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+                              : 'text-[#505050] hover:text-[#c9a84c] hover:bg-[#2a2a2a]'
                           }`}
                         >
                           ⋮
@@ -796,8 +796,8 @@ export default function UnitsInventory() {
 
           {/* ── PAGINATION CONTROLS ── */}
           {totalPages > 1 && (
-            <div className="border-t border-gray-200 px-4 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <p className="text-xs text-slate-500 order-2 sm:order-1">
+            <div className="border-t border-[#252525] px-4 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <p className="text-xs text-[#555555] order-2 sm:order-1">
                 Page <strong className="font-semibold text-slate-700">{currentPage}</strong> of{' '}
                 <strong className="font-semibold text-slate-700">{totalPages}</strong> ·{' '}
                 {filteredUnits.length} units · {ROWS_PER_PAGE} per page
@@ -807,14 +807,14 @@ export default function UnitsInventory() {
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="px-3 py-1.5 text-xs font-medium bg-[#1e1e1e] text-slate-300 border border-[#2a2a2a] rounded-lg hover:bg-[#2a2a2a] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   ← Prev
                 </button>
 
                 {pageNumbers.map((p, i) =>
                   p === '…' ? (
-                    <span key={`ellipsis-${i}`} className="w-8 text-center text-slate-400 text-sm">
+                    <span key={`ellipsis-${i}`} className="w-8 text-center text-[#444444] text-sm">
                       …
                     </span>
                   ) : (
@@ -823,8 +823,8 @@ export default function UnitsInventory() {
                       onClick={() => setCurrentPage(p as number)}
                       className={`w-8 h-8 text-xs font-medium rounded-lg transition-colors ${
                         currentPage === p
-                          ? 'bg-slate-900 text-white'
-                          : 'border border-gray-200 text-slate-700 hover:bg-slate-50'
+                          ? 'bg-[#c9a84c] text-[#0f0f0f] font-bold'
+                          : 'border border-[#2a2a2a] bg-[#1e1e1e] text-slate-400 hover:bg-[#2a2a2a]'
                       }`}
                     >
                       {p}
@@ -845,7 +845,7 @@ export default function UnitsInventory() {
         </div>
 
         {/* Footer note */}
-        <p className="text-center text-xs text-slate-400 pb-4">
+        <p className="text-center text-xs text-[#333333] pb-4">
           Privé Group RE-IMS · Qatar Property Portfolio · {mockUnits.length} active listings
         </p>
       </main>
