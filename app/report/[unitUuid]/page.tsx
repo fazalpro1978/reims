@@ -174,16 +174,11 @@ body {
 }
 
 /* ── 1. Brand header ─────────────────────────────────────────────────────────── */
-.rpt-brand-tbl   { width: 100%; border-collapse: collapse; margin-bottom: 8pt; }
-.rpt-brand-name  { font-size: 16pt; font-weight: 700; color: #0f172a; margin-bottom: 4pt; line-height: 1.15; }
-.rpt-brand-addr  { font-size: 9pt; color: #64748b; line-height: 1.55; margin-bottom: 2pt; }
-.rpt-brand-lic   { font-size: 9pt; color: #64748b; font-style: italic; line-height: 1.4; }
-.rpt-logo-slot   {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 132px; height: 54px;
-  border: 1.5px dashed #c9a84c; border-radius: 4px;
-}
-.rpt-logo-txt    { font-size: 8pt; font-weight: 700; color: #c9a84c; letter-spacing: 0.1em; }
+.rpt-brand-tbl  { width: 100%; border-collapse: collapse; margin-bottom: 8pt; }
+.rpt-brand-name { font-size: 16pt; font-weight: 700; color: #0f172a; margin-bottom: 4pt; line-height: 1.15; }
+.rpt-brand-addr { font-size: 9pt; color: #64748b; line-height: 1.55; margin-bottom: 2pt; }
+.rpt-brand-lic  { font-size: 9pt; color: #64748b; font-style: italic; line-height: 1.4; }
+.rpt-logo-img   { height: 68px; width: auto; display: block; margin-left: auto; }
 
 /* ── Dividers ────────────────────────────────────────────────────────────────── */
 .rpt-hr-gold  { border: none; border-top: 2px solid #c9a84c; margin: 7pt 0 9pt; }
@@ -342,9 +337,11 @@ function ReportDocument({ data }: { data: ReportData }) {
               <p className="rpt-brand-lic">Brokerage Licence No 773 | CR No 187753</p>
             </td>
             <td style={{ verticalAlign: 'top', textAlign: 'right', width: '38%' }}>
-              <div className="rpt-logo-slot">
-                <span className="rpt-logo-txt">PRIVÉ GROUP</span>
-              </div>
+              <img
+                src="/brand/logo-print.png"
+                alt="Privé Group Real Estate"
+                className="rpt-logo-img"
+              />
             </td>
           </tr>
         </tbody>

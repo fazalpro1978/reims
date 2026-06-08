@@ -26,6 +26,7 @@ import {
 } from '../types/inventory';
 import { supabase } from '../lib/supabase/client';
 import UnitDetailsModal from './UnitDetailsModal';
+import { ThemePanel } from './ThemeSwitcher';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -297,7 +298,7 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail }: Cont
       role="menu"
     >
       {item(<IconEye />, 'View Details', () => onViewDetails(menu.unit), 'text-slate-200 font-medium')}
-      {item(<IconEdit />, 'Edit Unit', () => {}, 'text-slate-300')}
+      {item(<IconEdit />, 'Edit Unit', () => onViewDetails(menu.unit), 'text-slate-300')}
       {item(<IconCopy />, 'Duplicate', () => {}, 'text-slate-700')}
 
       <div className="my-1 mx-1 border-t border-[#2a2a2a]" />
@@ -317,7 +318,7 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail }: Cont
         <span className="text-[#25D366]"><IconWhatsApp /></span>
         WhatsApp
       </button>
-      {item(<IconPDF />, 'PDF Report', () => {}, 'text-slate-700')}
+      {item(<IconPDF />, 'PDF Report', () => window.open(`/report/${menu.unit.uuid}`, '_blank'), 'text-slate-300')}
       {item(<IconMail />, 'Email', () => onEmail(menu.unit), 'text-slate-700')}
 
       <div className="my-1 mx-1 border-t border-gray-100" />
@@ -363,6 +364,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mapped: UnitListing[] = ((data ?? []) as any[]).map((row) => ({
         id:                  row.unit_code,
+        uuid:                row.id,
         realtorName:         row.realtor_name,
         realtorMOCI:         row.realtor_moci,
         property:            row.property,
@@ -402,9 +404,31 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
     fetchUnits();
   }, []);
 
-  // ── Modal / context menu state ─────────────────────────────────────────────
+  // ── Modal / context menu / settings state ────────────────────────────────
   const [selectedUnit, setSelectedUnit] = useState<UnitListing | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsBtnRef = useRef<HTMLButtonElement>(null);
+  const settingsPanelRef = useRef<HTMLDivElement>(null);
+
+  // Close settings panel on outside click
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        settingsBtnRef.current?.contains(e.target as Node) ||
+        settingsPanelRef.current?.contains(e.target as Node)
+      ) return;
+      setSettingsOpen(false);
+    };
+    const keyHandler = (e: KeyboardEvent) => { if (e.key === 'Escape') setSettingsOpen(false); };
+    document.addEventListener('mousedown', handler);
+    document.addEventListener('keydown', keyHandler);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('keydown', keyHandler);
+    };
+  }, [settingsOpen]);
 
   // ── Derived data ──────────────────────────────────────────────────────────
 
@@ -570,30 +594,59 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
               </svg>
             </button>
 
-            {/* Logo mark */}
-            <div className="w-8 h-8 bg-[#c9a84c] rounded-lg flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(201,168,76,0.3)]">
-              <span className="text-[#0a0a0a] font-black text-sm select-none">P</span>
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-[#e0e0e0] font-semibold text-base leading-tight truncate">
-                Privé Group
-              </h1>
-              <p className="text-[#444444] text-[11px] leading-tight hidden sm:block tracking-wide">
-                Real Estate Information Management System
-              </p>
-            </div>
+            {/* Brand logo */}
+            <img
+              src="/brand/logo-dark.png"
+              alt="Privé Group Real Estate"
+              style={{ height: '36px', width: 'auto', flexShrink: 0 }}
+            />
+            <p className="text-[#444444] text-[11px] leading-tight hidden sm:block tracking-wide select-none">
+              Real Estate Information Management System
+            </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <span className="text-[#3a3a3a] text-xs hidden md:block font-medium tracking-wide">Admin Console</span>
             {/* Divider */}
-            <div className="hidden md:block w-px h-4 bg-[#222222]" />
+            <div className="hidden md:block w-px h-4 bg-[#222222] mx-1" />
             {/* Notifications bell */}
             <button className="hidden sm:flex w-8 h-8 rounded-lg bg-[#1a1a1a] hover:bg-[#242424] border border-[#222222] items-center justify-center text-[#444444] hover:text-[#c9a84c] transition-colors">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
                 <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
               </svg>
             </button>
+
+            {/* Settings gear — opens theme panel */}
+            <div className="relative">
+              <button
+                ref={settingsBtnRef}
+                onClick={() => setSettingsOpen(v => !v)}
+                aria-label="Settings"
+                title="Settings & Theme"
+                className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors ${
+                  settingsOpen
+                    ? 'bg-[#c9a84c] border-[#c9a84c] text-[#0f0f0f]'
+                    : 'bg-[#1a1a1a] hover:bg-[#242424] border-[#222222] text-[#444444] hover:text-[#c9a84c]'
+                }`}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+                </svg>
+              </button>
+
+              {/* Settings dropdown — ThemePanel is self-contained with its own shell */}
+              {settingsOpen && (
+                <div
+                  ref={settingsPanelRef}
+                  className="absolute top-full right-0 mt-2"
+                  style={{ zIndex: 200 }}
+                >
+                  <ThemePanel onClose={() => setSettingsOpen(false)} />
+                </div>
+              )}
+            </div>
+
             {/* Avatar */}
             <div className="w-7 h-7 rounded-full bg-[#c9a84c]/15 border border-[#c9a84c]/25 flex items-center justify-center cursor-default">
               <span className="text-[#c9a84c] text-xs font-bold select-none">A</span>

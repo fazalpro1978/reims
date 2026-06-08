@@ -214,15 +214,14 @@ export default function SideNav({ open, onClose }: SideNavProps) {
         {/* ── Panel header ── */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e1e1e] shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-[#c9a84c] rounded-lg flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(201,168,76,0.35)]">
-              <span className="text-[#0a0a0a] font-black text-sm select-none">P</span>
-            </div>
-            <div>
-              <p className="text-[#e0e0e0] font-semibold text-sm leading-tight">Privé Group</p>
-              <p className="text-[#444444] text-[10px] leading-tight tracking-widest uppercase">
-                RE-IMS · v1.0
-              </p>
-            </div>
+            <img
+              src="/brand/logo-dark.png"
+              alt="Privé Group Real Estate"
+              style={{ height: '38px', width: 'auto', flexShrink: 0 }}
+            />
+            <p className="text-[#444444] text-[10px] leading-tight tracking-widest uppercase select-none">
+              RE-IMS · v1.0
+            </p>
           </div>
           <button
             onClick={onClose}
