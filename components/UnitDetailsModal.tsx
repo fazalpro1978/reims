@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, { useState, useEffect, useRef } from 'react';
-import { UnitListing, Status, Furnishing, KitchenType } from '../types/inventory';
+import { UnitListing, Status, Furnishing, KitchenType, UnitType } from '../types/inventory';
 import { supabase } from '../lib/supabase/client';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -113,6 +113,54 @@ function getDefaultRegStatus(unit: UnitListing): PropertyRegStatus {
   return ACTIVE_STATUSES.has(unit.status) ? 'Registered' : 'Not Registered';
 }
 
+// ── Static lookup data ─────────────────────────────────────────────────────
+
+const REALTORS: { name: string; moci: string }[] = [
+  { name: '25 Spaces Real Estate',        moci: 'MOCI-BRK-25S-0167' },
+  { name: 'ABH Real Estate',              moci: 'MOCI-BRK-ABH-0234' },
+  { name: 'Al Asmakh Real Estate',        moci: 'MOCI-BRK-ASM-0023' },
+  { name: 'Alfardan Properties',          moci: 'MOCI-REG-ALP-0045' },
+  { name: 'Al Jazi Real Estate',          moci: 'MOCI-IPM-AJZ-0089' },
+  { name: 'Al Mana Real Estate',          moci: 'MOCI-REG-ALM-0034' },
+  { name: 'Betterhomes Qatar',            moci: 'MOCI-BRK-BHQ-0067' },
+  { name: 'Capital One Real Estate',      moci: 'MOCI-BRK-CAO-0156' },
+  { name: 'Capstone Property',            moci: 'MOCI-BRK-CAP-0145' },
+  { name: 'Coreo Real Estate',            moci: 'MOCI-BRK-CRE-0134' },
+  { name: 'Corporate Real Estate Qatar',  moci: 'MOCI-BRK-CRQ-0212' },
+  { name: 'Danat Qatar',                  moci: 'MOCI-IPM-DAN-0078' },
+  { name: 'Direct Real Estate',           moci: 'MOCI-BRK-DRE-0178' },
+  { name: 'FGREALTY Qatar',               moci: 'MOCI-BRK-FGR-0056' },
+  { name: 'JMJ Group Holding',            moci: 'MOCI-REG-JMJ-0067' },
+  { name: 'Maroon Homes',                 moci: 'MOCI-BRK-MRH-0245' },
+  { name: 'Msheireb Properties',          moci: 'MOCI-REG-MSH-0001' },
+  { name: 'NelsonPark Property',          moci: 'MOCI-BRK-NPP-0112' },
+  { name: 'Premium Property Qatar',       moci: 'MOCI-BRK-PPQ-0201' },
+  { name: 'The Loft Bureau Real Estate',  moci: 'MOCI-BRK-LFT-0078' },
+  { name: 'The Pearl Gates',              moci: 'MOCI-BRK-TPG-0089' },
+  { name: 'Unicorn Real Estate',          moci: 'MOCI-BRK-UNI-0189' },
+];
+
+const ZONE_OPTIONS: { zone: string; code: number }[] = [
+  { zone: 'Al Dafna',                              code: 60 },
+  { zone: 'Al Dafna / Al Qassar',                  code: 61 },
+  { zone: 'Al Sadd',                               code: 38 },
+  { zone: 'Hazm Al Markhiya',                      code: 67 },
+  { zone: 'Jelaiah / Al Tarfa',                    code: 68 },
+  { zone: 'Madinat Khalifa North / Dahl Al Hamam', code: 32 },
+  { zone: 'Madinat Khalifa South',                 code: 34 },
+  { zone: 'Musheireb',                             code: 4  },
+];
+
+const UNIT_CONFIGS = [
+  '1 BHK', '2 BHK', '3 BHK',
+  '4 BHK + Maid', '4 BHK + Maid (Private)',
+  '5 BHK + Maid (Private)', 'Penthouse', 'Studio',
+];
+
+function isValidUrl(url: string): boolean {
+  try { return Boolean(new URL(url)); } catch { return false; }
+}
+
 // ── Layout primitives ──────────────────────────────────────────────────────
 
 function FieldRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -139,95 +187,435 @@ function SectionCard({ title, children }: { title: string; children: React.React
 
 // ── Tab A: Property & Unit ─────────────────────────────────────────────────
 
-function PropertyTab({ unit }: { unit: UnitListing }) {
+function LockIcon() {
+  return (
+    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+    </svg>
+  );
+}
+
+function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin }: {
+  unit: UnitListing;
+  unitUuid: string;
+  isAdmin: boolean;
+  onRequestAdmin: () => void;
+}) {
+  const [realtorName, setRealtorName] = useState(unit.realtorName);
+  const [realtorMoci, setRealtorMoci] = useState(unit.realtorMOCI);
+  const [propertyName, setPropertyName] = useState(unit.property);
+  const [unitNo, setUnitNo] = useState(unit.unitNo);
+  const [zone, setZone] = useState(unit.zone);
+  const [zoneCode, setZoneCode] = useState(unit.zoneCode);
+  const [unitType, setUnitType] = useState<UnitType>(unit.type);
+  const [config, setConfig] = useState(unit.config);
+  const [parking, setParking] = useState(unit.parking);
+  const [kitchen, setKitchen] = useState<KitchenType>(unit.kitchen);
+  const [furnishing, setFurnishing] = useState<Furnishing>(unit.furnishing);
+  const [status, setStatus] = useState<Status>(unit.status);
+  const [locationMapUrl, setLocationMapUrl] = useState(unit.locationMapUrl);
+  const [mediaUrl, setMediaUrl] = useState(unit.mediaUrl);
+  const [amenities, setAmenities] = useState<string[]>([]);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [saveError, setSaveError] = useState('');
+
+  useEffect(() => {
+    if (!unitUuid) return;
+    supabase.from('units')
+      .select('realtor_name,realtor_moci,property,unit_no,zone,zone_code,type,config,parking,kitchen,furnishing,status,location_map_url,media_url,amenities')
+      .eq('id', unitUuid).single()
+      .then(({ data }) => {
+        if (!data) return;
+        setRealtorName(data.realtor_name ?? unit.realtorName);
+        setRealtorMoci(data.realtor_moci ?? unit.realtorMOCI);
+        setPropertyName(data.property ?? unit.property);
+        setUnitNo(data.unit_no ?? unit.unitNo);
+        setZone(data.zone ?? unit.zone);
+        setZoneCode(data.zone_code ?? unit.zoneCode);
+        setUnitType((data.type as UnitType) ?? unit.type);
+        setConfig(data.config ?? unit.config);
+        setParking(data.parking ?? unit.parking);
+        setKitchen((data.kitchen as KitchenType) ?? unit.kitchen);
+        setFurnishing((data.furnishing as Furnishing) ?? unit.furnishing);
+        setStatus((data.status as Status) ?? unit.status);
+        setLocationMapUrl(data.location_map_url ?? unit.locationMapUrl);
+        setMediaUrl(data.media_url ?? unit.mediaUrl);
+        const raw = data.amenities;
+        if (Array.isArray(raw)) setAmenities(raw);
+        else if (typeof raw === 'string') {
+          try { setAmenities(JSON.parse(raw)); } catch { /* leave empty */ }
+        }
+      });
+  }, [unitUuid]);
+
+  const handleRealtorChange = (name: string) => {
+    setRealtorName(name);
+    const r = REALTORS.find(r => r.name === name);
+    if (r) setRealtorMoci(r.moci);
+  };
+
+  const handleZoneChange = (zoneName: string) => {
+    setZone(zoneName);
+    const z = ZONE_OPTIONS.find(z => z.zone === zoneName);
+    if (z) setZoneCode(z.code);
+  };
+
+  const handleSave = async () => {
+    if (!unitUuid) return;
+    setSaveStatus('saving');
+    const { error } = await supabase.from('units').update({
+      realtor_name: realtorName,
+      realtor_moci: realtorMoci,
+      property:     propertyName,
+      unit_no:      unitNo,
+      zone,
+      zone_code:        zoneCode,
+      type:             unitType,
+      config,
+      parking,
+      kitchen,
+      furnishing,
+      status,
+      location_map_url: locationMapUrl || null,
+      media_url:        mediaUrl || null,
+    }).eq('id', unitUuid);
+    if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
+    // Amenities saved separately — keeps main save from failing if the column hasn't been added yet
+    await supabase.from('units').update({ amenities }).eq('id', unitUuid);
+    await insertAuditLog(unitUuid, [
+      { field: 'Realtor',   oldValue: unit.realtorName, newValue: realtorName },
+      { field: 'Zone',      oldValue: unit.zone,        newValue: zone },
+      { field: 'Type',      oldValue: unit.type,        newValue: unitType },
+      { field: 'Config',    oldValue: unit.config,      newValue: config },
+      { field: 'Furnishing',oldValue: unit.furnishing,  newValue: furnishing },
+      { field: 'Status',    oldValue: unit.status,      newValue: status },
+    ]);
+    setSaveStatus('saved');
+    setTimeout(() => setSaveStatus('idle'), 2500);
+  };
+
+  const sel = 'w-full text-sm text-[#d0d0d0] bg-[#111111] border border-[#333333] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] cursor-pointer';
+  const inp = 'w-full text-sm text-[#d0d0d0] bg-[#111111] border border-[#333333] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c]';
+
+  const AdminLockButton = () => (
+    <button
+      type="button"
+      onClick={onRequestAdmin}
+      title="Admin unlock required"
+      className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold bg-[#1a1a1a] border border-[#2a2a2a] text-[#555555] rounded hover:text-[#c9a84c] hover:border-[#c9a84c]/50 transition-colors"
+    >
+      <LockIcon />
+      Admin only
+    </button>
+  );
+
   return (
     <div className="space-y-4">
+      <SaveBar status={saveStatus} onSave={handleSave} errorMsg={saveError} />
+
+      {isAdmin && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/5 border border-amber-500/20">
+          <svg className="w-3.5 h-3.5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 11V7a4 4 0 018 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+          </svg>
+          <span className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider">Admin Mode Active</span>
+          <span className="text-[10px] text-amber-600">— all fields unlocked</span>
+        </div>
+      )}
+
       <SectionCard title="Identification">
+
+        {/* Realtor */}
         <FieldRow
           label="Realtor"
-          value={<strong className="font-semibold">{unit.realtorName}</strong>}
+          value={
+            <select value={realtorName} onChange={e => handleRealtorChange(e.target.value)} className={sel}>
+              {REALTORS.map(r => <option key={r.moci} value={r.name}>{r.name}</option>)}
+            </select>
+          }
         />
+
+        {/* MOCI License — admin-locked */}
         <FieldRow
           label="MOCI License"
           value={
+            <div className="flex items-center gap-2 flex-wrap">
+              {isAdmin ? (
+                <input
+                  type="text"
+                  value={realtorMoci}
+                  onChange={e => setRealtorMoci(e.target.value)}
+                  className={`${inp} font-mono text-[#c9a84c] w-56`}
+                />
+              ) : (
+                <>
+                  <span className="font-mono text-sm bg-[#111111] text-[#c9a84c] px-2.5 py-0.5 rounded">
+                    {realtorMoci}
+                  </span>
+                  <AdminLockButton />
+                </>
+              )}
+            </div>
+          }
+        />
+
+        {/* Property Name */}
+        <FieldRow
+          label="Property Name"
+          value={
+            <input type="text" value={propertyName}
+              onChange={e => setPropertyName(e.target.value)}
+              className={inp} />
+          }
+        />
+
+        {/* Unit Number — admin-locked */}
+        <FieldRow
+          label="Unit Number"
+          value={
+            <div className="flex items-center gap-2">
+              {isAdmin ? (
+                <input
+                  type="text"
+                  value={unitNo}
+                  onChange={e => setUnitNo(e.target.value)}
+                  className={`${inp} font-mono w-40`}
+                />
+              ) : (
+                <>
+                  <span className="font-mono text-sm text-[#d0d0d0]">{unitNo}</span>
+                  <AdminLockButton />
+                </>
+              )}
+            </div>
+          }
+        />
+
+        {/* District / Area — zone dropdown, auto-updates zone code */}
+        <FieldRow
+          label="District / Area"
+          value={
+            <select value={zone} onChange={e => handleZoneChange(e.target.value)} className={sel}>
+              {ZONE_OPTIONS.map(z => <option key={z.code} value={z.zone}>{z.zone}</option>)}
+            </select>
+          }
+        />
+
+        {/* Zone Code — read-only, auto-set by zone dropdown */}
+        <FieldRow
+          label="Zone Code"
+          value={
             <span className="font-mono text-sm bg-[#111111] text-[#c9a84c] px-2.5 py-0.5 rounded">
-              {unit.realtorMOCI}
+              Zone {zoneCode}
             </span>
           }
         />
-        <FieldRow label="Property Name" value={<strong className="font-semibold">{unit.property}</strong>} />
-        <FieldRow label="Unit Number" value={<span className="font-mono">{unit.unitNo}</span>} />
-        <FieldRow label="District / Area" value={<strong className="font-semibold">{unit.zone}</strong>} />
-        <FieldRow label="Zone Code" value={
-          <span className="font-mono text-sm bg-[#111111] text-[#c9a84c] px-2.5 py-0.5 rounded">
-            Zone {unit.zoneCode}
-          </span>
-        } />
+
       </SectionCard>
+
       <SectionCard title="Classification">
-        <FieldRow label="Unit Type" value={unit.type} />
-        <FieldRow label="Config" value={<strong className="font-semibold">{unit.config}</strong>} />
-        <FieldRow label="Bathrooms" value={
-          <span className="font-mono text-sm">{unit.bathrooms % 1 === 0 ? unit.bathrooms : unit.bathrooms.toFixed(1)}</span>
-        } />
-        <FieldRow label="Parking" value={
-          unit.parking
-            ? <span className="inline-flex items-center gap-1 text-emerald-400 text-sm font-medium">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                </svg>
+
+        {/* Unit Type */}
+        <FieldRow
+          label="Unit Type"
+          value={
+            <select value={unitType} onChange={e => setUnitType(e.target.value as UnitType)} className={`${sel} w-44`}>
+              {Object.values(UnitType).map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          }
+        />
+
+        {/* Config */}
+        <FieldRow
+          label="Config"
+          value={
+            <select value={config} onChange={e => setConfig(e.target.value)} className={`${sel} w-52`}>
+              {UNIT_CONFIGS.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          }
+        />
+
+        {/* Parking */}
+        <FieldRow
+          label="Parking"
+          value={
+            <div className="inline-flex rounded-lg overflow-hidden border border-[#333333] text-xs font-medium">
+              <button type="button" onClick={() => setParking(true)}
+                className={`px-3 py-1.5 transition-colors ${parking ? 'bg-emerald-600 text-white' : 'bg-[#1e1e1e] text-[#666666] hover:bg-[#2a2a2a]'}`}>
                 Included
-              </span>
-            : <span className="text-[#555555] text-sm">Not included</span>
-        } />
-        <FieldRow label="Kitchen" value={
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${KITCHEN_BADGE[unit.kitchen]}`}>
-            {unit.kitchen}
-          </span>
-        } />
+              </button>
+              <button type="button" onClick={() => setParking(false)}
+                className={`px-3 py-1.5 border-l border-[#333333] transition-colors ${!parking ? 'bg-[#3a3a3a] text-[#e0e0e0]' : 'bg-[#1e1e1e] text-[#666666] hover:bg-[#2a2a2a]'}`}>
+                Not Included
+              </button>
+            </div>
+          }
+        />
+
+        {/* Kitchen */}
+        <FieldRow
+          label="Kitchen"
+          value={
+            <select value={kitchen} onChange={e => setKitchen(e.target.value as KitchenType)} className={`${sel} w-36`}>
+              {(['Open', 'Closed', 'Yes', 'Pantry'] as KitchenType[]).map(k => <option key={k} value={k}>{k}</option>)}
+            </select>
+          }
+        />
+
+        {/* Furnishing State */}
         <FieldRow
           label="Furnishing State"
           value={
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${FURNISHING_BADGE[unit.furnishing]}`}>
-              {unit.furnishing}
-            </span>
+            <select value={furnishing} onChange={e => setFurnishing(e.target.value as Furnishing)} className={`${sel} w-44`}>
+              {Object.values(Furnishing).map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
           }
         />
-        <FieldRow label="Listing Type" value={unit.listingType} />
+
+        {/* Current Status */}
         <FieldRow
           label="Current Status"
           value={
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_BADGE[unit.status]}`}>
-              {unit.status.replace('_', ' ')}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${STATUS_BADGE[status]}`}>
+                {status.replace('_', ' ')}
+              </span>
+              <select value={status} onChange={e => setStatus(e.target.value as Status)} className={`${sel} w-44`}>
+                {Object.values(Status).map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+              </select>
+            </div>
           }
         />
+
+        {/* Listing Type — read-only (structural field) */}
+        <FieldRow label="Listing Type" value={<span className="text-sm text-[#d0d0d0]">{unit.listingType}</span>} />
+
+        {/* Bathrooms — read-only */}
+        <FieldRow label="Bathrooms" value={
+          <span className="font-mono text-sm">{unit.bathrooms % 1 === 0 ? unit.bathrooms : unit.bathrooms.toFixed(1)}</span>
+        } />
+
+        {/* Amenities */}
+        <div className="pt-3 pb-1">
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-[10px] font-bold text-[#555555] uppercase tracking-[0.18em]">Amenities</span>
+            {amenities.length > 0 && (
+              <span className="text-[10px] font-semibold text-[#c9a84c] bg-[#c9a84c]/8 border border-[#c9a84c]/20 px-2 py-0.5 rounded-full">
+                {amenities.length} selected
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {([
+              'Balcony', 'Barbecue Area', 'Built-in Wardrobes', 'Central A/C',
+              'Covered Parking', 'Private Gym', 'Private Jacuzzi', 'Kitchen Appliances',
+              'Maids Room', 'Pets Allowed', 'Private Garden', 'Private Pool',
+              'Shared Pool', 'Study', 'View of Water', 'Security',
+              'Concierge', 'Shared Spa', 'Shared Gym', 'Maid Service',
+              'Walk-in Closet', 'View of Landmark', "Children's Play Area",
+              'Lobby in Building', "Children's Pool",
+            ] as const).map(name => {
+              const checked = amenities.includes(name);
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() =>
+                    setAmenities(prev =>
+                      checked ? prev.filter(a => a !== name) : [...prev, name]
+                    )
+                  }
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[11px] font-medium transition-all select-none ${
+                    checked
+                      ? 'border-[#c9a84c]/50 bg-[#c9a84c]/8 text-[#c9a84c]'
+                      : 'border-[#2a2a2a] text-[#555555] hover:border-[#444444] hover:text-[#888888]'
+                  }`}
+                >
+                  <span
+                    className={`w-3 h-3 rounded-sm border flex items-center justify-center shrink-0 transition-colors ${
+                      checked ? 'bg-[#c9a84c] border-[#c9a84c]' : 'border-[#333333] bg-[#111111]'
+                    }`}
+                  >
+                    {checked && (
+                      <svg className="w-2 h-2" viewBox="0 0 10 8" fill="none">
+                        <path d="M1 4l3 3 5-6" stroke="#0f0f0f" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </span>
+                  {name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
       </SectionCard>
+
       <SectionCard title="External Links">
+
+        {/* Location Map */}
         <FieldRow
           label="Location Map"
           value={
-            <a href={unit.locationMapUrl} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-[#c9a84c] hover:text-[#dfc070] hover:underline text-sm">
-              Open in Google Maps
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-            </a>
+            <div className="flex flex-col gap-2 w-full">
+              {locationMapUrl && isValidUrl(locationMapUrl) && (
+                <a href={locationMapUrl} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[#c9a84c] hover:text-[#dfc070] text-sm font-medium w-fit">
+                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  Open in Google Maps
+                  <svg className="w-3 h-3 shrink-0 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+              )}
+              <input
+                type="url"
+                placeholder="Paste Google Maps URL…"
+                value={locationMapUrl}
+                onChange={e => setLocationMapUrl(e.target.value)}
+                className={`${inp} font-mono text-xs text-[#888888]`}
+              />
+              {locationMapUrl && !isValidUrl(locationMapUrl) && (
+                <span className="text-[11px] text-red-400">Invalid URL — must start with https://</span>
+              )}
+            </div>
           }
         />
+
+        {/* Media Assets */}
         <FieldRow
           label="Media Assets"
           value={
-            <a href={unit.mediaUrl} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-[#c9a84c] hover:text-[#dfc070] hover:underline text-sm">
-              View Media Library
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-            </a>
+            <div className="flex flex-col gap-2 w-full">
+              {mediaUrl && isValidUrl(mediaUrl) && (
+                <a href={mediaUrl} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[#c9a84c] hover:text-[#dfc070] text-sm font-medium w-fit">
+                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  View Media Library
+                  <svg className="w-3 h-3 shrink-0 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+              )}
+              <input
+                type="url"
+                placeholder="Paste Dropbox, Google Drive, or OneDrive URL…"
+                value={mediaUrl}
+                onChange={e => setMediaUrl(e.target.value)}
+                className={`${inp} font-mono text-xs text-[#888888]`}
+              />
+              {mediaUrl && !isValidUrl(mediaUrl) && (
+                <span className="text-[11px] text-red-400">Invalid URL — must start with https://</span>
+              )}
+            </div>
           }
         />
+
       </SectionCard>
     </div>
   );
@@ -330,12 +718,14 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   const [marafeqApplicable, setMarafeqApplicable] = useState<boolean>(true);
   const [marafeqAmount, setMarafeqAmount] = useState<number>(3000);
 
-  const firstMonthTotal = monthlyRent + contractCharges + additionalCharges;
+  const securityDeposit = monthlyRent; // 1 month's rent — refundable
+  const firstMonthTotal = monthlyRent + securityDeposit + contractCharges + additionalCharges;
 
   const bannerRows = [
-    { label: 'Monthly Rent',       amount: monthlyRent },
-    { label: 'Contract Charges',   amount: contractCharges },
-    { label: 'Additional Charges', amount: additionalCharges },
+    { label: 'Monthly Rent',                  amount: monthlyRent },
+    { label: 'Security Deposit (Refundable)', amount: securityDeposit },
+    { label: 'Contract Charges',              amount: contractCharges },
+    { label: 'Additional Charges',            amount: additionalCharges },
   ];
 
   return (
@@ -1050,7 +1440,7 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
       }, { onConflict: 'unit_id' }),
       supabase.from('units').update({
         moci_contract_number: contractNumber || null,
-      }).eq('unit_code', unit.id),
+      }).eq('id', unitUuid),
     ]);
     if (error || unitError) { setSaveError((error ?? unitError)!.message); setSaveStatus('error'); return; }
     await insertAuditLog(unitUuid, [
@@ -1515,16 +1905,35 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'operational', label: 'Operational' },
 ];
 
+const ADMIN_PIN = 'PRIVE2024';
+
 export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProps) {
   const [activeTab, setActiveTab] = useState<TabId>('property');
   const [visible, setVisible] = useState(false);
   const [unitUuid, setUnitUuid] = useState('');
 
-  // Fetch the DB UUID for this unit once on open (needed for child table writes)
+  // Admin mode — unlocks MOCI License and Unit Number editing
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdminDialog, setShowAdminDialog] = useState(false);
+  const [adminPin, setAdminPin] = useState('');
+  const [pinError, setPinError] = useState('');
+
+  const handleAdminUnlock = () => {
+    if (adminPin === ADMIN_PIN) {
+      setIsAdmin(true);
+      setShowAdminDialog(false);
+      setAdminPin('');
+      setPinError('');
+    } else {
+      setPinError('Incorrect PIN. Access denied.');
+      setAdminPin('');
+    }
+  };
+
+  // UUID is now carried on the listing — no extra fetch needed
   useEffect(() => {
-    supabase.from('units').select('id').eq('unit_code', unit.id).single()
-      .then(({ data }) => { if (data) setUnitUuid((data as { id: string }).id); });
-  }, [unit.id]);
+    if (unit.uuid) setUnitUuid(unit.uuid);
+  }, [unit.uuid]);
 
   // Animate in
   useEffect(() => {
@@ -1632,6 +2041,35 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
             </svg>
             Email
           </button>
+          {/* PDF Report — inline style bypasses [data-theme] CSS override */}
+          <button
+            onClick={() => { if (unitUuid) window.open(`/report/${unitUuid}`, '_blank'); }}
+            disabled={!unitUuid}
+            title={unitUuid ? 'Open printable PDF report in new tab' : 'Loading unit data…'}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '6px 14px',
+              background: unitUuid ? '#c9a84c' : '#2a2a2a',
+              color: unitUuid ? '#0f0f0f' : '#555555',
+              border: 'none',
+              borderRadius: 8,
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: unitUuid ? 'pointer' : 'not-allowed',
+              whiteSpace: 'nowrap',
+              opacity: unitUuid ? 1 : 0.55,
+              transition: 'background 150ms, opacity 150ms',
+              flexShrink: 0,
+            }}
+            onMouseEnter={e => { if (unitUuid) (e.currentTarget as HTMLButtonElement).style.background = '#dfc070'; }}
+            onMouseLeave={e => { if (unitUuid) (e.currentTarget as HTMLButtonElement).style.background = '#c9a84c'; }}
+          >
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+              <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+            </svg>
+            {unitUuid ? 'PDF Report' : 'Loading…'}
+          </button>
           <div className="flex-1" />
           <span className="text-slate-500 text-xs font-mono whitespace-nowrap hidden sm:block">
             {unit.realtorMOCI}
@@ -1664,11 +2102,65 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
 
         {/* ── Tab Content (scrollable) ── */}
         <div className="flex-1 overflow-y-auto px-6 py-5 bg-[#181818]" role="tabpanel">
-          {activeTab === 'property'    && <PropertyTab unit={unit} />}
+          {activeTab === 'property'    && <PropertyTab unit={unit} unitUuid={unitUuid} isAdmin={isAdmin} onRequestAdmin={() => setShowAdminDialog(true)} />}
           {activeTab === 'financials'  && <FinancialsTab unit={unit} unitUuid={unitUuid} />}
           {activeTab === 'commission'  && <CommissionTab unit={unit} unitUuid={unitUuid} />}
           {activeTab === 'operational' && <OperationalTab unit={unit} unitUuid={unitUuid} />}
         </div>
+
+        {/* ── Admin PIN Dialog ── */}
+        {showAdminDialog && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+            <div className="w-full max-w-xs mx-4 bg-[#181818] border border-[#2a2a2a] rounded-2xl shadow-2xl overflow-hidden">
+              <div className="px-5 py-4 bg-[#111111] border-b border-[#2a2a2a] flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                  <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-[#e0e0e0]">Admin Access Required</p>
+                  <p className="text-[11px] text-[#555555] mt-0.5">Enter PIN to unlock restricted fields</p>
+                </div>
+              </div>
+              <div className="px-5 py-4 space-y-3">
+                <input
+                  type="password"
+                  placeholder="Enter admin PIN…"
+                  value={adminPin}
+                  onChange={e => { setAdminPin(e.target.value); setPinError(''); }}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAdminUnlock(); if (e.key === 'Escape') { setShowAdminDialog(false); setAdminPin(''); setPinError(''); } }}
+                  autoFocus
+                  className="w-full text-sm text-[#d0d0d0] bg-[#0d0d0d] border border-[#333333] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 placeholder:text-[#444444] font-mono tracking-widest"
+                />
+                {pinError && (
+                  <p className="text-xs text-red-400 flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 8v4M12 16h.01" />
+                    </svg>
+                    {pinError}
+                  </p>
+                )}
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => { setShowAdminDialog(false); setAdminPin(''); setPinError(''); }}
+                    className="flex-1 py-2 text-sm font-medium text-[#666666] bg-[#1e1e1e] border border-[#2a2a2a] rounded-lg hover:bg-[#252525] hover:text-[#aaaaaa] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAdminUnlock}
+                    className="flex-1 py-2 text-sm font-bold text-[#0f0f0f] bg-amber-500 hover:bg-amber-400 rounded-lg transition-colors"
+                  >
+                    Unlock
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── Footer Share Action Bar ── */}
         <div className="shrink-0 border-t border-[#2a2a2a] bg-[#111111] px-6 py-4">
