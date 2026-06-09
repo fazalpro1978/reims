@@ -64,6 +64,26 @@ function generateShareText(unit: UnitListing): string {
   );
 }
 
+function generateEmailBody(unit: UnitListing): string {
+  return [
+    `Property Listing Enquiry — Privé Group Real Estate`,
+    ``,
+    `Property:   ${unit.property}`,
+    `Unit No:    ${unit.unitNo}`,
+    `Type:       ${unit.type} — ${unit.config}`,
+    `District:   ${unit.zone} (Zone ${unit.zoneCode})`,
+    `Furnishing: ${unit.furnishing}`,
+    `Status:     ${unit.status.replace('_', ' ')}`,
+    `Rent:       QAR ${unit.rent.toLocaleString()} / month`,
+    ``,
+    `─────────────────────────────────────`,
+    `Privé Group Real Estate`,
+    `Tel / WhatsApp: +974 7707 5959`,
+    `Email: admin@privegroupre.com`,
+    `Brokerage Licence No 773 | CR No 187753`,
+  ].join('\n');
+}
+
 const KITCHEN_BADGE: Record<KitchenType, string> = {
   Open:   'border border-emerald-600/40 text-emerald-400 bg-emerald-500/10',
   Closed: 'border border-rose-600/40   text-rose-400   bg-rose-500/10',
@@ -240,9 +260,10 @@ interface ContextMenuProps {
   onViewDetails: (unit: UnitListing) => void;
   onWhatsApp: (unit: UnitListing) => void;
   onEmail: (unit: UnitListing) => void;
+  onDuplicate: (unit: UnitListing) => void;
 }
 
-function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail }: ContextMenuProps) {
+function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDuplicate }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -299,7 +320,7 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail }: Cont
     >
       {item(<IconEye />, 'View Details', () => onViewDetails(menu.unit), 'text-slate-200 font-medium')}
       {item(<IconEdit />, 'Edit Unit', () => onViewDetails(menu.unit), 'text-slate-300')}
-      {item(<IconCopy />, 'Duplicate', () => {}, 'text-slate-700')}
+      {item(<IconCopy />, 'Duplicate', () => onDuplicate(menu.unit), 'text-slate-300')}
 
       <div className="my-1 mx-1 border-t border-[#2a2a2a]" />
 
@@ -319,7 +340,7 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail }: Cont
         WhatsApp
       </button>
       {item(<IconPDF />, 'PDF Report', () => window.open(`/report/${menu.unit.uuid}`, '_blank'), 'text-slate-300')}
-      {item(<IconMail />, 'Email', () => onEmail(menu.unit), 'text-slate-700')}
+      {item(<IconMail />, 'Email', () => onEmail(menu.unit), 'text-slate-300')}
 
       <div className="my-1 mx-1 border-t border-gray-100" />
 
@@ -352,6 +373,8 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
   const [units, setUnits] = useState<UnitListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
   useEffect(() => {
     async function fetchUnits() {
@@ -402,7 +425,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
       setLoading(false);
     }
     fetchUnits();
-  }, []);
+  }, [refreshKey]);
 
   // ── Modal / context menu / settings state ────────────────────────────────
   const [selectedUnit, setSelectedUnit] = useState<UnitListing | null>(null);
@@ -555,9 +578,48 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
   }, []);
 
   const handleEmail = useCallback((unit: UnitListing) => {
-    const subject = encodeURIComponent(`Property: ${unit.property} — Unit ${unit.unitNo}`);
-    const body = encodeURIComponent(generateShareText(unit));
+    const subject = encodeURIComponent(
+      `Property Enquiry — ${unit.property} ${unit.config} | ${unit.id}`
+    );
+    const body = encodeURIComponent(generateEmailBody(unit));
     window.open(`mailto:?subject=${subject}&body=${body}`);
+  }, []);
+
+  const handleDuplicate = useCallback(async (unit: UnitListing) => {
+    if (!unit.uuid) return;
+    // Fetch the full DB row so we copy every column, not just mapped fields
+    const { data: row, error: fetchErr } = await supabase
+      .from('units')
+      .select('*')
+      .eq('id', unit.uuid)
+      .single();
+    if (fetchErr || !row) {
+      setToast({ type: 'error', msg: 'Could not read unit data for duplication.' });
+      setTimeout(() => setToast(null), 4000);
+      return;
+    }
+    // Build the duplicate — strip DB-managed identity columns, reset lease-specific fields
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = row;
+    const newCode = `${row.unit_code}-COPY`;
+    const newRow = {
+      ...rest,
+      unit_code:            newCode,
+      status:               'Available',
+      moci_contract_status: 'DRAFT',
+      moci_contract_number: null,
+      contract_start_date:  null,
+      contract_end_date:    null,
+    };
+    const { error: insertErr } = await supabase.from('units').insert(newRow);
+    if (insertErr) {
+      setToast({ type: 'error', msg: `Duplicate failed: ${insertErr.message}` });
+      setTimeout(() => setToast(null), 5000);
+      return;
+    }
+    setToast({ type: 'success', msg: `Duplicated as ${newCode} — edit to update details.` });
+    setTimeout(() => setToast(null), 4000);
+    setRefreshKey(k => k + 1);
   }, []);
 
   const handleViewDetails = useCallback((unit: UnitListing) => {
@@ -1073,6 +1135,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
           onViewDetails={handleViewDetails}
           onWhatsApp={handleWhatsApp}
           onEmail={handleEmail}
+          onDuplicate={handleDuplicate}
         />
       )}
 
@@ -1084,6 +1147,35 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
           unit={selectedUnit}
           onClose={() => setSelectedUnit(null)}
         />
+      )}
+
+      {/* ── Toast notification ────────────────────────────────────────────── */}
+      {toast && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '28px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '10px 18px',
+            borderRadius: '10px',
+            fontSize: '13px',
+            fontWeight: 500,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.55)',
+            background: toast.type === 'success' ? '#14532d' : '#450a0a',
+            border: `1px solid ${toast.type === 'success' ? '#16a34a' : '#b91c1c'}`,
+            color: toast.type === 'success' ? '#bbf7d0' : '#fecaca',
+            whiteSpace: 'nowrap',
+            maxWidth: '90vw',
+          }}
+        >
+          <span>{toast.type === 'success' ? '✓' : '✕'}</span>
+          <span>{toast.msg}</span>
+        </div>
       )}
     </div>
   );
