@@ -8,6 +8,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UnitListing, Status, Furnishing, KitchenType, UnitType } from '../types/inventory';
 import { supabase } from '../lib/supabase/client';
+import { logEvent } from '../lib/auditLog';
 import DocUploadRow from './DocUploadRow';
 import CommDocRow, { DocEntry } from './CommDocRow';
 
@@ -30,14 +31,6 @@ function SaveBar({ status, onSave, errorMsg }: { status: SaveStatus; onSave: () 
   );
 }
 
-async function insertAuditLog(unitUuid: string, changes: { field: string; oldValue: string; newValue: string }[]) {
-  if (!unitUuid || changes.length === 0) return;
-  const rows = changes
-    .filter(c => c.oldValue !== c.newValue)
-    .map(c => ({ unit_id: unitUuid, field: c.field, old_value: c.oldValue, new_value: c.newValue }));
-  if (rows.length === 0) return;
-  await supabase.from('audit_log').insert(rows);
-}
 
 type TabId = 'property' | 'financials' | 'commission' | 'operational';
 
@@ -284,14 +277,8 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin }: {
     if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
     // Amenities saved separately — keeps main save from failing if the column hasn't been added yet
     await supabase.from('units').update({ amenities }).eq('id', unitUuid);
-    await insertAuditLog(unitUuid, [
-      { field: 'Realtor',   oldValue: unit.realtorName, newValue: realtorName },
-      { field: 'Zone',      oldValue: unit.zone,        newValue: zone },
-      { field: 'Type',      oldValue: unit.type,        newValue: unitType },
-      { field: 'Config',    oldValue: unit.config,      newValue: config },
-      { field: 'Furnishing',oldValue: unit.furnishing,  newValue: furnishing },
-      { field: 'Status',    oldValue: unit.status,      newValue: status },
-    ]);
+    await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'property', payload: { realtorName, zone, unitType, config, furnishing, status } });
+    if (status !== unit.status) await logEvent({ unitId: unitUuid, action: 'STATUS_CHANGE', tab: 'property', field: 'Status', oldValue: unit.status, newValue: status });
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus('idle'), 2500);
   };
@@ -703,11 +690,7 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
       .update({ rent: monthlyRent, agency_fee: contractCharges, service_charges: additionalCharges })
       .eq('id', unitUuid);
     if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
-    await insertAuditLog(unitUuid, [
-      { field: 'Monthly Rent',       oldValue: String(prev.rent),            newValue: String(monthlyRent) },
-      { field: 'Contract Charges',   oldValue: String(prev.agency_fee),      newValue: String(contractCharges) },
-      { field: 'Additional Charges', oldValue: String(prev.service_charges), newValue: String(additionalCharges) },
-    ]);
+    await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'financials', payload: { monthlyRent, contractCharges, additionalCharges } });
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus('idle'), 2500);
   };
@@ -1181,12 +1164,7 @@ function LegalDurationSection({ unit, unitUuid }: { unit: UnitListing; unitUuid:
       legal_duration:      legalDuration,
     }).eq('id', unitUuid);
     if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
-    await insertAuditLog(unitUuid, [
-      { field: 'Listed Date',         oldValue: unit.listedDate,        newValue: listedDate },
-      { field: 'Contract Start Date', oldValue: unit.contractStartDate, newValue: contractStartDate },
-      { field: 'Contract End Date',   oldValue: unit.contractEndDate,   newValue: contractEndDate },
-      { field: 'Legal Duration',      oldValue: unit.legalDuration,     newValue: legalDuration },
-    ]);
+    await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'commission', field: 'Legal Duration', payload: { listedDate, contractStartDate, contractEndDate, legalDuration } });
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus('idle'), 2500);
   };
@@ -1308,7 +1286,18 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
     computer_card:       EMPTY_DOC,
     general:             EMPTY_DOC,
   });
-  const setCommDoc = (key: CommDocKey, doc: DocEntry) => setCommDocs(prev => ({ ...prev, [key]: doc }));
+  const setCommDoc = (key: CommDocKey, doc: DocEntry) => {
+    setCommDocs(prev => {
+      const old = prev[key];
+      if (unitUuid) {
+        if (doc.path && !old.path)  logEvent({ unitId: unitUuid, action: 'FILE_UPLOAD',  tab: 'commission', field: key, newValue: doc.name,    payload: { storagePath: doc.path } });
+        if (!doc.path && old.path)  logEvent({ unitId: unitUuid, action: 'FILE_REMOVED', tab: 'commission', field: key, oldValue: old.name });
+        if (doc.url  && !old.url)   logEvent({ unitId: unitUuid, action: 'LINK_SAVED',   tab: 'commission', field: key, newValue: doc.url });
+        if (!doc.url  && old.url)   logEvent({ unitId: unitUuid, action: 'LINK_REMOVED', tab: 'commission', field: key, oldValue: old.url });
+      }
+      return { ...prev, [key]: doc };
+    });
+  };
 
   useEffect(() => {
     if (!unitUuid) return;
@@ -1368,10 +1357,7 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
       }).eq('id', unitUuid),
     ]);
     if (error || unitError) { setSaveError((error ?? unitError)!.message); setSaveStatus('error'); return; }
-    await insertAuditLog(unitUuid, [
-      { field: 'Agency Fee Applicable', oldValue: '', newValue: String(agencyFeeApplicable) },
-      { field: 'Property Reg Status',   oldValue: '', newValue: regStatus },
-    ]);
+    await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'commission', payload: { agencyFeeApplicable, agencyFeeAmount: agencyFeeApplicable ? agencyFeeAmount : null, paidBy: agencyFeeApplicable ? paidBy : null, regStatus, contractNumber } });
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus('idle'), 2500);
   };
@@ -1550,11 +1536,15 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
 // ── Tab D: Operational ────────────────────────────────────────────────────
 
 interface LogEntry {
-  id: string;
-  timestamp: string;
-  field: string;
-  oldValue: string;
-  newValue: string;
+  id:         string;
+  timestamp:  string;
+  actionType: string;
+  operator:   string;
+  tabContext:  string | null;
+  field:      string | null;
+  oldValue:   string | null;
+  newValue:   string | null;
+  payload:    Record<string, unknown>;
 }
 
 function fmtLogTime(iso: string) {
@@ -1565,46 +1555,95 @@ function fmtLogTime(iso: string) {
   });
 }
 
+const ACTION_BADGE: Record<string, { label: string; dot: string; text: string; bg: string; border: string }> = {
+  RECORD_VIEW:       { label: 'Record View',       dot: '#60a5fa', text: 'text-blue-400',    bg: 'bg-blue-950/40',    border: 'border-blue-800/30'    },
+  TAB_NAVIGATE:      { label: 'Tab Navigate',       dot: '#a78bfa', text: 'text-violet-400',  bg: 'bg-violet-950/40',  border: 'border-violet-800/30'  },
+  RECORD_SAVE:       { label: 'Record Save',        dot: '#c9a84c', text: 'text-amber-400',   bg: 'bg-amber-950/40',   border: 'border-amber-800/30'   },
+  FIELD_UPDATE:      { label: 'Field Update',       dot: '#22d3ee', text: 'text-cyan-400',    bg: 'bg-cyan-950/40',    border: 'border-cyan-800/30'    },
+  STATUS_CHANGE:     { label: 'Status Change',      dot: '#fb923c', text: 'text-orange-400',  bg: 'bg-orange-950/40',  border: 'border-orange-800/30'  },
+  FILE_UPLOAD:       { label: 'File Upload',        dot: '#4ade80', text: 'text-emerald-400', bg: 'bg-emerald-950/40', border: 'border-emerald-800/30' },
+  LINK_SAVED:        { label: 'Link Saved',         dot: '#38bdf8', text: 'text-sky-400',     bg: 'bg-sky-950/40',     border: 'border-sky-800/30'     },
+  FILE_REMOVED:      { label: 'File Removed',       dot: '#f87171', text: 'text-red-400',     bg: 'bg-red-950/40',     border: 'border-red-800/30'     },
+  LINK_REMOVED:      { label: 'Link Removed',       dot: '#f87171', text: 'text-red-400',     bg: 'bg-red-950/40',     border: 'border-red-800/30'     },
+  RECORD_DUPLICATE:  { label: 'Duplicate',          dot: '#c084fc', text: 'text-purple-400',  bg: 'bg-purple-950/40',  border: 'border-purple-800/30'  },
+};
+
+const TAB_LABEL: Record<string, string> = {
+  property:    'Property & Unit',
+  financials:  'Financials',
+  commission:  'Commission & Legal',
+  operational: 'Operational',
+};
+
 function SystemUpdateLog({ entries }: { entries: LogEntry[] }) {
   if (entries.length === 0) {
     return (
-      <div className="py-6 flex flex-col items-center gap-2 text-center">
+      <div className="py-8 flex flex-col items-center gap-2 text-center">
         <svg className="w-8 h-8 text-[#2a2a2a]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
-        <p className="text-sm text-[#444444]">No updates recorded yet.</p>
-        <p className="text-xs text-[#333333]">Edits to this record will appear here automatically.</p>
+        <p className="text-sm text-[#444444]">No audit events recorded yet.</p>
+        <p className="text-xs text-[#333333]">All system actions will appear here automatically.</p>
       </div>
     );
   }
 
   return (
-    <div className="relative pl-6 py-2">
-      {/* Vertical timeline rail */}
-      <div className="absolute left-[11px] top-0 bottom-0 w-px bg-[#1e1e1e]" />
-      <ul className="space-y-4">
-        {entries.map((entry) => (
-          <li key={entry.id} className="relative">
-            {/* Timeline dot */}
-            <span className="absolute -left-[19px] top-[3px] w-2.5 h-2.5 rounded-full bg-[#c9a84c]/25 border border-[#c9a84c]/50 shrink-0" />
-            <div className="bg-[#141414] border border-[#1e1e1e] rounded-lg px-3 py-2.5 space-y-1.5">
-              {/* Header row */}
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <span className="text-xs font-semibold text-[#d0d0d0]">{entry.field}</span>
-                <span className="text-[10px] font-mono text-[#444444] shrink-0">{fmtLogTime(entry.timestamp)}</span>
+    <div className="relative pl-5 py-1">
+      <div className="absolute left-[9px] top-0 bottom-0 w-px bg-[#1e1e1e]" />
+      <ul className="space-y-3">
+        {entries.map((entry) => {
+          const badge = ACTION_BADGE[entry.actionType] ?? ACTION_BADGE['FIELD_UPDATE'];
+          return (
+            <li key={entry.id} className="relative">
+              <span
+                className="absolute -left-[17px] top-[6px] w-2 h-2 rounded-full border shrink-0"
+                style={{ background: badge.dot + '33', borderColor: badge.dot + '88' }}
+              />
+              <div className={`rounded-lg border px-3 py-2 space-y-1.5 ${badge.bg} ${badge.border}`}>
+                {/* Header */}
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded ${badge.text} bg-black/30`}>
+                      {badge.label}
+                    </span>
+                    {entry.tabContext && (
+                      <span className="text-[9px] text-[#555555] uppercase tracking-wider">
+                        {TAB_LABEL[entry.tabContext] ?? entry.tabContext}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[9px] font-semibold text-[#555555]">{entry.operator}</span>
+                    <span className="text-[9px] font-mono text-[#444444]">{fmtLogTime(entry.timestamp)}</span>
+                  </div>
+                </div>
+
+                {/* Field change */}
+                {entry.field && (
+                  <div className="flex items-start gap-1.5 text-[11px]">
+                    <span className="text-[#555555] font-mono shrink-0">{entry.field}</span>
+                    {entry.oldValue && <><span className="text-[#3a3a3a]">·</span><span className="text-[#555555] line-through truncate">{entry.oldValue}</span></>}
+                    {entry.newValue && <><span className="text-[#444444]">→</span><span className={`${badge.text} truncate`}>{entry.newValue}</span></>}
+                  </div>
+                )}
+
+                {/* Payload — show non-null key/value pairs */}
+                {entry.payload && Object.keys(entry.payload).length > 0 && (
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                    {Object.entries(entry.payload)
+                      .filter(([, v]) => v !== null && v !== '' && v !== undefined)
+                      .map(([k, v]) => (
+                        <span key={k} className="text-[10px] font-mono text-[#444444]">
+                          <span className="text-[#3a3a3a]">{k}:</span> <span className="text-[#666666]">{String(v)}</span>
+                        </span>
+                      ))}
+                  </div>
+                )}
               </div>
-              {/* Old → new */}
-              <div className="flex items-start gap-1.5 text-xs">
-                <span className="shrink-0 text-[#3a3a3a] pt-px">from</span>
-                <span className="text-[#555555] line-through break-all">{entry.oldValue || <em className="not-italic text-[#3a3a3a]">empty</em>}</span>
-              </div>
-              <div className="flex items-start gap-1.5 text-xs">
-                <span className="shrink-0 text-[#c9a84c]/60 pt-px">to</span>
-                <span className="text-[#c0c0c0] break-all">{entry.newValue || <em className="not-italic text-[#3a3a3a]">empty</em>}</span>
-              </div>
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
@@ -1629,12 +1668,17 @@ function OperationalTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: strin
   const [assetDocPaths, setAssetDocPaths] = useState({ inspection_report: '', inventory_checklist: '', handover_cert: '' });
   const [assetDocNames, setAssetDocNames] = useState({ inspection_report: '', inventory_checklist: '', handover_cert: '' });
   const setAssetDoc = (key: 'inspection_report' | 'inventory_checklist' | 'handover_cert', path: string, name: string) => {
+    if (unitUuid) {
+      if (path && !assetDocPaths[key])  logEvent({ unitId: unitUuid, action: 'FILE_UPLOAD',  tab: 'operational', field: key, newValue: name, payload: { storagePath: path } });
+      if (!path && assetDocPaths[key])  logEvent({ unitId: unitUuid, action: 'FILE_REMOVED', tab: 'operational', field: key, oldValue: assetDocNames[key] });
+    }
     setAssetDocPaths(prev => ({ ...prev, [key]: path }));
     setAssetDocNames(prev => ({ ...prev, [key]: name }));
   };
 
   // ── System Update Log ──────────────────────────────────────────────────────
-  const [updateLog, setUpdateLog] = useState<LogEntry[]>([]);
+  const [dbLog,         setDbLog]         = useState<LogEntry[]>([]);
+  const [logRefreshKey, setLogRefreshKey] = useState(0);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError,  setSaveError]  = useState('');
 
@@ -1684,21 +1728,36 @@ function OperationalTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: strin
       },
     }).eq('unit_id', unitUuid);
     if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
-    // Persist the in-memory log entries to audit_log table
-    if (unitUuid && updateLog.length > 0) {
-      await supabase.from('audit_log').insert(
-        updateLog.map(e => ({
-          unit_id:   unitUuid,
-          field:     e.field,
-          old_value: e.oldValue,
-          new_value: e.newValue,
-          changed_at: e.timestamp,
-        }))
-      );
-    }
+    await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'operational', payload: { focalName, focalPhone, focalEmail, operatorRemarks, maintenanceNotes, accessLockbox } });
     setSaveStatus('saved');
+    setLogRefreshKey(k => k + 1);
     setTimeout(() => setSaveStatus('idle'), 2500);
   };
+
+  // ── Load full audit log from DB ────────────────────────────────────────────
+  useEffect(() => {
+    if (!unitUuid) return;
+    supabase
+      .from('audit_log')
+      .select('*')
+      .eq('unit_id', unitUuid)
+      .order('changed_at', { ascending: false })
+      .limit(200)
+      .then(({ data }) => {
+        if (!data) return;
+        setDbLog(data.map(r => ({
+          id:         r.id ?? `${r.changed_at}-${r.field}`,
+          timestamp:  r.changed_at,
+          actionType: r.action_type ?? 'FIELD_UPDATE',
+          operator:   r.operator    ?? 'Administrator',
+          tabContext:  r.tab_context ?? null,
+          field:      r.field       ?? null,
+          oldValue:   r.old_value   ?? null,
+          newValue:   r.new_value   ?? null,
+          payload:    r.payload     ?? {},
+        })));
+      });
+  }, [unitUuid, logRefreshKey]);
 
   // Snapshot of last-committed values used to detect real changes on blur
   const committed = useRef<Record<string, string>>({
@@ -1713,16 +1772,10 @@ function OperationalTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: strin
     const oldValue = committed.current[field] ?? '';
     if (oldValue === newValue) return;
     committed.current = { ...committed.current, [field]: newValue };
-    setUpdateLog(prev => [
-      {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        timestamp: new Date().toISOString(),
-        field,
-        oldValue,
-        newValue,
-      },
-      ...prev,
-    ]);
+    if (unitUuid) {
+      logEvent({ unitId: unitUuid, action: 'FIELD_UPDATE', tab: 'operational', field, oldValue, newValue })
+        .then(() => setLogRefreshKey(k => k + 1));
+    }
   };
 
   const inp = 'w-full text-sm text-[#d0d0d0] bg-[#111111] border border-[#333333] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] placeholder:text-[#444444]';
@@ -1842,23 +1895,24 @@ function OperationalTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: strin
         />
       </SectionCard>
 
-      {/* ── System Update Log ── */}
-      <SectionCard title="System Update Log">
-        <div className="flex items-center justify-between px-0 pb-2 pt-1">
-          <span className="text-[11px] text-[#444444]">
-            {updateLog.length} {updateLog.length === 1 ? 'entry' : 'entries'} this session
+      {/* ── System Audit Log ── */}
+      <SectionCard title="System Audit Log">
+        <div className="flex items-center justify-between pb-2 pt-1">
+          <span className="text-[11px] text-[#555555]">
+            <span className="font-mono text-[#c9a84c]">{dbLog.length}</span> immutable {dbLog.length === 1 ? 'event' : 'events'} · complete record history
           </span>
-          {updateLog.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setUpdateLog([])}
-              className="text-[10px] text-[#444444] hover:text-red-400 transition-colors font-medium"
-            >
-              Clear log
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setLogRefreshKey(k => k + 1)}
+            className="text-[10px] text-[#555555] hover:text-[#c9a84c] transition-colors font-medium flex items-center gap-1"
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+          </button>
         </div>
-        <SystemUpdateLog entries={updateLog} />
+        <SystemUpdateLog entries={dbLog} />
       </SectionCard>
 
     </div>
@@ -1901,8 +1955,18 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
 
   // UUID is now carried on the listing — no extra fetch needed
   useEffect(() => {
-    if (unit.uuid) setUnitUuid(unit.uuid);
+    if (unit.uuid) {
+      setUnitUuid(unit.uuid);
+      logEvent({ unitId: unit.uuid, action: 'RECORD_VIEW', payload: { unitCode: unit.id, property: unit.property, unitNo: unit.unitNo, status: unit.status } });
+    }
   }, [unit.uuid]);
+
+  const handleTabChange = (tabId: TabId) => {
+    if (unitUuid && tabId !== activeTab) {
+      logEvent({ unitId: unitUuid, action: 'TAB_NAVIGATE', tab: tabId, oldValue: activeTab, newValue: tabId });
+    }
+    setActiveTab(tabId);
+  };
 
   // Animate in
   useEffect(() => {
@@ -2053,7 +2117,7 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
                 key={tab.id}
                 role="tab"
                 aria-selected={activeTab === tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className={`flex items-center gap-1.5 px-1 py-3.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
                   activeTab === tab.id
                     ? 'border-[#c9a84c] text-[#c9a84c]'
