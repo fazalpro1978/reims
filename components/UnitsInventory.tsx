@@ -122,7 +122,7 @@ function BathCell({ n }: { n: number }) {
         <span key={i} className="text-[#c9a84c]"><IconShower /></span>
       ))}
       {full > 4 && <span className="text-[10px] text-[#606060]">+{full - 4}</span>}
-      {half && <span className="text-[#555555]"><IconToilet /></span>}
+      {half && <span className="text-[#94a3b8]"><IconToilet /></span>}
       <span className="ml-1 text-sm text-slate-300">{n % 1 === 0 ? n : n.toFixed(1)}</span>
     </div>
   );
@@ -136,7 +136,7 @@ function ParkingCell({ has }: { has: boolean }) {
       </svg>
     </span>
   ) : (
-    <span className="text-[#333333] text-base leading-none select-none">—</span>
+    <span className="text-[#666666] text-base leading-none select-none">—</span>
   );
 }
 
@@ -330,7 +330,7 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDupl
       {linkItem(<IconMedia />, 'Media', menu.unit.mediaUrl,       '#60a5fa')}
 
       <div className="my-1 mx-1 border-t border-[#2a2a2a]" />
-      <p className="px-3.5 pt-1 pb-0.5 text-[10px] font-bold text-[#505050] uppercase tracking-widest">
+      <p className="px-3.5 pt-1 pb-0.5 text-[10px] font-bold text-[#888888] uppercase tracking-widest">
         Share
       </p>
 
@@ -665,13 +665,13 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
               alt="Privé Group Real Estate"
               style={{ height: '36px', width: 'auto', flexShrink: 0 }}
             />
-            <p className="text-[#444444] text-[11px] leading-tight hidden sm:block tracking-wide select-none">
+            <p className="text-[#888888] text-[11px] leading-tight hidden sm:block tracking-wide select-none">
               Real Estate Information Management System
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-[#3a3a3a] text-xs hidden md:block font-medium tracking-wide">Admin Console</span>
+            <span className="text-[#888888] text-xs hidden md:block font-medium tracking-wide">Admin Console</span>
             {/* Divider */}
             <div className="hidden md:block w-px h-4 bg-[#222222] mx-1" />
             {/* Notifications bell */}
@@ -794,7 +794,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
 
             {/* Search */}
             <div className="relative flex-1 min-w-[180px]">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#505050] pointer-events-none">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888888] pointer-events-none">
                 <IconSearch />
               </span>
               <input
@@ -916,10 +916,10 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
               Showing{' '}
               <strong className="text-[#c0c0c0] font-semibold">{filteredUnits.length}</strong>
               {' '}of{' '}
-              <strong className="text-[#505050] font-semibold">{units.length}</strong>
+              <strong className="text-[#888888] font-semibold">{units.length}</strong>
               {' '}units
               {(minRent !== '' || maxRent !== '') && (
-                <span className="ml-1 text-[#505050]">
+                <span className="ml-1 text-[#888888]">
                   · Rent{minRent !== '' ? ` ≥ QAR ${Number(minRent).toLocaleString()}` : ''}
                   {maxRent !== '' ? ` ≤ QAR ${Number(maxRent).toLocaleString()}` : ''}
                 </span>
@@ -943,7 +943,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
         {loading ? (
           <div className="bg-[#181818] rounded-xl border border-[#2a2a2a] p-12 flex flex-col items-center gap-3">
             <div className="w-6 h-6 border-2 border-[#c9a84c] border-t-transparent rounded-full animate-spin" />
-            <p className="text-[#505050] text-sm">Loading units from database…</p>
+            <p className="text-[#888888] text-sm">Loading units from database…</p>
           </div>
         ) : (
         <div className="bg-[#181818] rounded-xl border border-[#2a2a2a] overflow-hidden">
@@ -964,7 +964,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
                     ['Status',         'text-left'],
                     ['',               'text-center'],
                   ] as [string, string][]).map(([col, align], i) => (
-                    <th key={i} className={`px-2.5 py-2.5 text-[10px] font-semibold text-[#505050] uppercase tracking-wider whitespace-nowrap ${align}`}>
+                    <th key={i} className={`px-2.5 py-2.5 text-[10px] font-semibold text-[#888888] uppercase tracking-wider whitespace-nowrap ${align}`}>
                       {col}
                     </th>
                   ))}
@@ -974,7 +974,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
                 {paginatedUnits.length === 0 ? (
                   <tr>
                     <td colSpan={11} className="px-4 py-14 text-center">
-                      <p className="text-[#505050] text-sm">No units match the current filter combination.</p>
+                      <p className="text-[#888888] text-sm">No units match the current filter combination.</p>
                       {hasActiveFilters && (
                         <button onClick={clearFilters} className="mt-2 text-sm text-[#c9a84c] underline underline-offset-2 hover:no-underline">
                           Clear filters
@@ -992,25 +992,25 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
                       {/* Realtor */}
                       <td className="px-2.5 py-2.5 whitespace-nowrap max-w-[130px]" title={unit.realtorName}>
                         <span className="text-xs text-[#888888] truncate block">{unit.realtorName}</span>
-                        <span className="text-[10px] font-mono text-[#444444]">{unit.realtorMOCI}</span>
+                        <span className="text-[10px] font-mono text-[#888888]">{unit.realtorMOCI}</span>
                       </td>
 
                       {/* Property / Unit — combined */}
                       <td className="px-2.5 py-2.5 max-w-[180px]" title={unit.property}>
                         <span className="block text-xs font-semibold text-white leading-snug truncate">{unit.property}</span>
-                        <span className="block text-[10px] font-mono text-[#555555] mt-0.5">{unit.unitNo}</span>
+                        <span className="block text-[10px] font-mono text-[#888888] mt-0.5">{unit.unitNo}</span>
                       </td>
 
                       {/* Zone / District — combined */}
                       <td className="px-2.5 py-2.5 whitespace-nowrap">
                         <span className="block text-xs font-bold text-[#c9a84c] font-mono">Z-{unit.zoneCode}</span>
-                        <span className="block text-[10px] text-[#555555] mt-0.5 max-w-[120px] truncate">{unit.zone}</span>
+                        <span className="block text-[10px] text-[#888888] mt-0.5 max-w-[120px] truncate">{unit.zone}</span>
                       </td>
 
                       {/* Type · Config — combined */}
                       <td className="px-2.5 py-2.5 whitespace-nowrap">
                         <span className="text-xs text-[#888888]">{unit.type}</span>
-                        <span className="text-[10px] text-[#444444]"> · </span>
+                        <span className="text-[10px] text-[#666666]"> · </span>
                         <span className="text-xs font-medium text-[#c0c0c0]">{unit.config}</span>
                       </td>
 
@@ -1074,7 +1074,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
           {/* ── PAGINATION CONTROLS ── */}
           {totalPages > 1 && (
             <div className="border-t border-[#252525] px-4 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <p className="text-xs text-[#555555] order-2 sm:order-1">
+              <p className="text-xs text-[#888888] order-2 sm:order-1">
                 Page <strong className="font-semibold text-slate-700">{currentPage}</strong> of{' '}
                 <strong className="font-semibold text-slate-700">{totalPages}</strong> ·{' '}
                 {filteredUnits.length} units · {ROWS_PER_PAGE} per page
@@ -1091,7 +1091,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
 
                 {pageNumbers.map((p, i) =>
                   p === '…' ? (
-                    <span key={`ellipsis-${i}`} className="w-8 text-center text-[#444444] text-sm">
+                    <span key={`ellipsis-${i}`} className="w-8 text-center text-[#888888] text-sm">
                       …
                     </span>
                   ) : (
@@ -1123,7 +1123,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
         )} {/* end loading conditional */}
 
         {/* Footer note */}
-        <p className="text-center text-xs text-[#333333] pb-4">
+        <p className="text-center text-xs text-[#666666] pb-4">
           Privé Group RE-IMS · Qatar Property Portfolio · {units.length} active listings
         </p>
       </main>

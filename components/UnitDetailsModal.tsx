@@ -1996,13 +1996,13 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
                 <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_BADGE[unit.status]}`}>
                   {unit.status.replace('_', ' ')}
                 </span>
-                <span className="text-slate-400 text-xs font-mono">{unit.unitNo}</span>
-                <span className="text-slate-600 text-xs">·</span>
-                <span className="text-slate-400 text-xs">{unit.zone}</span>
-                <span className="text-slate-600 text-xs font-mono">Z{unit.zoneCode}</span>
+                <span className="text-slate-300 text-xs font-mono">{unit.unitNo}</span>
+                <span className="text-slate-400 text-xs">·</span>
+                <span className="text-slate-300 text-xs">{unit.zone}</span>
+                <span className="text-slate-400 text-xs font-mono">Z{unit.zoneCode}</span>
               </div>
               <h2 className="text-white text-xl font-semibold mt-2 truncate">{unit.property}</h2>
-              <p className="text-slate-400 text-sm mt-0.5">
+              <p className="text-slate-300 text-sm mt-0.5">
                 {unit.type} · {unit.config} · {unit.furnishing}
               </p>
             </div>
@@ -2020,7 +2020,7 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
 
         {/* ── Top Share Action Bar ── */}
         <div className="shrink-0 bg-slate-800 border-b border-slate-700 px-6 py-3 flex items-center gap-3 overflow-x-auto">
-          <span className="text-slate-400 text-xs font-semibold uppercase tracking-wider whitespace-nowrap">
+          <span className="text-slate-300 text-xs font-semibold uppercase tracking-wider whitespace-nowrap">
             Quick Share:
           </span>
           <button

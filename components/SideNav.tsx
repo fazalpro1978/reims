@@ -105,6 +105,17 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   help:     <IcHelp />,
 };
 
+const NAV_ICON_COLOR: Record<string, string> = {
+  grid:     '#22d3ee',  // electric cyan  — Units Inventory
+  building: '#a78bfa',  // neon violet    — Properties
+  users:    '#4ade80',  // neon green     — Tenants
+  document: '#fb923c',  // neon orange    — Contracts & Legal
+  chart:    '#c9a84c',  // brand gold     — Financials
+  report:   '#38bdf8',  // sky blue       — Reports
+  settings: '#94a3b8',  // cool grey      — Settings
+  help:     '#86efac',  // light green    — Help & Support
+};
+
 // ── Nav data ─────────────────────────────────────────────────────────────────
 
 const NAV_SECTIONS = [
@@ -161,10 +172,12 @@ export default function SideNav({ open, onClose }: SideNavProps) {
 
     if (item.soon) {
       return (
-        <div className={`${baseClass} text-[#3d3d3d] cursor-default`}>
-          <span className="text-[#383838]">{ICON_MAP[item.icon]}</span>
+        <div className={`${baseClass} text-[#666666] cursor-default`}>
+          <span style={{ color: NAV_ICON_COLOR[item.icon] ?? '#666666', opacity: 0.35 }}>
+            {ICON_MAP[item.icon]}
+          </span>
           <span className="flex-1 truncate">{item.label}</span>
-          <span className="text-[9px] font-bold bg-[#222222] text-[#484848] px-1.5 py-0.5 rounded uppercase tracking-wider">
+          <span className="text-[9px] font-bold bg-[#222222] text-[#666666] px-1.5 py-0.5 rounded uppercase tracking-wider">
             Soon
           </span>
         </div>
@@ -178,10 +191,10 @@ export default function SideNav({ open, onClose }: SideNavProps) {
         className={`${baseClass} ${
           active
             ? 'bg-[#c9a84c]/10 text-[#c9a84c] border-l-2 border-[#c9a84c] rounded-l-none'
-            : 'text-[#888888] hover:text-[#d0d0d0] hover:bg-[#1e1e1e]'
+            : 'text-[#aaaaaa] hover:text-[#e0e0e0] hover:bg-[#1e1e1e]'
         }`}
       >
-        <span className={active ? 'text-[#c9a84c]' : 'text-[#555555] group-hover:text-[#888888]'}>
+        <span style={{ color: active ? '#c9a84c' : NAV_ICON_COLOR[item.icon] ?? '#888888' }}>
           {ICON_MAP[item.icon]}
         </span>
         <span className="flex-1 truncate">{item.label}</span>
@@ -219,13 +232,13 @@ export default function SideNav({ open, onClose }: SideNavProps) {
               alt="Privé Group Real Estate"
               style={{ height: '38px', width: 'auto', flexShrink: 0 }}
             />
-            <p className="text-[#444444] text-[10px] leading-tight tracking-widest uppercase select-none">
+            <p className="text-[#888888] text-[10px] leading-tight tracking-widest uppercase select-none">
               RE-IMS · v1.0
             </p>
           </div>
           <button
             onClick={onClose}
-            className="w-7 h-7 rounded-lg bg-[#1a1a1a] hover:bg-[#252525] border border-[#2a2a2a] flex items-center justify-center text-[#444444] hover:text-[#c9a84c] transition-colors"
+            className="w-7 h-7 rounded-lg bg-[#1a1a1a] hover:bg-[#252525] border border-[#2a2a2a] flex items-center justify-center text-[#888888] hover:text-[#c9a84c] transition-colors"
             aria-label="Close navigation"
           >
             <IcClose />
@@ -236,7 +249,7 @@ export default function SideNav({ open, onClose }: SideNavProps) {
         <nav className="flex-1 overflow-y-auto py-5 px-3 space-y-6">
           {NAV_SECTIONS.map((section) => (
             <div key={section.label}>
-              <p className="px-3 pb-2 text-[10px] font-bold text-[#333333] uppercase tracking-[0.14em]">
+              <p className="px-3 pb-2 text-[10px] font-bold text-[#666666] uppercase tracking-[0.14em]">
                 {section.label}
               </p>
               <div className="space-y-0.5">
@@ -265,9 +278,9 @@ export default function SideNav({ open, onClose }: SideNavProps) {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-[#c8c8c8] truncate">Administrator</p>
-              <p className="text-[11px] text-[#444444] truncate">Privé Group · Admin</p>
+              <p className="text-[11px] text-[#888888] truncate">Privé Group · Admin</p>
             </div>
-            <svg className="w-3.5 h-3.5 text-[#333333] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <svg className="w-3.5 h-3.5 text-[#666666] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
           </div>
