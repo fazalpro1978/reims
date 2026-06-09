@@ -906,13 +906,6 @@ type PaidByOption = typeof PAID_BY_OPTIONS[number];
 
 type ClientType = 'Individual' | 'Company';
 
-interface ClientDocUrls {
-  qid: string;
-  passport: string;
-  cr: string;
-  computerCard: string;
-}
-
 function ClientTypeToggle({ value, onChange }: { value: ClientType; onChange: (v: ClientType) => void }) {
   return (
     <div className="inline-flex rounded-lg overflow-hidden border border-[#333333] text-xs font-semibold">
@@ -934,12 +927,6 @@ function ClientTypeToggle({ value, onChange }: { value: ClientType; onChange: (v
   );
 }
 
-const DOC_TYPES: { key: keyof ClientDocUrls; label: string }[] = [
-  { key: 'qid',          label: 'QID' },
-  { key: 'passport',     label: 'Passport' },
-  { key: 'cr',           label: 'CR' },
-  { key: 'computerCard', label: 'Computer Card' },
-];
 
 function ClientInfoSection({ unitUuid }: { unitUuid: string }) {
   const [clientType,           setClientType]           = useState<ClientType>('Individual');
@@ -951,8 +938,6 @@ function ClientInfoSection({ unitUuid }: { unitUuid: string }) {
   const [employerDetails,      setEmployerDetails]      = useState('');
   const [authorizedSignatory,  setAuthorizedSignatory]  = useState('');
   const [emergencyContact,     setEmergencyContact]     = useState('');
-  const [docs,        setDocs]        = useState<ClientDocUrls>({ qid: '', passport: '', cr: '', computerCard: '' });
-  const [docNames,    setDocNames]    = useState<ClientDocUrls>({ qid: '', passport: '', cr: '', computerCard: '' });
   const [notes,                setNotes]                = useState('');
   const [saveStatus,           setSaveStatus]           = useState<SaveStatus>('idle');
   const [saveError,            setSaveError]            = useState('');
@@ -972,20 +957,6 @@ function ClientInfoSection({ unitUuid }: { unitUuid: string }) {
         setAuthorizedSignatory(data.authorized_signatory ?? '');
         setEmergencyContact(data.emergency_contact ?? '');
         setNotes(data.notes ?? '');
-        const d = (data.doc_urls ?? {}) as Record<string, string>;
-        setDocs({
-          qid:          d.qid ?? '',
-          passport:     d.passport ?? '',
-          cr:           d.cr ?? '',
-          computerCard: d.computer_card ?? '',
-        });
-        const n = (data.doc_names ?? {}) as Record<string, string>;
-        setDocNames({
-          qid:          n.qid ?? '',
-          passport:     n.passport ?? '',
-          cr:           n.cr ?? '',
-          computerCard: n.computer_card ?? '',
-        });
       });
   }, [unitUuid]);
 
@@ -1004,27 +975,10 @@ function ClientInfoSection({ unitUuid }: { unitUuid: string }) {
       authorized_signatory: clientType === 'Company' ? authorizedSignatory || null : null,
       emergency_contact:    emergencyContact || null,
       notes:                notes || null,
-      doc_urls: {
-        qid:          docs.qid          || null,
-        passport:     docs.passport     || null,
-        cr:           docs.cr           || null,
-        computer_card: docs.computerCard || null,
-      },
-      doc_names: {
-        qid:          docNames.qid          || null,
-        passport:     docNames.passport     || null,
-        cr:           docNames.cr           || null,
-        computer_card: docNames.computerCard || null,
-      },
     }, { onConflict: 'unit_id' });
     if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus('idle'), 2500);
-  };
-
-  const setDoc = (key: keyof ClientDocUrls, path: string, name: string) => {
-    setDocs(prev => ({ ...prev, [key]: path }));
-    setDocNames(prev => ({ ...prev, [key]: name }));
   };
 
   const inp = 'w-full text-sm text-[#d0d0d0] bg-[#111111] border border-[#333333] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] placeholder:text-[#444444]';
@@ -1086,28 +1040,6 @@ function ClientInfoSection({ unitUuid }: { unitUuid: string }) {
       <FieldRow
         label="Emergency Contact"
         value={<input type="text" placeholder="Name · +974 XXXX XXXX" value={emergencyContact} onChange={e => setEmergencyContact(e.target.value)} className={inp} />}
-      />
-
-      {/* ── Document Uploads (private — Supabase Storage) ── */}
-      <FieldRow
-        label="Documents"
-        value={
-          <div className="w-full space-y-2.5">
-            <p className="text-[10px] text-[#666666] mb-1">
-              Files are stored privately. Only admins can view via signed link.
-            </p>
-            {DOC_TYPES.map(({ key, label }) => (
-              <DocUploadRow
-                key={key}
-                label={label}
-                storagePath={docs[key]}
-                filename={docNames[key]}
-                category={`${unitUuid}/client/${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`}
-                onChange={(path, name) => setDoc(key, path, name)}
-              />
-            ))}
-          </div>
-        }
       />
 
       {/* ── Notes & Special Conditions ── */}
