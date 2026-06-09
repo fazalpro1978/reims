@@ -1394,7 +1394,7 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
         const d = (commData.doc_urls ?? {}) as Record<string, any>;
         const loadDoc = (key: string): DocEntry => {
           const v = d[key];
-          if (v && typeof v === 'object') return { path: v.path || '', name: v.name || '', url: v.url || '' };
+          if (v && typeof v === 'object') return { path: v.path || '', name: v.name || '', url: v.url || '', label: v.label || '' };
           // backward-compat: flat keys from previous schema
           return { path: d[`${key}`] || d[`${key}_path`] || '', name: d[`${key}_name`] || '', url: d[`${key}_url`] || '' };
         };
@@ -1581,23 +1581,28 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
 
       {/* ── Commission Documents ── */}
       <SectionCard title="Commission Documents">
-        <div className="text-[9px] font-bold text-[#444444] uppercase tracking-widest grid grid-cols-[100px_1fr_1fr] gap-x-3 pb-1.5 border-b border-[#1a1a1a] -mx-3 px-3 mb-0.5">
-          <span>Document</span><span>File Upload</span><span>External Link</span>
+        <div className="space-y-2">
+          <CommDocRow label="Reg Certificate"    doc={commDocs.property_reg_cert}   category={`${unitUuid}/commission/property-reg-cert`}   onChange={d => setCommDoc('property_reg_cert',   d)} />
+          <CommDocRow label="Commission Contract" doc={commDocs.commission_contract} category={`${unitUuid}/commission/commission-contract`} onChange={d => setCommDoc('commission_contract', d)} />
         </div>
-        <CommDocRow label="Reg Certificate"    doc={commDocs.property_reg_cert}   category={`${unitUuid}/commission/property-reg-cert`}   onChange={d => setCommDoc('property_reg_cert',   d)} />
-        <CommDocRow label="Commission Contract" doc={commDocs.commission_contract} category={`${unitUuid}/commission/commission-contract`} onChange={d => setCommDoc('commission_contract', d)} />
       </SectionCard>
 
       {/* ── Regulatory Documents ── */}
       <SectionCard title="Regulatory Documents">
-        <div className="text-[9px] font-bold text-[#444444] uppercase tracking-widest grid grid-cols-[100px_1fr_1fr] gap-x-3 pb-1.5 border-b border-[#1a1a1a] -mx-3 px-3 mb-0.5">
-          <span>Document</span><span>File Upload</span><span>External Link</span>
+        <div className="space-y-2">
+          <CommDocRow label="QID"           doc={commDocs.qid}           category={`${unitUuid}/commission/qid`}           onChange={d => setCommDoc('qid',           d)} />
+          <CommDocRow label="Passport"      doc={commDocs.passport}      category={`${unitUuid}/commission/passport`}      onChange={d => setCommDoc('passport',      d)} />
+          <CommDocRow label="CR"            doc={commDocs.cr}            category={`${unitUuid}/commission/cr`}            onChange={d => setCommDoc('cr',            d)} />
+          <CommDocRow label="Computer Card" doc={commDocs.computer_card} category={`${unitUuid}/commission/computer-card`} onChange={d => setCommDoc('computer_card', d)} />
+          <CommDocRow
+            label="Other Documents"
+            doc={commDocs.general}
+            category={`${unitUuid}/commission/other`}
+            labelEditable
+            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,application/pdf,image/jpeg,image/png"
+            onChange={d => setCommDoc('general', d)}
+          />
         </div>
-        <CommDocRow label="QID"           doc={commDocs.qid}           category={`${unitUuid}/commission/qid`}           onChange={d => setCommDoc('qid',           d)} />
-        <CommDocRow label="Passport"      doc={commDocs.passport}      category={`${unitUuid}/commission/passport`}      onChange={d => setCommDoc('passport',      d)} />
-        <CommDocRow label="CR"            doc={commDocs.cr}            category={`${unitUuid}/commission/cr`}            onChange={d => setCommDoc('cr',            d)} />
-        <CommDocRow label="Computer Card" doc={commDocs.computer_card} category={`${unitUuid}/commission/computer-card`} onChange={d => setCommDoc('computer_card', d)} />
-        <CommDocRow label="General / Other" doc={commDocs.general}     category={`${unitUuid}/commission/general`}       onChange={d => setCommDoc('general',       d)} accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,application/pdf,image/jpeg,image/png" />
       </SectionCard>
 
       {/* ── Client Info ── */}
