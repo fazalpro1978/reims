@@ -9,6 +9,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { UnitListing, Status, Furnishing, KitchenType, UnitType } from '../types/inventory';
 import { supabase } from '../lib/supabase/client';
 import DocUploadRow from './DocUploadRow';
+import CommDocRow, { DocEntry } from './CommDocRow';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -1363,13 +1364,19 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState('');
 
-  // Document upload state — paths + names stored together in doc_urls JSONB
-  const [commDocPaths, setCommDocPaths] = useState({ property_reg_cert: '', commission_contract: '' });
-  const [commDocNames, setCommDocNames] = useState({ property_reg_cert: '', commission_contract: '' });
-  const setCommDoc = (key: 'property_reg_cert' | 'commission_contract', path: string, name: string) => {
-    setCommDocPaths(prev => ({ ...prev, [key]: path }));
-    setCommDocNames(prev => ({ ...prev, [key]: name }));
-  };
+  // Unified document state for all Commission & Legal doc types
+  type CommDocKey = 'property_reg_cert' | 'commission_contract' | 'qid' | 'passport' | 'cr' | 'computer_card' | 'general';
+  const EMPTY_DOC: DocEntry = { path: '', name: '', url: '' };
+  const [commDocs, setCommDocs] = useState<Record<CommDocKey, DocEntry>>({
+    property_reg_cert:   EMPTY_DOC,
+    commission_contract: EMPTY_DOC,
+    qid:                 EMPTY_DOC,
+    passport:            EMPTY_DOC,
+    cr:                  EMPTY_DOC,
+    computer_card:       EMPTY_DOC,
+    general:             EMPTY_DOC,
+  });
+  const setCommDoc = (key: CommDocKey, doc: DocEntry) => setCommDocs(prev => ({ ...prev, [key]: doc }));
 
   useEffect(() => {
     if (!unitUuid) return;
@@ -1384,9 +1391,22 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
         setPaidByOther(commData.paid_by_other ?? '');
         setRegStatus((commData.property_reg_status as PropertyRegStatus) ?? getDefaultRegStatus(unit));
         setRegistrationBy(commData.registration_by ?? '');
-        const d = (commData.doc_urls ?? {}) as Record<string, string>;
-        setCommDocPaths({ property_reg_cert: d.property_reg_cert || '', commission_contract: d.commission_contract || '' });
-        setCommDocNames({ property_reg_cert: d.property_reg_cert_name || '', commission_contract: d.commission_contract_name || '' });
+        const d = (commData.doc_urls ?? {}) as Record<string, any>;
+        const loadDoc = (key: string): DocEntry => {
+          const v = d[key];
+          if (v && typeof v === 'object') return { path: v.path || '', name: v.name || '', url: v.url || '' };
+          // backward-compat: flat keys from previous schema
+          return { path: d[`${key}`] || d[`${key}_path`] || '', name: d[`${key}_name`] || '', url: d[`${key}_url`] || '' };
+        };
+        setCommDocs({
+          property_reg_cert:   loadDoc('property_reg_cert'),
+          commission_contract: loadDoc('commission_contract'),
+          qid:                 loadDoc('qid'),
+          passport:            loadDoc('passport'),
+          cr:                  loadDoc('cr'),
+          computer_card:       loadDoc('computer_card'),
+          general:             loadDoc('general'),
+        });
       }
       if (unitData) {
         setContractNumber(unitData.moci_contract_number ?? unit.mociContractNumber);
@@ -1405,10 +1425,11 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
         paid_by_other:         paidBy === 'Other' ? paidByOther : null,
         property_reg_status:   regStatus,
         registration_by:       registrationBy || null,
-        doc_urls: {
-          ...(commDocPaths.property_reg_cert   ? { property_reg_cert:           commDocPaths.property_reg_cert,   property_reg_cert_name:      commDocNames.property_reg_cert   } : {}),
-          ...(commDocPaths.commission_contract ? { commission_contract:          commDocPaths.commission_contract, commission_contract_name:    commDocNames.commission_contract } : {}),
-        },
+        doc_urls: Object.fromEntries(
+          (Object.entries(commDocs) as [string, DocEntry][])
+            .filter(([, v]) => v.path || v.url)
+            .map(([k, v]) => [k, { path: v.path || null, name: v.name || null, url: v.url || null }])
+        ),
       }, { onConflict: 'unit_id' }),
       supabase.from('units').update({
         moci_contract_number: contractNumber || null,
@@ -1558,22 +1579,25 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
 
       </SectionCard>
 
-      {/* ── Commission & Legal Documents ── */}
-      <SectionCard title="Commission & Legal Documents">
-        <DocUploadRow
-          label="Reg Certificate"
-          storagePath={commDocPaths.property_reg_cert}
-          filename={commDocNames.property_reg_cert}
-          category={`${unitUuid}/commission/property-reg-cert`}
-          onChange={(path, name) => setCommDoc('property_reg_cert', path, name)}
-        />
-        <DocUploadRow
-          label="Commission Contract"
-          storagePath={commDocPaths.commission_contract}
-          filename={commDocNames.commission_contract}
-          category={`${unitUuid}/commission/commission-contract`}
-          onChange={(path, name) => setCommDoc('commission_contract', path, name)}
-        />
+      {/* ── Commission Documents ── */}
+      <SectionCard title="Commission Documents">
+        <div className="text-[9px] font-bold text-[#444444] uppercase tracking-widest grid grid-cols-[100px_1fr_1fr] gap-x-3 pb-1.5 border-b border-[#1a1a1a] -mx-3 px-3 mb-0.5">
+          <span>Document</span><span>File Upload</span><span>External Link</span>
+        </div>
+        <CommDocRow label="Reg Certificate"    doc={commDocs.property_reg_cert}   category={`${unitUuid}/commission/property-reg-cert`}   onChange={d => setCommDoc('property_reg_cert',   d)} />
+        <CommDocRow label="Commission Contract" doc={commDocs.commission_contract} category={`${unitUuid}/commission/commission-contract`} onChange={d => setCommDoc('commission_contract', d)} />
+      </SectionCard>
+
+      {/* ── Regulatory Documents ── */}
+      <SectionCard title="Regulatory Documents">
+        <div className="text-[9px] font-bold text-[#444444] uppercase tracking-widest grid grid-cols-[100px_1fr_1fr] gap-x-3 pb-1.5 border-b border-[#1a1a1a] -mx-3 px-3 mb-0.5">
+          <span>Document</span><span>File Upload</span><span>External Link</span>
+        </div>
+        <CommDocRow label="QID"           doc={commDocs.qid}           category={`${unitUuid}/commission/qid`}           onChange={d => setCommDoc('qid',           d)} />
+        <CommDocRow label="Passport"      doc={commDocs.passport}      category={`${unitUuid}/commission/passport`}      onChange={d => setCommDoc('passport',      d)} />
+        <CommDocRow label="CR"            doc={commDocs.cr}            category={`${unitUuid}/commission/cr`}            onChange={d => setCommDoc('cr',            d)} />
+        <CommDocRow label="Computer Card" doc={commDocs.computer_card} category={`${unitUuid}/commission/computer-card`} onChange={d => setCommDoc('computer_card', d)} />
+        <CommDocRow label="General / Other" doc={commDocs.general}     category={`${unitUuid}/commission/general`}       onChange={d => setCommDoc('general',       d)} accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,application/pdf,image/jpeg,image/png" />
       </SectionCard>
 
       {/* ── Client Info ── */}
