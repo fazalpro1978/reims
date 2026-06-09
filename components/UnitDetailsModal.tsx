@@ -8,6 +8,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UnitListing, Status, Furnishing, KitchenType, UnitType } from '../types/inventory';
 import { supabase } from '../lib/supabase/client';
+import DocUploadRow from './DocUploadRow';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -949,9 +950,8 @@ function ClientInfoSection({ unitUuid }: { unitUuid: string }) {
   const [employerDetails,      setEmployerDetails]      = useState('');
   const [authorizedSignatory,  setAuthorizedSignatory]  = useState('');
   const [emergencyContact,     setEmergencyContact]     = useState('');
-  const [docs,                 setDocs]                 = useState<ClientDocUrls>({ qid: '', passport: '', cr: '', computerCard: '' });
-  const [uploadedFiles,        setUploadedFiles]        = useState<string[]>([]);
-  const [uploadError,          setUploadError]          = useState('');
+  const [docs,        setDocs]        = useState<ClientDocUrls>({ qid: '', passport: '', cr: '', computerCard: '' });
+  const [docNames,    setDocNames]    = useState<ClientDocUrls>({ qid: '', passport: '', cr: '', computerCard: '' });
   const [notes,                setNotes]                = useState('');
   const [saveStatus,           setSaveStatus]           = useState<SaveStatus>('idle');
   const [saveError,            setSaveError]            = useState('');
@@ -971,6 +971,20 @@ function ClientInfoSection({ unitUuid }: { unitUuid: string }) {
         setAuthorizedSignatory(data.authorized_signatory ?? '');
         setEmergencyContact(data.emergency_contact ?? '');
         setNotes(data.notes ?? '');
+        const d = (data.doc_urls ?? {}) as Record<string, string>;
+        setDocs({
+          qid:          d.qid ?? '',
+          passport:     d.passport ?? '',
+          cr:           d.cr ?? '',
+          computerCard: d.computer_card ?? '',
+        });
+        const n = (data.doc_names ?? {}) as Record<string, string>;
+        setDocNames({
+          qid:          n.qid ?? '',
+          passport:     n.passport ?? '',
+          cr:           n.cr ?? '',
+          computerCard: n.computer_card ?? '',
+        });
       });
   }, [unitUuid]);
 
@@ -989,27 +1003,28 @@ function ClientInfoSection({ unitUuid }: { unitUuid: string }) {
       authorized_signatory: clientType === 'Company' ? authorizedSignatory || null : null,
       emergency_contact:    emergencyContact || null,
       notes:                notes || null,
+      doc_urls: {
+        qid:          docs.qid          || null,
+        passport:     docs.passport     || null,
+        cr:           docs.cr           || null,
+        computer_card: docs.computerCard || null,
+      },
+      doc_names: {
+        qid:          docNames.qid          || null,
+        passport:     docNames.passport     || null,
+        cr:           docNames.cr           || null,
+        computer_card: docNames.computerCard || null,
+      },
     }, { onConflict: 'unit_id' });
     if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus('idle'), 2500);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    e.target.value = '';
-    if (files.length === 0) return;
-    const invalid = files.filter(f => f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf'));
-    if (invalid.length > 0) {
-      setUploadError(`Only PDF files are accepted. Rejected: ${invalid.map(f => f.name).join(', ')}`);
-      return;
-    }
-    setUploadError('');
-    setUploadedFiles(prev => [...prev, ...files.map(f => f.name)]);
+  const setDoc = (key: keyof ClientDocUrls, path: string, name: string) => {
+    setDocs(prev => ({ ...prev, [key]: path }));
+    setDocNames(prev => ({ ...prev, [key]: name }));
   };
-
-  const removeFile = (idx: number) => setUploadedFiles(prev => prev.filter((_, i) => i !== idx));
-  const setDoc = (key: keyof ClientDocUrls, val: string) => setDocs(prev => ({ ...prev, [key]: val }));
 
   const inp = 'w-full text-sm text-[#d0d0d0] bg-[#111111] border border-[#333333] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] placeholder:text-[#444444]';
 
@@ -1072,82 +1087,24 @@ function ClientInfoSection({ unitUuid }: { unitUuid: string }) {
         value={<input type="text" placeholder="Name · +974 XXXX XXXX" value={emergencyContact} onChange={e => setEmergencyContact(e.target.value)} className={inp} />}
       />
 
-      {/* ── Document Upload URLs ── */}
+      {/* ── Document Uploads (private — Supabase Storage) ── */}
       <FieldRow
-        label="Document Uploads"
+        label="Documents"
         value={
-          <div className="w-full space-y-2">
+          <div className="w-full space-y-2.5">
+            <p className="text-[10px] text-[#666666] mb-1">
+              Files are stored privately. Only admins can view via signed link.
+            </p>
             {DOC_TYPES.map(({ key, label }) => (
-              <div key={key} className="flex items-center gap-2.5">
-                <span className="w-[88px] shrink-0 text-[10px] font-bold text-[#555555] uppercase tracking-wider">
-                  {label}
-                </span>
-                <input
-                  type="text"
-                  placeholder="URL or file path…"
-                  value={docs[key]}
-                  onChange={e => setDoc(key, e.target.value)}
-                  className="flex-1 min-w-0 text-xs font-mono text-[#c0c0c0] bg-[#111111] border border-[#2a2a2a] rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#c9a84c] focus:border-[#c9a84c] placeholder:text-[#3a3a3a]"
-                />
-              </div>
-            ))}
-          </div>
-        }
-      />
-
-      {/* ── PDF Upload ── */}
-      <FieldRow
-        label="Upload File"
-        value={
-          <div className="flex flex-col gap-2.5">
-            <label className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-lg border border-dashed border-[#2e2e2e] hover:border-[#c9a84c] bg-[#0d0d0d] hover:bg-[#c9a84c]/5 cursor-pointer transition-colors w-fit group">
-              <svg className="w-4 h-4 text-[#555555] group-hover:text-[#c9a84c] shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
-              </svg>
-              <span className="text-sm text-[#666666] group-hover:text-[#c9a84c] transition-colors">
-                Choose PDF file…
-              </span>
-              <span className="text-[9px] font-bold text-[#484848] bg-[#1a1a1a] border border-[#2a2a2a] px-1.5 py-0.5 rounded uppercase tracking-wider">
-                PDF only
-              </span>
-              <input
-                type="file"
-                accept=".pdf,application/pdf"
-                multiple
-                onChange={handleFileUpload}
-                className="sr-only"
+              <DocUploadRow
+                key={key}
+                label={label}
+                storagePath={docs[key]}
+                filename={docNames[key]}
+                category={`${unitUuid}/client/${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`}
+                onChange={(path, name) => setDoc(key, path, name)}
               />
-            </label>
-
-            {uploadError && (
-              <p className="flex items-center gap-1.5 text-xs text-red-400">
-                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 8v4M12 16h.01" />
-                </svg>
-                {uploadError}
-              </p>
-            )}
-
-            {uploadedFiles.length > 0 && (
-              <ul className="space-y-1">
-                {uploadedFiles.map((name, i) => (
-                  <li key={i} className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-[#141414] border border-[#222222]">
-                    <svg className="w-3.5 h-3.5 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" /><path d="M14 2v6h6" />
-                    </svg>
-                    <span className="flex-1 text-xs font-mono text-[#b0b0b0] truncate">{name}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeFile(i)}
-                      aria-label={`Remove ${name}`}
-                      className="text-[#444444] hover:text-red-400 transition-colors text-lg leading-none shrink-0 px-0.5"
-                    >
-                      ×
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+            ))}
           </div>
         }
       />
@@ -1406,6 +1363,14 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState('');
 
+  // Document upload state — paths + names stored together in doc_urls JSONB
+  const [commDocPaths, setCommDocPaths] = useState({ property_reg_cert: '', commission_contract: '' });
+  const [commDocNames, setCommDocNames] = useState({ property_reg_cert: '', commission_contract: '' });
+  const setCommDoc = (key: 'property_reg_cert' | 'commission_contract', path: string, name: string) => {
+    setCommDocPaths(prev => ({ ...prev, [key]: path }));
+    setCommDocNames(prev => ({ ...prev, [key]: name }));
+  };
+
   useEffect(() => {
     if (!unitUuid) return;
     Promise.all([
@@ -1419,6 +1384,9 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
         setPaidByOther(commData.paid_by_other ?? '');
         setRegStatus((commData.property_reg_status as PropertyRegStatus) ?? getDefaultRegStatus(unit));
         setRegistrationBy(commData.registration_by ?? '');
+        const d = (commData.doc_urls ?? {}) as Record<string, string>;
+        setCommDocPaths({ property_reg_cert: d.property_reg_cert || '', commission_contract: d.commission_contract || '' });
+        setCommDocNames({ property_reg_cert: d.property_reg_cert_name || '', commission_contract: d.commission_contract_name || '' });
       }
       if (unitData) {
         setContractNumber(unitData.moci_contract_number ?? unit.mociContractNumber);
@@ -1437,6 +1405,10 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
         paid_by_other:         paidBy === 'Other' ? paidByOther : null,
         property_reg_status:   regStatus,
         registration_by:       registrationBy || null,
+        doc_urls: {
+          ...(commDocPaths.property_reg_cert   ? { property_reg_cert:           commDocPaths.property_reg_cert,   property_reg_cert_name:      commDocNames.property_reg_cert   } : {}),
+          ...(commDocPaths.commission_contract ? { commission_contract:          commDocPaths.commission_contract, commission_contract_name:    commDocNames.commission_contract } : {}),
+        },
       }, { onConflict: 'unit_id' }),
       supabase.from('units').update({
         moci_contract_number: contractNumber || null,
@@ -1586,6 +1558,24 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
 
       </SectionCard>
 
+      {/* ── Commission & Legal Documents ── */}
+      <SectionCard title="Commission & Legal Documents">
+        <DocUploadRow
+          label="Reg Certificate"
+          storagePath={commDocPaths.property_reg_cert}
+          filename={commDocNames.property_reg_cert}
+          category={`${unitUuid}/commission/property-reg-cert`}
+          onChange={(path, name) => setCommDoc('property_reg_cert', path, name)}
+        />
+        <DocUploadRow
+          label="Commission Contract"
+          storagePath={commDocPaths.commission_contract}
+          filename={commDocNames.commission_contract}
+          category={`${unitUuid}/commission/commission-contract`}
+          onChange={(path, name) => setCommDoc('commission_contract', path, name)}
+        />
+      </SectionCard>
+
       {/* ── Client Info ── */}
       <ClientInfoSection unitUuid={unitUuid} />
 
@@ -1674,6 +1664,14 @@ function OperationalTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: strin
   // ── Access & Security ─────────────────────────────────────────────────────
   const [accessLockbox, setAccessLockbox] = useState(unit.accessLockbox);
 
+  // ── Asset History Documents ───────────────────────────────────────────────
+  const [assetDocPaths, setAssetDocPaths] = useState({ inspection_report: '', inventory_checklist: '', handover_cert: '' });
+  const [assetDocNames, setAssetDocNames] = useState({ inspection_report: '', inventory_checklist: '', handover_cert: '' });
+  const setAssetDoc = (key: 'inspection_report' | 'inventory_checklist' | 'handover_cert', path: string, name: string) => {
+    setAssetDocPaths(prev => ({ ...prev, [key]: path }));
+    setAssetDocNames(prev => ({ ...prev, [key]: name }));
+  };
+
   // ── System Update Log ──────────────────────────────────────────────────────
   const [updateLog, setUpdateLog] = useState<LogEntry[]>([]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
@@ -1696,6 +1694,9 @@ function OperationalTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: strin
         setOperatorRemarks(remarks);
         setMaintenanceNotes(notes);
         setAccessLockbox(lockbox);
+        const ad = (data.doc_urls ?? {}) as Record<string, string>;
+        setAssetDocPaths({ inspection_report: ad.inspection_report || '', inventory_checklist: ad.inventory_checklist || '', handover_cert: ad.handover_cert || '' });
+        setAssetDocNames({ inspection_report: ad.inspection_report_name || '', inventory_checklist: ad.inventory_checklist_name || '', handover_cert: ad.handover_cert_name || '' });
         committed.current = {
           'Contact Name':      name,
           'Phone':             phone,
@@ -1715,6 +1716,11 @@ function OperationalTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: strin
       operator_remarks:  operatorRemarks || null,
       maintenance_notes: maintenanceNotes || null,
       access_lockbox:    accessLockbox   || null,
+      doc_urls: {
+        ...(assetDocPaths.inspection_report   ? { inspection_report: assetDocPaths.inspection_report, inspection_report_name: assetDocNames.inspection_report } : {}),
+        ...(assetDocPaths.inventory_checklist ? { inventory_checklist: assetDocPaths.inventory_checklist, inventory_checklist_name: assetDocNames.inventory_checklist } : {}),
+        ...(assetDocPaths.handover_cert       ? { handover_cert: assetDocPaths.handover_cert, handover_cert_name: assetDocNames.handover_cert } : {}),
+      },
     }).eq('unit_id', unitUuid);
     if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
     // Persist the in-memory log entries to audit_log table
@@ -1852,25 +1858,27 @@ function OperationalTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: strin
 
       {/* ── Asset History Tracking ── */}
       <SectionCard title="Asset History Tracking">
-        {unit.assetHistoryLinks.length === 0 ? (
-          <div className="py-4 text-center text-sm text-[#555555]">No asset history documents linked.</div>
-        ) : (
-          unit.assetHistoryLinks.map((link, i) => (
-            <FieldRow
-              key={i}
-              label={`Asset Record ${i + 1}`}
-              value={
-                <a href={link} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-[#c9a84c] hover:text-[#dfc070] hover:underline text-sm">
-                  View Document
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
-              }
-            />
-          ))
-        )}
+        <DocUploadRow
+          label="Inspection Report"
+          storagePath={assetDocPaths.inspection_report}
+          filename={assetDocNames.inspection_report}
+          category={`${unitUuid}/asset-history/inspection-report`}
+          onChange={(path, name) => setAssetDoc('inspection_report', path, name)}
+        />
+        <DocUploadRow
+          label="Inventory Checklist"
+          storagePath={assetDocPaths.inventory_checklist}
+          filename={assetDocNames.inventory_checklist}
+          category={`${unitUuid}/asset-history/inventory-checklist`}
+          onChange={(path, name) => setAssetDoc('inventory_checklist', path, name)}
+        />
+        <DocUploadRow
+          label="Handover Certificate"
+          storagePath={assetDocPaths.handover_cert}
+          filename={assetDocNames.handover_cert}
+          category={`${unitUuid}/asset-history/handover-cert`}
+          onChange={(path, name) => setAssetDoc('handover_cert', path, name)}
+        />
       </SectionCard>
 
       {/* ── System Update Log ── */}
