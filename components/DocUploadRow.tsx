@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DocUploadRow — reusable document upload + view row
@@ -36,6 +36,11 @@ export default function DocUploadRow({
   const inputRef               = useRef<HTMLInputElement>(null);
   const [state, setState]      = useState<UploadState>(storagePath ? 'done' : 'idle');
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Sync state when storagePath arrives asynchronously (parent fetches from DB after mount)
+  useEffect(() => {
+    if (storagePath) setState('done');
+  }, [storagePath]);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
