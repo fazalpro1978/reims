@@ -37,7 +37,8 @@ export type MociContractStatus = 'REGISTERED' | 'PENDING' | 'RENEWAL_DUE' | 'EXP
 
 export interface UnitListing {
   // ── Identity ──────────────────────────────────────────────────────────────
-  id: string;
+  id: string;            // unit_code (display identifier)
+  uuid: string;          // DB primary key UUID — use for all Supabase queries ('' for mock rows)
   realtorName: string;   // Official company name from MOCI/Aqarat directory
   realtorMOCI: string;   // MOCI license / registration code
 
