@@ -283,13 +283,14 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDupl
     icon: React.ReactNode,
     label: string,
     onClick: () => void,
-    extraClass = ''
+    extraClass = '',
+    iconColor = '#505050'
   ) => (
     <button
       onClick={() => { onClick(); onClose(); }}
       className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-sm transition-colors text-left hover:bg-[#252525] focus:outline-none focus-visible:bg-[#252525] ${extraClass}`}
     >
-      <span className="shrink-0 text-[#505050]">{icon}</span>
+      <span className="shrink-0" style={{ color: iconColor }}>{icon}</span>
       {label}
     </button>
   );
@@ -297,7 +298,8 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDupl
   const linkItem = (
     icon: React.ReactNode,
     label: string,
-    href: string
+    href: string,
+    iconColor = '#64748b'
   ) => (
     <a
       href={href}
@@ -306,7 +308,7 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDupl
       onClick={onClose}
       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-slate-300 transition-colors hover:bg-[#252525]"
     >
-      <span className="shrink-0 text-slate-400">{icon}</span>
+      <span className="shrink-0" style={{ color: iconColor }}>{icon}</span>
       {label}
     </a>
   );
@@ -318,16 +320,16 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDupl
       className="fixed z-50 w-56 bg-[#1a1a1a] rounded-xl shadow-[0_8px_40px_-4px_rgba(0,0,0,0.7)] border border-[#2d2d2d] py-1.5 overflow-hidden"
       role="menu"
     >
-      {item(<IconEye />, 'View Details', () => onViewDetails(menu.unit), 'text-slate-200 font-medium')}
-      {item(<IconEdit />, 'Edit Unit', () => onViewDetails(menu.unit), 'text-slate-300')}
-      {item(<IconCopy />, 'Duplicate', () => onDuplicate(menu.unit), 'text-slate-300')}
+      {item(<IconEye />,  'View Details', () => onViewDetails(menu.unit),                              'text-slate-200 font-medium', '#22d3ee')}
+      {item(<IconEdit />, 'Edit Unit',    () => onViewDetails(menu.unit),                              'text-slate-300',             '#c9a84c')}
+      {item(<IconCopy />, 'Duplicate',    () => onDuplicate(menu.unit),                                'text-slate-300',             '#a78bfa')}
 
       <div className="my-1 mx-1 border-t border-[#2a2a2a]" />
 
-      {linkItem(<IconMap />, 'Maps', menu.unit.locationMapUrl)}
-      {linkItem(<IconMedia />, 'Media', menu.unit.mediaUrl)}
+      {linkItem(<IconMap />,   'Maps',  menu.unit.locationMapUrl, '#4ade80')}
+      {linkItem(<IconMedia />, 'Media', menu.unit.mediaUrl,       '#60a5fa')}
 
-      <div className="my-1 mx-1 border-t border-gray-100" />
+      <div className="my-1 mx-1 border-t border-[#2a2a2a]" />
       <p className="px-3.5 pt-1 pb-0.5 text-[10px] font-bold text-[#505050] uppercase tracking-widest">
         Share
       </p>
@@ -336,19 +338,20 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDupl
         onClick={() => { onWhatsApp(menu.unit); onClose(); }}
         className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-slate-300 hover:bg-[#252525] transition-colors text-left"
       >
-        <span className="text-[#25D366]"><IconWhatsApp /></span>
+        <span style={{ color: '#25D366' }}><IconWhatsApp /></span>
         WhatsApp
       </button>
-      {item(<IconPDF />, 'PDF Report', () => window.open(`/report/${menu.unit.uuid}`, '_blank'), 'text-slate-300')}
-      {item(<IconMail />, 'Email', () => onEmail(menu.unit), 'text-slate-300')}
+      {item(<IconPDF />,  'PDF Report', () => window.open(`/report/${menu.unit.uuid}`, '_blank'), 'text-slate-300', '#fb923c')}
+      {item(<IconMail />, 'Email',      () => onEmail(menu.unit),                                 'text-slate-300', '#38bdf8')}
 
-      <div className="my-1 mx-1 border-t border-gray-100" />
+      <div className="my-1 mx-1 border-t border-[#2a2a2a]" />
 
       {item(
         <IconTrash />,
         'Delete',
         () => {},
-        'text-red-600 font-medium hover:!bg-red-50 [&_span]:!text-red-400'
+        'text-red-400 font-medium hover:!bg-[#1a0a0a]',
+        '#f87171'
       )}
     </div>
   );
