@@ -25,7 +25,7 @@ import {
   ContextMenuPosition,
 } from '../types/inventory';
 import { supabase } from '../lib/supabase/client';
-import { formatQAR, generateShareText, generateEmailBody, generateInternalCopyText } from '../lib/shareUtils';
+import { formatQAR, generateShareText, generateEmailBody, generatePublicShareText, generateInternalCopyText } from '../lib/shareUtils';
 import UnitDetailsModal from './UnitDetailsModal';
 import { ThemePanel } from './ThemeSwitcher';
 
@@ -571,14 +571,14 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
   // ── Share handlers ─────────────────────────────────────────────────────────
 
   const handleWhatsApp = useCallback((unit: UnitListing) => {
-    window.open(`https://wa.me/?text=${encodeURIComponent(generateShareText(unit))}`, '_blank');
+    window.open(`https://wa.me/?text=${encodeURIComponent(generatePublicShareText(unit))}`, '_blank');
   }, []);
 
   const handleEmail = useCallback((unit: UnitListing) => {
     const subject = encodeURIComponent(
       `Property Enquiry — ${unit.property} ${unit.config} | ${unit.id}`
     );
-    const body = encodeURIComponent(generateEmailBody(unit));
+    const body = encodeURIComponent(generatePublicShareText(unit));
     window.open(`mailto:?subject=${subject}&body=${body}`);
   }, []);
 
