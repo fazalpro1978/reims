@@ -66,6 +66,12 @@ export interface UnitListing {
   serviceCharges: number;     // QAR / month
   depositAmount: number;      // QAR one-time
   agencyFee: number;          // QAR
+  kahramaaApplicable:   boolean;
+  kahramaaAmount:       number;
+  qatarCoolApplicable:  boolean;
+  qatarCoolAmount:      number;
+  marafeqApplicable:    boolean;
+  marafeqAmount:        number;
 
   // ── Legal ─────────────────────────────────────────────────────────────────
   mociContractStatus: MociContractStatus;
