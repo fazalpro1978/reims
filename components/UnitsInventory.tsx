@@ -231,9 +231,10 @@ interface ContextMenuProps {
   onWhatsApp: (unit: UnitListing) => void;
   onEmail: (unit: UnitListing) => void;
   onDuplicate: (unit: UnitListing) => void;
+  onDelete: (unit: UnitListing) => void;
 }
 
-function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDuplicate }: ContextMenuProps) {
+function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDuplicate, onDelete }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -319,7 +320,7 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDupl
       {item(
         <IconTrash />,
         'Delete',
-        () => {},
+        () => onDelete(menu.unit),
         'text-red-400 font-medium hover:!bg-[#1a0a0a]',
         '#f87171'
       )}
@@ -404,6 +405,12 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
   const [selectedUnit, setSelectedUnit] = useState<UnitListing | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // ── Delete confirmation dialog state ─────────────────────────────────────
+  const [deleteTarget, setDeleteTarget] = useState<UnitListing | null>(null);
+  const [deletePin, setDeletePin] = useState('');
+  const [deletePinError, setDeletePinError] = useState('');
+  const [deleting, setDeleting] = useState(false);
   const settingsBtnRef = useRef<HTMLButtonElement>(null);
   const settingsPanelRef = useRef<HTMLDivElement>(null);
 
@@ -587,6 +594,39 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
   const handleViewDetails = useCallback((unit: UnitListing) => {
     setSelectedUnit(unit);
   }, []);
+
+  const handleDeleteRequest = useCallback((unit: UnitListing) => {
+    setDeleteTarget(unit);
+    setDeletePin('');
+    setDeletePinError('');
+  }, []);
+
+  const handleDeleteConfirm = async () => {
+    if (deletePin !== 'PRIVE2024') {
+      setDeletePinError('Incorrect PIN. Access denied.');
+      setDeletePin('');
+      return;
+    }
+    if (!deleteTarget?.uuid) return;
+    setDeleting(true);
+    const res = await fetch('/api/delete-unit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ unitUuid: deleteTarget.uuid }),
+    });
+    setDeleting(false);
+    setDeleteTarget(null);
+    setDeletePin('');
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setToast({ type: 'error', msg: `Delete failed: ${body.error ?? `HTTP ${res.status}`}` });
+      setTimeout(() => setToast(null), 5000);
+      return;
+    }
+    setToast({ type: 'success', msg: `Deleted — ${deleteTarget.property} ${deleteTarget.unitNo}` });
+    setTimeout(() => setToast(null), 4000);
+    setRefreshKey(k => k + 1);
+  };
 
   // ── Pagination page numbers (show at most 7 pages) ────────────────────────
 
@@ -1098,6 +1138,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
           onWhatsApp={handleWhatsApp}
           onEmail={handleEmail}
           onDuplicate={handleDuplicate}
+          onDelete={handleDeleteRequest}
         />
       )}
 
@@ -1109,6 +1150,62 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
           unit={selectedUnit}
           onClose={() => setSelectedUnit(null)}
         />
+      )}
+
+      {/* ── Delete confirmation dialog ────────────────────────────────────── */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-sm mx-4 bg-[#181818] border border-[#2a2a2a] rounded-2xl shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="px-5 py-4 bg-[#111111] border-b border-[#2a2a2a] flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">Confirm Permanent Delete</p>
+                <p className="text-[11px] text-[#888888]">This action cannot be undone</p>
+              </div>
+            </div>
+            {/* Body */}
+            <div className="px-5 py-4 space-y-3">
+              <div className="px-3 py-2.5 rounded-lg bg-[#111111] border border-[#2a2a2a]">
+                <p className="text-xs font-semibold text-[#d0d0d0]">{deleteTarget.property}</p>
+                <p className="text-[11px] text-[#888888] mt-0.5">Unit {deleteTarget.unitNo} · {deleteTarget.zone}</p>
+              </div>
+              <p className="text-xs text-[#888888]">Enter admin PIN to authorise deletion:</p>
+              <input
+                type="password"
+                value={deletePin}
+                onChange={e => { setDeletePin(e.target.value); setDeletePinError(''); }}
+                onKeyDown={e => { if (e.key === 'Enter') handleDeleteConfirm(); }}
+                placeholder="Admin PIN"
+                autoFocus
+                className="w-full text-sm text-[#d0d0d0] bg-[#0f0f0f] border border-[#333333] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 placeholder:text-[#444444]"
+              />
+              {deletePinError && (
+                <p className="text-xs text-red-400">{deletePinError}</p>
+              )}
+            </div>
+            {/* Footer */}
+            <div className="px-5 pb-5 flex gap-2.5">
+              <button
+                onClick={() => { setDeleteTarget(null); setDeletePin(''); setDeletePinError(''); }}
+                className="flex-1 px-4 py-2 text-xs font-semibold text-[#888888] bg-[#1a1a1a] hover:bg-[#222222] border border-[#2a2a2a] rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={deleting || !deletePin}
+                className="flex-1 px-4 py-2 text-xs font-bold text-white bg-red-700 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+              >
+                {deleting ? 'Deleting…' : 'Delete Permanently'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Toast notification ────────────────────────────────────────────── */}
