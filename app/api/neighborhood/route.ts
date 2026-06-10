@@ -1,33 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+const HEADERS = () => ({
+  apikey:        SB_KEY,
+  Authorization: `Bearer ${SB_KEY}`,
+  'Content-Type': 'application/json',
+  Prefer:        'return=representation',
+});
+
+async function sbGet(path: string) {
+  const res = await fetch(`${SB_URL}/rest/v1/${path}`, { headers: HEADERS() });
+  if (!res.ok) return null;
+  const rows = await res.json();
+  return Array.isArray(rows) ? (rows[0] ?? null) : null;
+}
+
+async function sbPost(path: string, body: unknown) {
+  const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
+    method: 'POST',
+    headers: HEADERS(),
+    body: JSON.stringify(body),
+  });
+  const json = await res.json();
+  if (!res.ok) return { data: null, error: json };
+  return { data: Array.isArray(json) ? json[0] : json, error: null };
+}
+
+async function sbPatch(path: string, body: unknown) {
+  const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
+    method: 'PATCH',
+    headers: HEADERS(),
+    body: JSON.stringify(body),
+  });
+  const json = await res.json();
+  if (!res.ok) return { data: null, error: json };
+  return { data: Array.isArray(json) ? json[0] : json, error: null };
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const unitUuid = searchParams.get('unitUuid') ?? '';
-  const zoneCode = Number(searchParams.get('zoneCode') ?? 0);
+  const zoneCode = searchParams.get('zoneCode') ?? '0';
 
   if (unitUuid) {
-    const { data } = await admin
-      .from('unit_neighborhood')
-      .select('*')
-      .eq('unit_uuid', unitUuid)
-      .maybeSingle();
-    if (data) return NextResponse.json({ data, source: 'unit' });
+    const row = await sbGet(`unit_neighborhood?unit_uuid=eq.${encodeURIComponent(unitUuid)}&select=*`);
+    if (row) return NextResponse.json({ data: row, source: 'unit' });
   }
 
-  const { data } = await admin
-    .from('unit_neighborhood')
-    .select('*')
-    .eq('zone_code', zoneCode)
-    .eq('is_zone_level', true)
-    .maybeSingle();
-
-  return NextResponse.json({ data: data ?? null, source: data ? 'zone' : 'none' });
+  const row = await sbGet(`unit_neighborhood?zone_code=eq.${zoneCode}&is_zone_level=eq.true&select=*`);
+  return NextResponse.json({ data: row, source: row ? 'zone' : 'none' });
 }
 
 export async function POST(req: NextRequest) {
@@ -43,33 +66,18 @@ export async function POST(req: NextRequest) {
   };
 
   if (isZoneLevel) {
-    const { data: existing } = await admin
-      .from('unit_neighborhood')
-      .select('id')
-      .eq('zone_code', zoneCode)
-      .eq('is_zone_level', true)
-      .maybeSingle();
-
-    const q = existing
-      ? admin.from('unit_neighborhood').update(payload).eq('id', existing.id)
-      : admin.from('unit_neighborhood').insert({ ...payload, unit_uuid: null });
-
-    const { data, error } = await q.select().single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ data });
+    const existing = await sbGet(`unit_neighborhood?zone_code=eq.${zoneCode}&is_zone_level=eq.true&select=id`);
+    const result = existing
+      ? await sbPatch(`unit_neighborhood?id=eq.${existing.id}`, payload)
+      : await sbPost('unit_neighborhood', { ...payload, unit_uuid: null });
+    if (result.error) return NextResponse.json({ error: result.error }, { status: 500 });
+    return NextResponse.json({ data: result.data });
   }
 
-  const { data: existing } = await admin
-    .from('unit_neighborhood')
-    .select('id')
-    .eq('unit_uuid', unitUuid)
-    .maybeSingle();
-
-  const q = existing
-    ? admin.from('unit_neighborhood').update(payload).eq('id', existing.id)
-    : admin.from('unit_neighborhood').insert({ ...payload, unit_uuid: unitUuid });
-
-  const { data, error } = await q.select().single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data });
+  const existing = await sbGet(`unit_neighborhood?unit_uuid=eq.${encodeURIComponent(unitUuid)}&select=id`);
+  const result = existing
+    ? await sbPatch(`unit_neighborhood?id=eq.${existing.id}`, payload)
+    : await sbPost('unit_neighborhood', { ...payload, unit_uuid: unitUuid });
+  if (result.error) return NextResponse.json({ error: result.error }, { status: 500 });
+  return NextResponse.json({ data: result.data });
 }
