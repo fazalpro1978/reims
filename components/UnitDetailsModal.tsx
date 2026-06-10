@@ -658,14 +658,14 @@ function ApplicableToggle({ value, onChange }: { value: boolean; onChange: (v: b
         onClick={() => onChange(true)}
         className={`px-3 py-1.5 transition-colors ${value ? 'bg-emerald-600 text-white' : 'bg-[#1e1e1e] text-[#666666] hover:bg-[#2a2a2a]'}`}
       >
-        Applicable
+        Excluded
       </button>
       <button
         type="button"
         onClick={() => onChange(false)}
         className={`px-3 py-1.5 border-l border-[#333333] transition-colors ${!value ? 'bg-[#444444] text-[#e0e0e0]' : 'bg-[#1e1e1e] text-[#666666] hover:bg-[#2a2a2a]'}`}
       >
-        Not Applicable
+        Included
       </button>
     </div>
   );
