@@ -91,6 +91,12 @@ export function generateInternalCopyText(unit: UnitListing): string {
     `  Deposit            QAR ${unit.depositAmount.toLocaleString()}`,
     `  Agency Fee         QAR ${unit.agencyFee.toLocaleString()}`,
     ``,
+    `ACCESS & SECURITY`,
+    `  Access / Lockbox   ${unit.accessLockbox || 'N/A'}`,
+    ``,
+    `OPERATOR REMARKS`,
+    `  ${unit.maintenanceNotes || 'None recorded'}`,
+    ``,
     ...(unit.locationMapUrl || unit.mediaUrl ? [
       `LINKS`,
       ...(unit.locationMapUrl ? [`  Map    ${unit.locationMapUrl}`] : []),
