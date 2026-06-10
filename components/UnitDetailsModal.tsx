@@ -1965,6 +1965,7 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
   const [visible, setVisible] = useState(false);
   const [unitUuid, setUnitUuid] = useState('');
   const [displayStatus, setDisplayStatus] = useState<Status>(unit.status);
+  const [copyToast, setCopyToast] = useState(false);
 
   // Admin mode — unlocks MOCI License and Unit Number editing
   const [isAdmin, setIsAdmin] = useState(false);
@@ -2026,6 +2027,13 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
     `Rent: QAR ${unit.rent.toLocaleString()}/month\n` +
     `Status: ${unit.status.replace('_', ' ')}\n` +
     `Realtor: ${unit.realtorName} (${unit.realtorMOCI})`;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(sharePayload).then(() => {
+      setCopyToast(true);
+      setTimeout(() => setCopyToast(false), 2500);
+    });
+  };
 
   const handleWhatsApp = () =>
     window.open(`https://wa.me/?text=${encodeURIComponent(sharePayload)}`, '_blank');
@@ -2104,6 +2112,26 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
             Email
+          </button>
+          <button
+            onClick={handleCopy}
+            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${copyToast ? 'bg-emerald-700 text-emerald-100' : 'bg-slate-700 hover:bg-slate-600 text-white'}`}
+          >
+            {copyToast ? (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                Copied!
+              </>
+            ) : (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Copy
+              </>
+            )}
           </button>
           {/* PDF Report — inline style bypasses [data-theme] CSS override */}
           <button
