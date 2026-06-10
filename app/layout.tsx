@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import Providers from '../components/Providers';
 
 export const metadata: Metadata = {
   title: 'Privé Group RE-IMS | Real Estate Information Management System',
@@ -10,7 +11,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-[#0f0f0f] text-[#e0e0e0] font-sans antialiased">{children}</body>
+      <body className="bg-[#0f0f0f] text-[#e0e0e0] font-sans antialiased">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
