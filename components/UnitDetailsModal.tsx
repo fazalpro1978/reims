@@ -650,7 +650,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
 
 // ── Tab B: Financials ──────────────────────────────────────────────────────
 
-function ApplicableToggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+function ApplicableToggle({ value, onChange, trueLabel = 'Excluded', falseLabel = 'Included' }: { value: boolean; onChange: (v: boolean) => void; trueLabel?: string; falseLabel?: string }) {
   return (
     <div className="inline-flex rounded-lg overflow-hidden border border-[#333333] text-xs font-medium">
       <button
@@ -658,14 +658,14 @@ function ApplicableToggle({ value, onChange }: { value: boolean; onChange: (v: b
         onClick={() => onChange(true)}
         className={`px-3 py-1.5 transition-colors ${value ? 'bg-emerald-600 text-white' : 'bg-[#1e1e1e] text-[#666666] hover:bg-[#2a2a2a]'}`}
       >
-        Excluded
+        {trueLabel}
       </button>
       <button
         type="button"
         onClick={() => onChange(false)}
         className={`px-3 py-1.5 border-l border-[#333333] transition-colors ${!value ? 'bg-[#444444] text-[#e0e0e0]' : 'bg-[#1e1e1e] text-[#666666] hover:bg-[#2a2a2a]'}`}
       >
-        Included
+        {falseLabel}
       </button>
     </div>
   );
@@ -683,7 +683,7 @@ function DepositRow({ label, applicable, onToggle, amount, onAmount }: {
       label={label}
       value={
         <div className="flex flex-col gap-2">
-          <ApplicableToggle value={applicable} onChange={onToggle} />
+          <ApplicableToggle value={applicable} onChange={onToggle} trueLabel="Applicable" falseLabel="Not Applicable" />
           {applicable && (
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-[#666666] select-none">QAR</span>
