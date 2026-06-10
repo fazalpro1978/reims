@@ -52,11 +52,18 @@ export function generatePublicShareText(unit: UnitListing): string {
   ].join('\n');
 }
 
-export function generateInternalCopyText(unit: UnitListing): string {
+type FocalData = { name: string; phone: string; email: string; operatorRemarks: string };
+
+export function generateInternalCopyText(unit: UnitListing, focal?: FocalData): string {
   return [
     `⚠ FOR INTERNAL USE ONLY — PRIVÉ GROUP REAL ESTATE ⚠`,
     ``,
     `PROPERTY FOCAL POINT`,
+    `  Contact Name       ${focal?.name  || 'N/A'}`,
+    `  Contact Phone      ${focal?.phone || 'N/A'}`,
+    `  Contact Email      ${focal?.email || 'N/A'}`,
+    ``,
+    `REALTOR & CONTRACT`,
     `  Unit Code          ${unit.id}`,
     `  Realtor            ${unit.realtorName}`,
     `  MOCI License       ${unit.realtorMOCI}`,
@@ -95,7 +102,7 @@ export function generateInternalCopyText(unit: UnitListing): string {
     `  Access / Lockbox   ${unit.accessLockbox || 'N/A'}`,
     ``,
     `OPERATOR REMARKS`,
-    `  ${unit.maintenanceNotes || 'None recorded'}`,
+    `  ${focal?.operatorRemarks || unit.maintenanceNotes || 'None recorded'}`,
     ``,
     ...(unit.locationMapUrl || unit.mediaUrl ? [
       `LINKS`,

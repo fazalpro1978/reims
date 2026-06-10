@@ -1976,6 +1976,7 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
   const [displayStatus, setDisplayStatus] = useState<Status>(unit.status);
   const [copyToast, setCopyToast] = useState(false);
   const [internalToast, setInternalToast] = useState(false);
+  const [copyFocal, setCopyFocal] = useState({ name: '', phone: '', email: '', operatorRemarks: '' });
 
   // Admin mode — unlocks MOCI License and Unit Number editing
   const [isAdmin, setIsAdmin] = useState(false);
@@ -2000,6 +2001,16 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
     if (unit.uuid) {
       setUnitUuid(unit.uuid);
       logEvent({ unitId: unit.uuid, action: 'RECORD_VIEW', payload: { unitCode: unit.id, property: unit.property, unitNo: unit.unitNo, status: unit.status } });
+      supabase.from('unit_operational').select('focal_point_name,focal_point_phone,focal_point_email,operator_remarks').eq('unit_id', unit.uuid).single()
+        .then(({ data }) => {
+          if (!data) return;
+          setCopyFocal({
+            name:            data.focal_point_name  ?? '',
+            phone:           data.focal_point_phone ?? '',
+            email:           data.focal_point_email ?? '',
+            operatorRemarks: data.operator_remarks  ?? '',
+          });
+        });
     }
   }, [unit.uuid]);
 
@@ -2031,7 +2042,7 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
 
   // Build share payload
   const handleCopy = () => {
-    navigator.clipboard.writeText(generateInternalCopyText(unit)).then(() => {
+    navigator.clipboard.writeText(generateInternalCopyText(unit, copyFocal)).then(() => {
       setCopyToast(true);
       setTimeout(() => setCopyToast(false), 2500);
       setInternalToast(true);

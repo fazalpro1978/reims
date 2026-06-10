@@ -606,8 +606,13 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
     setSelectedUnit(unit);
   }, []);
 
-  const handleCopyUnit = useCallback((unit: UnitListing) => {
-    navigator.clipboard.writeText(generateInternalCopyText(unit)).then(() => {
+  const handleCopyUnit = useCallback(async (unit: UnitListing) => {
+    let focal = { name: '', phone: '', email: '', operatorRemarks: '' };
+    if (unit.uuid) {
+      const { data } = await supabase.from('unit_operational').select('focal_point_name,focal_point_phone,focal_point_email,operator_remarks').eq('unit_id', unit.uuid).single();
+      if (data) focal = { name: data.focal_point_name ?? '', phone: data.focal_point_phone ?? '', email: data.focal_point_email ?? '', operatorRemarks: data.operator_remarks ?? '' };
+    }
+    navigator.clipboard.writeText(generateInternalCopyText(unit, focal)).then(() => {
       setToast({ type: 'error', msg: '⚠ FOR INTERNAL USE ONLY' });
       setTimeout(() => setToast(null), 3500);
     });
