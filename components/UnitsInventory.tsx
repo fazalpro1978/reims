@@ -372,6 +372,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
         config:              row.config,
         bathrooms:           Number(row.bathrooms),
         parking:             row.parking,
+        amenities:           row.amenities ?? [],
         kitchen:             row.kitchen as KitchenType,
         furnishing:          row.furnishing as Furnishing,
         listingType:         row.listing_type as ListingType,

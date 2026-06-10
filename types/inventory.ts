@@ -54,6 +54,7 @@ export interface UnitListing {
   bathrooms: number;   // Full baths + 0.5 for half bath/toilet
   parking: boolean;
   kitchen: KitchenType;
+  amenities: string[];
 
   // ── Classification ────────────────────────────────────────────────────────
   furnishing: Furnishing;

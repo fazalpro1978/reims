@@ -2020,27 +2020,60 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
   }, []);
 
   // Build share payload
-  const sharePayload =
-    `Property: ${unit.property}\n` +
-    `Unit: ${unit.unitNo} | District: ${unit.zone} (Zone ${unit.zoneCode})\n` +
-    `Type: ${unit.type} · ${unit.config} | ${unit.furnishing}\n` +
-    `Rent: QAR ${unit.rent.toLocaleString()}/month\n` +
-    `Status: ${unit.status.replace('_', ' ')}\n` +
-    `Realtor: ${unit.realtorName} (${unit.realtorMOCI})`;
+  const fullPayload = [
+    `━━━ PROPERTY & UNIT — PRIVÉ GROUP REAL ESTATE ━━━`,
+    ``,
+    `IDENTIFICATION`,
+    `  Realtor          ${unit.realtorName}`,
+    `  MOCI License     ${unit.realtorMOCI}`,
+    `  Property         ${unit.property}`,
+    `  Unit No          ${unit.unitNo}`,
+    `  District / Area  ${unit.zone}`,
+    `  Zone Code        Zone ${unit.zoneCode}`,
+    ``,
+    `CLASSIFICATION`,
+    `  Type             ${unit.type}`,
+    `  Configuration    ${unit.config}`,
+    `  Furnishing       ${unit.furnishing}`,
+    `  Kitchen          ${unit.kitchen}`,
+    `  Parking          ${unit.parking ? 'Yes' : 'No'}`,
+    `  Status           ${unit.status.replace(/_/g, ' ')}`,
+    ...(unit.amenities?.length ? [
+      ``,
+      `AMENITIES`,
+      `  ${unit.amenities.join('  ·  ')}`,
+    ] : []),
+    ``,
+    `FINANCIALS`,
+    `  Monthly Rent     QAR ${unit.rent.toLocaleString()}`,
+    `  Service Charges  QAR ${unit.serviceCharges.toLocaleString()}`,
+    `  Deposit          QAR ${unit.depositAmount.toLocaleString()}`,
+    ``,
+    ...(unit.locationMapUrl || unit.mediaUrl ? [
+      `LINKS`,
+      ...(unit.locationMapUrl ? [`  Map    ${unit.locationMapUrl}`] : []),
+      ...(unit.mediaUrl       ? [`  Media  ${unit.mediaUrl}`]       : []),
+      ``,
+    ] : []),
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `Privé Group Real Estate`,
+    `Tel / WhatsApp: +974 7707 5959  |  admin@privegroupre.com`,
+    `Brokerage Licence 773  |  CR 187753`,
+  ].join('\n');
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(sharePayload).then(() => {
+    navigator.clipboard.writeText(fullPayload).then(() => {
       setCopyToast(true);
       setTimeout(() => setCopyToast(false), 2500);
     });
   };
 
   const handleWhatsApp = () =>
-    window.open(`https://wa.me/?text=${encodeURIComponent(sharePayload)}`, '_blank');
+    window.open(`https://wa.me/?text=${encodeURIComponent(fullPayload)}`, '_blank');
 
   const handleEmail = () => {
     const subject = encodeURIComponent(`Property Details: ${unit.property} – Unit ${unit.unitNo}`);
-    const body = encodeURIComponent(sharePayload);
+    const body = encodeURIComponent(fullPayload);
     window.open(`mailto:?subject=${subject}&body=${body}`);
   };
 
