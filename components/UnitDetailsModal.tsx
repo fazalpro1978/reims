@@ -709,14 +709,27 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState('');
 
+  const [kahramaaApplicable, setKahramaaApplicable] = useState<boolean>(true);
+  const [kahramaaAmount, setKahramaaAmount] = useState<number>(2000);
+  const [qatarCoolApplicable, setQatarCoolApplicable] = useState<boolean>(true);
+  const [qatarCoolAmount, setQatarCoolAmount] = useState<number>(3000);
+  const [marafeqApplicable, setMarafeqApplicable] = useState<boolean>(true);
+  const [marafeqAmount, setMarafeqAmount] = useState<number>(3000);
+
   useEffect(() => {
     if (!unitUuid) return;
-    supabase.from('units').select('rent,agency_fee,service_charges').eq('id', unitUuid).single()
+    supabase.from('units').select('rent,agency_fee,service_charges,kahramaa_applicable,kahramaa_amount,qatar_cool_applicable,qatar_cool_amount,marafeq_applicable,marafeq_amount').eq('id', unitUuid).single()
       .then(({ data }) => {
         if (!data) return;
         setMonthlyRent(Number(data.rent) ?? unit.rent);
         setContractCharges(Number(data.agency_fee) ?? unit.agencyFee);
         setAdditionalCharges(Number(data.service_charges) ?? unit.serviceCharges);
+        setKahramaaApplicable(data.kahramaa_applicable   ?? true);
+        setKahramaaAmount(Number(data.kahramaa_amount)   || 2000);
+        setQatarCoolApplicable(data.qatar_cool_applicable ?? true);
+        setQatarCoolAmount(Number(data.qatar_cool_amount) || 3000);
+        setMarafeqApplicable(data.marafeq_applicable      ?? true);
+        setMarafeqAmount(Number(data.marafeq_amount)      || 3000);
       });
   }, [unitUuid]);
 
@@ -728,7 +741,17 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         unitUuid,
-        fields: { rent: monthlyRent, agency_fee: contractCharges, service_charges: additionalCharges },
+        fields: {
+          rent: monthlyRent,
+          agency_fee: contractCharges,
+          service_charges: additionalCharges,
+          kahramaa_applicable:    kahramaaApplicable,
+          kahramaa_amount:        kahramaaApplicable    ? kahramaaAmount    : null,
+          qatar_cool_applicable:  qatarCoolApplicable,
+          qatar_cool_amount:      qatarCoolApplicable  ? qatarCoolAmount  : null,
+          marafeq_applicable:     marafeqApplicable,
+          marafeq_amount:         marafeqApplicable    ? marafeqAmount    : null,
+        },
       }),
     });
     if (!res.ok) {
@@ -737,17 +760,10 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
       setSaveStatus('error');
       return;
     }
-    await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'financials', payload: { monthlyRent, contractCharges, additionalCharges } });
+    await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'financials', payload: { monthlyRent, contractCharges, additionalCharges, kahramaaApplicable, kahramaaAmount, qatarCoolApplicable, qatarCoolAmount, marafeqApplicable, marafeqAmount } });
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus('idle'), 2500);
   };
-
-  const [kahramaaApplicable, setKahramaaApplicable] = useState<boolean>(true);
-  const [kahramaaAmount, setKahramaaAmount] = useState<number>(2000);
-  const [qatarCoolApplicable, setQatarCoolApplicable] = useState<boolean>(true);
-  const [qatarCoolAmount, setQatarCoolAmount] = useState<number>(3000);
-  const [marafeqApplicable, setMarafeqApplicable] = useState<boolean>(true);
-  const [marafeqAmount, setMarafeqAmount] = useState<number>(3000);
 
   const securityDeposit = monthlyRent; // 1 month's rent — refundable
   const firstMonthTotal = monthlyRent + securityDeposit + contractCharges + additionalCharges;

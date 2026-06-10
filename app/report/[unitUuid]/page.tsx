@@ -33,9 +33,15 @@ interface ReportData {
   additionalCharges:   number;  // service_charges column — "Additional Charges" in modal
   securityDeposit:     number;  // deposit_amount or 1× rent
   electricityWater:    string;
-  agencyFeeApplicable: boolean; // from unit_commissions
-  agencyFeeAmount:     number;
-  agencyFeePaidBy:     string;
+  agencyFeeApplicable:   boolean; // from unit_commissions
+  agencyFeeAmount:       number;
+  agencyFeePaidBy:       string;
+  kahramaaApplicable:    boolean;
+  kahramaaAmount:        number;
+  qatarCoolApplicable:   boolean;
+  qatarCoolAmount:       number;
+  marafeqApplicable:     boolean;
+  marafeqAmount:         number;
   locationMapUrl:      string;
   mediaUrl:            string;
   images:              string[];
@@ -314,7 +320,10 @@ body {
 
 function ReportDocument({ data }: { data: ReportData }) {
   const secDep = data.securityDeposit || data.monthlyRent;
-  const total = (data.monthlyRent || 0) + secDep + (data.contractCharges || 0) + (data.additionalCharges || 0);
+  const utilityTotal = (data.kahramaaApplicable  ? (data.kahramaaAmount  || 0) : 0)
+                     + (data.qatarCoolApplicable  ? (data.qatarCoolAmount || 0) : 0)
+                     + (data.marafeqApplicable     ? (data.marafeqAmount   || 0) : 0);
+  const total = (data.monthlyRent || 0) + secDep + (data.contractCharges || 0) + (data.additionalCharges || 0) + utilityTotal;
 
   // Always render exactly 6 image cells
   const slots: (string | null)[] = data.images.slice(0, 6) as (string | null)[];
@@ -447,6 +456,18 @@ function ReportDocument({ data }: { data: ReportData }) {
             <span className="rpt-fin-val">QAR {fmt(data.agencyFeeAmount)}</span>
           </div>
         )}
+        <div className="rpt-fin-row">
+          <span className="rpt-fin-lbl" style={{ fontWeight: 700, color: '#334155' }}>Kahramaa Deposit</span>
+          <span className="rpt-fin-val">{data.kahramaaApplicable ? `QAR ${fmt(data.kahramaaAmount)}` : 'Included'}</span>
+        </div>
+        <div className="rpt-fin-row">
+          <span className="rpt-fin-lbl" style={{ fontWeight: 700, color: '#334155' }}>Qatar Cool Deposit</span>
+          <span className="rpt-fin-val">{data.qatarCoolApplicable ? `QAR ${fmt(data.qatarCoolAmount)}` : 'Included'}</span>
+        </div>
+        <div className="rpt-fin-row">
+          <span className="rpt-fin-lbl" style={{ fontWeight: 700, color: '#334155' }}>Marafeq Deposit</span>
+          <span className="rpt-fin-val">{data.marafeqApplicable ? `QAR ${fmt(data.marafeqAmount)}` : 'Included'}</span>
+        </div>
         <div className="rpt-fin-row rpt-fin-total">
           <span className="rpt-fin-lbl-tot">Total Move-In Payment</span>
           <span className="rpt-fin-val-tot">QAR {fmt(total)}</span>
@@ -577,10 +598,16 @@ export default function ReportPage() {
           additionalCharges:   Number(row.service_charges) || 0,
           securityDeposit:     Number(row.deposit_amount)  || rent,
           electricityWater:    row.electricity_water ?? '',
-          agencyFeeApplicable: commRow?.agency_fee_applicable ?? false,
-          agencyFeeAmount:     Number(commRow?.agency_fee_amount) || 0,
-          agencyFeePaidBy:     commRow?.paid_by ?? '',
-          locationMapUrl:      row.location_map_url  ?? '',
+          agencyFeeApplicable:   commRow?.agency_fee_applicable ?? false,
+          agencyFeeAmount:       Number(commRow?.agency_fee_amount) || 0,
+          agencyFeePaidBy:       commRow?.paid_by ?? '',
+          kahramaaApplicable:    row.kahramaa_applicable    ?? true,
+          kahramaaAmount:        Number(row.kahramaa_amount)   || 2000,
+          qatarCoolApplicable:   row.qatar_cool_applicable  ?? true,
+          qatarCoolAmount:       Number(row.qatar_cool_amount)  || 3000,
+          marafeqApplicable:     row.marafeq_applicable     ?? true,
+          marafeqAmount:         Number(row.marafeq_amount)    || 3000,
+          locationMapUrl:        row.location_map_url  ?? '',
           mediaUrl:            row.media_url         ?? '',
           images:              parseArray(row.images),
           operatorRemarks:     row.operator_remarks  ?? '',
