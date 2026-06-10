@@ -742,7 +742,6 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
     setTimeout(() => setSaveStatus('idle'), 2500);
   };
 
-  const [serviceUtility, setServiceUtility] = useState<boolean>(true);
   const [kahramaaApplicable, setKahramaaApplicable] = useState<boolean>(true);
   const [kahramaaAmount, setKahramaaAmount] = useState<number>(2000);
   const [qatarCoolApplicable, setQatarCoolApplicable] = useState<boolean>(true);
@@ -836,35 +835,27 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
 
       {/* ── Service & Utility Charges ── */}
       <SectionCard title="Service & Utility Charges">
-        <FieldRow
-          label="Service & Utility"
-          value={<ApplicableToggle value={serviceUtility} onChange={setServiceUtility} />}
+        <DepositRow
+          label="Kahramaa Deposit"
+          applicable={kahramaaApplicable}
+          onToggle={setKahramaaApplicable}
+          amount={kahramaaAmount}
+          onAmount={setKahramaaAmount}
         />
-        {serviceUtility && (
-          <>
-            <DepositRow
-              label="Kahramaa Deposit"
-              applicable={kahramaaApplicable}
-              onToggle={setKahramaaApplicable}
-              amount={kahramaaAmount}
-              onAmount={setKahramaaAmount}
-            />
-            <DepositRow
-              label="Qatar Cool Deposit"
-              applicable={qatarCoolApplicable}
-              onToggle={setQatarCoolApplicable}
-              amount={qatarCoolAmount}
-              onAmount={setQatarCoolAmount}
-            />
-            <DepositRow
-              label="Marafeq Deposit"
-              applicable={marafeqApplicable}
-              onToggle={setMarafeqApplicable}
-              amount={marafeqAmount}
-              onAmount={setMarafeqAmount}
-            />
-          </>
-        )}
+        <DepositRow
+          label="Qatar Cool Deposit"
+          applicable={qatarCoolApplicable}
+          onToggle={setQatarCoolApplicable}
+          amount={qatarCoolAmount}
+          onAmount={setQatarCoolAmount}
+        />
+        <DepositRow
+          label="Marafeq Deposit"
+          applicable={marafeqApplicable}
+          onToggle={setMarafeqApplicable}
+          amount={marafeqAmount}
+          onAmount={setMarafeqAmount}
+        />
       </SectionCard>
 
       {/* ── 1st Month Payment Banner ── */}
