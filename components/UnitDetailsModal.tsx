@@ -2151,7 +2151,8 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
           </button>
           <button
             onClick={handleCopy}
-            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${copyToast ? 'bg-emerald-700 text-emerald-100' : 'bg-slate-700 hover:bg-slate-600 text-white'}`}
+            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${copyToast ? 'bg-emerald-700 text-emerald-100' : 'text-red-300'}`}
+            style={copyToast ? {} : { background: '#7f1d1d', border: '1px solid #ef4444' }}
           >
             {copyToast ? (
               <>
