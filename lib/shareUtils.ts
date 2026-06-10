@@ -11,6 +11,47 @@ export function generateShareText(unit: UnitListing): string {
   );
 }
 
+export function generatePublicShareText(unit: UnitListing): string {
+  return [
+    `Connecting you with property, the Privé way`,
+    ``,
+    `PROPERTY DETAILS`,
+    `  Property         ${unit.property}`,
+    `  Unit No          ${unit.unitNo}`,
+    `  District / Area  ${unit.zone}`,
+    `  Zone Code        Zone ${unit.zoneCode}`,
+    ``,
+    `CLASSIFICATION`,
+    `  Type             ${unit.type}`,
+    `  Configuration    ${unit.config}`,
+    `  Furnishing       ${unit.furnishing}`,
+    `  Kitchen          ${unit.kitchen}`,
+    `  Parking          ${unit.parking ? 'Yes' : 'No'}`,
+    `  Status           ${unit.status.replace(/_/g, ' ')}`,
+    ...(unit.amenities?.length ? [
+      ``,
+      `AMENITIES`,
+      `  ${unit.amenities.join('  ·  ')}`,
+    ] : []),
+    ``,
+    `FINANCIALS`,
+    `  Monthly Rent     QAR ${unit.rent.toLocaleString()}`,
+    `  Service Charges  QAR ${unit.serviceCharges.toLocaleString()}`,
+    `  Deposit          QAR ${unit.depositAmount.toLocaleString()}`,
+    ``,
+    ...(unit.locationMapUrl || unit.mediaUrl ? [
+      `LINKS`,
+      ...(unit.locationMapUrl ? [`  Map    ${unit.locationMapUrl}`] : []),
+      ...(unit.mediaUrl       ? [`  Media  ${unit.mediaUrl}`]       : []),
+      ``,
+    ] : []),
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `Privé Group Real Estate`,
+    `Tel / WhatsApp: +974 7707 5959  |  admin@privegroupre.com`,
+    `Brokerage Licence 773  |  CR 187753`,
+  ].join('\n');
+}
+
 export function generateInternalCopyText(unit: UnitListing): string {
   return [
     `⚠ FOR INTERNAL USE ONLY — PRIVÉ GROUP REAL ESTATE ⚠`,

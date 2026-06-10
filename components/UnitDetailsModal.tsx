@@ -10,7 +10,7 @@ import { UnitListing, Status, Furnishing, KitchenType, UnitType } from '../types
 import { supabase } from '../lib/supabase/client';
 import { logEvent } from '../lib/auditLog';
 import { DurationUnit, parseLegalDuration, calcEndDate, calcDurationFromDates } from '../lib/legalDuration';
-import { generateInternalCopyText } from '../lib/shareUtils';
+import { generateInternalCopyText, generatePublicShareText } from '../lib/shareUtils';
 import DocUploadRow from './DocUploadRow';
 import CommDocRow, { DocEntry } from './CommDocRow';
 
@@ -2040,11 +2040,11 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
   };
 
   const handleWhatsApp = () =>
-    window.open(`https://wa.me/?text=${encodeURIComponent(generateInternalCopyText(unit))}`, '_blank');
+    window.open(`https://wa.me/?text=${encodeURIComponent(generatePublicShareText(unit))}`, '_blank');
 
   const handleEmail = () => {
     const subject = encodeURIComponent(`Property Details: ${unit.property} – Unit ${unit.unitNo}`);
-    const body = encodeURIComponent(generateInternalCopyText(unit));
+    const body = encodeURIComponent(generatePublicShareText(unit));
     window.open(`mailto:?subject=${subject}&body=${body}`);
   };
 
