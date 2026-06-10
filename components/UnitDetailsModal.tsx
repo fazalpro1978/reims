@@ -139,14 +139,29 @@ const REALTORS: { name: string; moci: string }[] = [
 ];
 
 const ZONE_OPTIONS: { zone: string; code: number }[] = [
+  { zone: 'Abu Hamour',                            code: 51 },
+  { zone: 'Ain Khaled',                            code: 56 },
   { zone: 'Al Dafna',                              code: 60 },
   { zone: 'Al Dafna / Al Qassar',                  code: 61 },
+  { zone: 'Al Hilal',                              code: 42 },
+  { zone: 'Al Khor',                               code: 74 },
   { zone: 'Al Sadd',                               code: 38 },
+  { zone: 'Al Wakrah',                             code: 90 },
+  { zone: 'Al Wukair',                             code: 91 },
+  { zone: 'Duhail',                                code: 30 },
+  { zone: 'Fereej Al Amir',                        code: 55 },
   { zone: 'Hazm Al Markhiya',                      code: 67 },
   { zone: 'Jelaiah / Al Tarfa',                    code: 68 },
+  { zone: 'Lusail',                                code: 69 },
   { zone: 'Madinat Khalifa North / Dahl Al Hamam', code: 32 },
   { zone: 'Madinat Khalifa South',                 code: 34 },
+  { zone: 'Muaither',                              code: 52 },
   { zone: 'Musheireb',                             code: 4  },
+  { zone: 'Old Airport',                           code: 45 },
+  { zone: 'Onaiza',                                code: 63 },
+  { zone: 'The Pearl Qatar / Legtaifiya',          code: 66 },
+  { zone: 'Umm Salal Mohammed',                    code: 71 },
+  { zone: 'Al Waab',                               code: 53 },
 ];
 
 const UNIT_CONFIGS = [
