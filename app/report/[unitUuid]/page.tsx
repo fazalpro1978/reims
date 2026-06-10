@@ -11,6 +11,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
+import type { NCard, NGuide } from '../../../components/NeighborhoodGuide';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -312,7 +313,32 @@ body {
   text-transform: uppercase; letter-spacing: 0.08em;
 }
 
-/* ── 7. Contact & operations ─────────────────────────────────────────────────── */
+/* ── 7. Neighborhood Guide ───────────────────────────────────────────────────── */
+.rpt-nbhd-wrap   { display: flex; gap: 8pt; margin-top: 4pt; }
+.rpt-nbhd-col    { flex: 1; min-width: 0; }
+.rpt-nbhd-pillar {
+  font-size: 7pt; font-weight: 700; color: #475569;
+  text-transform: uppercase; letter-spacing: 0.13em;
+  border-bottom: 1px solid #e2e8f0; padding-bottom: 3pt; margin-bottom: 5pt;
+}
+.rpt-nbhd-pillar-life  { color: #92400e; border-color: #c9a84c44; }
+.rpt-nbhd-pillar-parks { color: #14532d; border-color: #86efac44; }
+.rpt-nbhd-pillar-comm  { color: #1e3a8a; border-color: #93c5fd44; }
+.rpt-nbhd-card {
+  padding: 4pt 0; border-bottom: 1px solid #f1f5f9;
+}
+.rpt-nbhd-card:last-child { border-bottom: none; }
+.rpt-nbhd-name  { font-size: 9pt; font-weight: 600; color: #0f172a; line-height: 1.3; }
+.rpt-nbhd-sub   {
+  display: inline-block; font-size: 7pt; font-weight: 600; color: #64748b;
+  background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 2pt;
+  padding: 1pt 4pt; margin-top: 1pt;
+}
+.rpt-nbhd-meta  { font-size: 8.5pt; color: #64748b; margin-top: 1.5pt; line-height: 1.4; }
+.rpt-nbhd-notes { font-size: 8pt; color: #94a3b8; margin-top: 1pt; font-style: italic; }
+.rpt-nbhd-empty { font-size: 8.5pt; color: #cbd5e1; font-style: italic; }
+
+/* ── 8. Contact & operations ─────────────────────────────────────────────────── */
 .rpt-admin-hub {
   font-size: 9.5pt; color: #334155; line-height: 1.75;
   margin-bottom: 8pt;
@@ -338,7 +364,7 @@ body {
 
 // ── Report document ───────────────────────────────────────────────────────────
 
-function ReportDocument({ data }: { data: ReportData }) {
+function ReportDocument({ data, neighborhood }: { data: ReportData; neighborhood: NGuide | null }) {
   const secDep = data.securityDeposit || data.monthlyRent;
   const utilityTotal = (data.kahramaaApplicable  ? (data.kahramaaAmount  || 0) : 0)
                      + (data.qatarCoolApplicable  ? (data.qatarCoolAmount || 0) : 0)
@@ -549,7 +575,44 @@ function ReportDocument({ data }: { data: ReportData }) {
         </tbody>
       </table>
 
-      {/* ── 7. Contact & Operations Routing ──────────────────────────── */}
+      {/* ── 7. Neighborhood Guide ────────────────────────────────────── */}
+      {neighborhood && (neighborhood.lifestyle.length > 0 || neighborhood.parks.length > 0 || neighborhood.commute.length > 0) && (() => {
+        const renderPillarCards = (cards: NCard[]) => cards.length === 0
+          ? <p className="rpt-nbhd-empty">Not available</p>
+          : cards.map(c => (
+            <div key={c.id} className="rpt-nbhd-card">
+              <p className="rpt-nbhd-name">{c.name}</p>
+              <span className="rpt-nbhd-sub">{c.subcategory}</span>
+              <p className="rpt-nbhd-meta">
+                {c.distance && `📍 ${c.distance}`}
+                {c.distance && c.rating != null ? '  ·  ' : ''}
+                {c.rating != null && `★ ${c.rating.toFixed(1)}`}
+              </p>
+              {c.notes && <p className="rpt-nbhd-notes">{c.notes}</p>}
+            </div>
+          ));
+        return (
+          <>
+            <p className="rpt-sec-lbl">Neighborhood Guide</p>
+            <div className="rpt-nbhd-wrap">
+              <div className="rpt-nbhd-col">
+                <p className="rpt-nbhd-pillar rpt-nbhd-pillar-life">Lifestyle &amp; Family</p>
+                {renderPillarCards(neighborhood.lifestyle)}
+              </div>
+              <div className="rpt-nbhd-col">
+                <p className="rpt-nbhd-pillar rpt-nbhd-pillar-parks">Parks &amp; Outdoors</p>
+                {renderPillarCards(neighborhood.parks)}
+              </div>
+              <div className="rpt-nbhd-col">
+                <p className="rpt-nbhd-pillar rpt-nbhd-pillar-comm">Logistics &amp; Commute</p>
+                {renderPillarCards(neighborhood.commute)}
+              </div>
+            </div>
+          </>
+        );
+      })()}
+
+      {/* ── 8. Contact & Operations Routing ──────────────────────────── */}
       <p className="rpt-sec-lbl">Contact &amp; Operations</p>
       <p className="rpt-admin-hub">
         Call or WhatsApp Administration Hub on&nbsp;
@@ -579,11 +642,12 @@ export default function ReportPage() {
   const params    = useParams();
   const unitUuid  = params?.unitUuid as string;
 
-  const [data,       setData      ] = useState<ReportData | null>(null);
-  const [loading,    setLoading   ] = useState(true);
-  const [error,      setError     ] = useState<string | null>(null);
-  const [salutation, setSalutation] = useState('');
-  const [generatedAt]               = useState(() => formatDateTime(new Date()));
+  const [data,         setData        ] = useState<ReportData | null>(null);
+  const [neighborhood, setNeighborhood] = useState<NGuide | null>(null);
+  const [loading,      setLoading     ] = useState(true);
+  const [error,        setError       ] = useState<string | null>(null);
+  const [salutation,   setSalutation  ] = useState('');
+  const [generatedAt]                   = useState(() => formatDateTime(new Date()));
 
   useEffect(() => {
     if (!unitUuid) return;
@@ -637,6 +701,16 @@ export default function ReportPage() {
           operatorRemarks:     row.operator_remarks  ?? '',
           salutation:          '',
         });
+
+        // Fetch neighborhood guide — unit-specific first, zone fallback second
+        const zoneCode = row.zone_code ?? 0;
+        const nbRes = await fetch(`/api/neighborhood?unitUuid=${encodeURIComponent(unitUuid)}&zoneCode=${zoneCode}`);
+        if (nbRes.ok) {
+          const { data: nb } = await nbRes.json();
+          if (nb) {
+            setNeighborhood({ lifestyle: nb.lifestyle_data ?? [], parks: nb.parks_data ?? [], commute: nb.commute_data ?? [] });
+          }
+        }
       }
       setLoading(false);
     })();
@@ -679,7 +753,7 @@ export default function ReportPage() {
         </div>
       </div>
 
-      <ReportDocument data={{ ...data, salutation }} />
+      <ReportDocument data={{ ...data, salutation }} neighborhood={neighborhood} />
     </>
   );
 }

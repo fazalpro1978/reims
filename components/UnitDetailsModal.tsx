@@ -13,6 +13,7 @@ import { DurationUnit, parseLegalDuration, calcEndDate, calcDurationFromDates } 
 import { generateInternalCopyText, generatePublicShareText } from '../lib/shareUtils';
 import DocUploadRow from './DocUploadRow';
 import CommDocRow, { DocEntry } from './CommDocRow';
+import NeighborhoodGuide from './NeighborhoodGuide';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -569,6 +570,8 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
         </div>
 
       </SectionCard>
+
+      <NeighborhoodGuide unitUuid={unitUuid} zoneCode={zoneCode} isAdmin={isAdmin} />
 
       <SectionCard title="External Links">
 
