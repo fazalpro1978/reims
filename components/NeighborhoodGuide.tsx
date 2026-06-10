@@ -270,6 +270,11 @@ export default function NeighborhoodGuide({
   const [form, setForm]            = useState<FormFields>(emptyForm('lifestyle'));
 
   useEffect(() => {
+    setLoading(true);
+    setGuide({ lifestyle: [], parks: [], commute: [] });
+    setSource('none');
+    setAddingTo(null);
+    setEditingId(null);
     if (!zoneCode) { setLoading(false); return; }
     fetch(`/api/neighborhood?unitUuid=${encodeURIComponent(unitUuid)}&zoneCode=${zoneCode}`)
       .then(r => r.json())
