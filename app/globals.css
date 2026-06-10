@@ -4,21 +4,178 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
-* { box-sizing: border-box; }
+/* ── Global reset ──────────────────────────────────────────────────────────── */
 
+* { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 
-body {
-  background: #0f0f0f;
-  color: #e0e0e0;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* ── Default CSS variables (Privé Group — matches existing hard-coded values) ─ */
+
+:root {
+  --accent:          #c9a84c;
+  --accent-hover:    #dfc070;
+  --accent-text:     #0f0f0f;
+  --bg-void:         #0f0f0f;
+  --bg-base:         #111111;
+  --bg-surface:      #181818;
+  --bg-elevated:     #1e1e1e;
+  --bg-subtle:       #2a2a2a;
+  --bg-header:       #0f172a;
+  --bg-subheader:    #1e293b;
+  --border-faint:    #1a1a1a;
+  --border-default:  #2a2a2a;
+  --border-strong:   #333333;
+  --text-primary:    #e0e0e0;
+  --text-secondary:  #d0d0d0;
+  --text-muted:      #888888;
+  --text-faint:      #666666;
+  --text-dimmer:     #555555;
+  --text-dimmest:    #444444;
 }
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #111111; }
-::-webkit-scrollbar-thumb { background: #2d2d2d; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #c9a84c; }
+/* ── Base typography & body ─────────────────────────────────────────────────── */
 
-/* Dark select option styling */
-select option { background: #1e1e1e; color: #e0e0e0; }
+body {
+  background: var(--bg-void);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background 280ms ease, color 160ms ease;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-base); }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* ── Select option dark styling ─────────────────────────────────────────────── */
+
+select option { background: var(--bg-elevated); color: var(--text-primary); }
+
+/* ── ThemeSwitcher panel entrance animation ─────────────────────────────────── */
+
+@keyframes theme-panel-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+.theme-panel { animation: theme-panel-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   THEME HOT-SWAP OVERRIDES
+
+   Strategy: [data-theme] ancestor selector provides [0,2,0] specificity
+   vs Tailwind's [0,1,0] — wins without !important.
+
+   Privé Group variables = hard-coded values → no visual change for default.
+   All other themes produce full hot-swap via CSS variable substitution.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Body / HTML backgrounds ─────────────────────────────────────────────────── */
+
+[data-theme] body { background: var(--bg-void); color: var(--text-primary); }
+
+/* ── Background class overrides ──────────────────────────────────────────────── */
+
+[data-theme] .bg-\[\#0f0f0f\]  { background-color: var(--bg-void);     }
+[data-theme] .bg-\[\#0d0d0d\]  { background-color: var(--bg-void);     }
+[data-theme] .bg-\[\#111111\]  { background-color: var(--bg-base);     }
+[data-theme] .bg-\[\#181818\]  { background-color: var(--bg-surface);  }
+[data-theme] .bg-\[\#141414\]  { background-color: var(--bg-elevated); }
+[data-theme] .bg-\[\#1a1a1a\]  { background-color: var(--bg-elevated); }
+[data-theme] .bg-\[\#1e1e1e\]  { background-color: var(--bg-elevated); }
+[data-theme] .bg-\[\#222222\]  { background-color: var(--bg-elevated); }
+[data-theme] .bg-\[\#242424\]  { background-color: var(--bg-elevated); }
+[data-theme] .bg-\[\#252525\]  { background-color: var(--bg-subtle);   }
+[data-theme] .bg-\[\#2a2a2a\]  { background-color: var(--bg-subtle);   }
+[data-theme] .bg-\[\#3a3a3a\]  { background-color: var(--bg-subtle);   }
+[data-theme] .bg-\[\#444444\]  { background-color: var(--bg-subtle);   }
+
+/* ── Hover background overrides ──────────────────────────────────────────────── */
+
+[data-theme] .hover\:bg-\[\#1e1e1e\]:hover { background-color: var(--bg-elevated); }
+[data-theme] .hover\:bg-\[\#242424\]:hover  { background-color: var(--bg-elevated); }
+[data-theme] .hover\:bg-\[\#252525\]:hover  { background-color: var(--bg-subtle);   }
+[data-theme] .hover\:bg-\[\#2a2a2a\]:hover  { background-color: var(--bg-subtle);   }
+
+/* ── Slate header colours (modal header, action bar) ─────────────────────────── */
+
+[data-theme] .bg-slate-900   { background-color: var(--bg-header) !important;    }
+[data-theme] .bg-slate-800   { background-color: var(--bg-subheader) !important; }
+[data-theme] .bg-slate-700   { background-color: var(--bg-elevated) !important;  }
+
+/* ── Accent colour overrides ─────────────────────────────────────────────────── */
+
+[data-theme] .text-\[\#c9a84c\]               { color: var(--accent); }
+[data-theme] .hover\:text-\[\#c9a84c\]:hover  { color: var(--accent); }
+[data-theme] .hover\:text-\[\#dfc070\]:hover  { color: var(--accent-hover); }
+
+[data-theme] .bg-\[\#c9a84c\]                 { background-color: var(--accent); }
+[data-theme] .bg-\[\#dfc070\]                 { background-color: var(--accent-hover); }
+[data-theme] .hover\:bg-\[\#c9a84c\]:hover    { background-color: var(--accent); }
+[data-theme] .hover\:bg-\[\#dfc070\]:hover    { background-color: var(--accent-hover); }
+
+[data-theme] .border-\[\#c9a84c\]             { border-color: var(--accent); }
+[data-theme] .hover\:border-\[\#c9a84c\]:hover { border-color: var(--accent); }
+[data-theme] .ring-\[\#c9a84c\]               { --tw-ring-color: var(--accent); }
+
+[data-theme] .focus\:ring-\[\#c9a84c\]:focus   { --tw-ring-color: var(--accent); }
+[data-theme] .focus\:border-\[\#c9a84c\]:focus  { border-color: var(--accent); }
+
+/* ── Accent foreground (text ON accent-coloured buttons) ─────────────────────── */
+
+[data-theme] .text-\[\#0f0f0f\]  { color: var(--accent-text); }
+[data-theme] .text-\[\#0a0a0a\]  { color: var(--accent-text); }
+
+/* ── Border colour overrides ─────────────────────────────────────────────────── */
+
+[data-theme] .border-\[\#1a1a1a\]             { border-color: var(--border-faint);   }
+[data-theme] .border-\[\#1e1e1e\]             { border-color: var(--border-faint);   }
+[data-theme] .border-\[\#222222\]             { border-color: var(--border-faint);   }
+[data-theme] .border-\[\#2a2a2a\]             { border-color: var(--border-default); }
+[data-theme] .border-\[\#2d2d2d\]             { border-color: var(--border-default); }
+[data-theme] .border-\[\#2e2e2e\]             { border-color: var(--border-default); }
+[data-theme] .border-\[\#252525\]             { border-color: var(--border-default); }
+[data-theme] .border-\[\#333333\]             { border-color: var(--border-strong);  }
+[data-theme] .border-\[\#555555\]             { border-color: var(--text-dimmer);    }
+[data-theme] .hover\:border-\[\#555555\]:hover { border-color: var(--text-muted);    }
+
+/* ── Text colour overrides ──────────────────────────────────────────────────── */
+
+[data-theme] .text-\[\#e0e0e0\]  { color: var(--text-primary);   }
+[data-theme] .text-\[\#d0d0d0\]  { color: var(--text-secondary); }
+[data-theme] .hover\:text-\[\#d0d0d0\]:hover { color: var(--text-secondary); }
+[data-theme] .text-\[\#c0c0c0\]  { color: var(--text-secondary); }
+[data-theme] .text-\[\#b0b0b0\]  { color: var(--text-secondary); }
+[data-theme] .text-\[\#aaaaaa\]  { color: var(--text-muted);     }
+[data-theme] .hover\:text-\[\#aaaaaa\]:hover  { color: var(--text-muted); }
+[data-theme] .text-\[\#888888\]  { color: var(--text-muted);     }
+[data-theme] .text-\[\#666666\]  { color: var(--text-faint);     }
+[data-theme] .text-\[\#606060\]  { color: var(--text-faint);     }
+[data-theme] .text-\[\#555555\]  { color: var(--text-dimmer);    }
+[data-theme] .text-\[\#505050\]  { color: var(--text-dimmer);    }
+[data-theme] .text-\[\#484848\]  { color: var(--text-dimmer);    }
+[data-theme] .text-\[\#444444\]  { color: var(--text-dimmest);   }
+[data-theme] .text-\[\#3a3a3a\]  { color: var(--text-dimmest);   }
+[data-theme] .text-\[\#333333\]  { color: var(--text-dimmest);   }
+[data-theme] .text-\[\#2a2a2a\]  { color: var(--border-default); }
+
+/* ── Ring/border soft accents (transparent variants) ─────────────────────────── */
+
+[data-theme] .ring-\[\#444444\]  { --tw-ring-color: var(--border-strong); }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   UNIX SHELL LAYOUT — body padding when a shell overlay is active
+   GNOME: 32px top (top panel) + 76px bottom (dock + gap)
+   KDE:   48px bottom (taskbar)
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+[data-layout="gnome"] body {
+  padding-top:    32px !important;
+  padding-bottom: 76px !important;
+}
+
+[data-layout="kde"] body {
+  padding-bottom: 48px !important;
+}

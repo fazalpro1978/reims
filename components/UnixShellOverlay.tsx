@@ -105,7 +105,7 @@ function GnomeShell() {
             Activities
           </button>
           <span className="text-[12px] font-medium opacity-80" style={{ color: textPrimary }}>
-            RE-IMS
+            Vanguard REOS
           </span>
         </div>
 
@@ -174,8 +174,8 @@ function GnomeShell() {
         </DockIcon>
         {/* Divider */}
         <div className="w-px h-8 mx-1 self-center" style={{ background: 'rgba(255,255,255,0.15)' }} />
-        {/* RE-IMS app icon */}
-        <DockIcon label="RE-IMS" accent={accent}>
+        {/* Vanguard REOS app icon */}
+        <DockIcon label="Vanguard REOS" accent={accent}>
           <span className="text-[13px] font-bold" style={{ color: accent }}>RE</span>
         </DockIcon>
       </div>
@@ -222,7 +222,7 @@ function KdePlasma() {
       {/* Separator */}
       <div className="w-px h-6 mx-1" style={{ background: border }} />
 
-      {/* Task manager (RE-IMS active window) */}
+      {/* Task manager (Vanguard REOS active window) */}
       <button
         className="flex items-center gap-2 px-3 h-8 rounded-lg text-[12px] font-medium transition-all"
         style={{
@@ -233,7 +233,7 @@ function KdePlasma() {
         }}
       >
         <div className="w-3 h-3 rounded-sm shrink-0" style={{ background: accent }} />
-        <span className="truncate">RE-IMS — Units Inventory</span>
+        <span className="truncate">Vanguard REOS — Units Inventory</span>
       </button>
 
       {/* Spacer */}

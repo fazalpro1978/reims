@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Privé Group RE-IMS — Functional Test Report</title>
+<style>
+  /* ── Reset & base ─────────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --gold:   #c9a84c;
+    --green:  #22c55e;
+    --red:    #ef4444;
+    --blue:   #38bdf8;
+    --purple: #a78bfa;
+    --muted:  #6b7280;
+    --border: #e5e7eb;
+    --bg:     #ffffff;
+    --text:   #111827;
+    --subtle: #f9fafb;
+  }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-size: 11pt;
+    line-height: 1.6;
+    color: var(--text);
+    background: var(--bg);
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 32px 40px;
+  }
+
+  /* ── Cover page ───────────────────────────────────────────────────────── */
+  .cover {
+    text-align: center;
+    padding: 60px 0 48px;
+    border-bottom: 3px solid var(--gold);
+    margin-bottom: 40px;
+    page-break-after: always;
+  }
+  .cover .logo-line {
+    font-size: 9pt;
+    font-weight: 700;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 18px;
+  }
+  .cover h1 {
+    font-size: 26pt;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1.2;
+    margin-bottom: 10px;
+  }
+  .cover .sub {
+    font-size: 13pt;
+    color: var(--muted);
+    margin-bottom: 32px;
+  }
+  .cover .meta-grid {
+    display: inline-grid;
+    grid-template-columns: auto auto;
+    gap: 6px 28px;
+    text-align: left;
+    background: var(--subtle);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 28px;
+    margin-bottom: 24px;
+  }
+  .cover .meta-label { font-size: 8.5pt; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .cover .meta-value { font-size: 10pt; font-weight: 600; color: var(--text); }
+  .cover .result-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #f0fdf4;
+    border: 2px solid #bbf7d0;
+    border-radius: 99px;
+    padding: 10px 24px;
+    font-size: 14pt;
+    font-weight: 800;
+    color: #15803d;
+    margin-top: 8px;
+  }
+  .cover .result-badge .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--green); }
+
+  /* ── Section headings ─────────────────────────────────────────────────── */
+  .section-title {
+    font-size: 15pt;
+    font-weight: 800;
+    color: var(--text);
+    margin: 36px 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--gold);
+    page-break-after: avoid;
+  }
+  .section-title span { color: var(--gold); }
+
+  .sub-title {
+    font-size: 11pt;
+    font-weight: 700;
+    color: var(--text);
+    margin: 22px 0 10px;
+    padding-left: 10px;
+    border-left: 3px solid var(--gold);
+    page-break-after: avoid;
+  }
+
+  /* ── Summary cards ────────────────────────────────────────────────────── */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    background: var(--subtle);
+  }
+  .card .num {
+    font-size: 24pt;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .card .lbl { font-size: 8.5pt; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .card.green .num { color: #16a34a; }
+  .card.gold  .num { color: var(--gold); }
+  .card.blue  .num { color: #0284c7; }
+  .card.red   .num { color: var(--red); }
+
+  /* ── Suite block ──────────────────────────────────────────────────────── */
+  .suite {
+    margin-bottom: 22px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    page-break-inside: avoid;
+  }
+  .suite-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: var(--subtle);
+    border-bottom: 1px solid var(--border);
+  }
+  .suite-header .suite-name {
+    font-size: 9.5pt;
+    font-weight: 700;
+    font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+    color: var(--text);
+  }
+  .suite-header .pass-count {
+    font-size: 8.5pt;
+    font-weight: 700;
+    color: #16a34a;
+    background: #dcfce7;
+    border: 1px solid #bbf7d0;
+    border-radius: 99px;
+    padding: 2px 10px;
+  }
+
+  .group { padding: 0 16px; }
+  .group-label {
+    font-size: 8pt;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 10px 0 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+  }
+  .test-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 9.5pt;
+  }
+  .test-row:last-child { border-bottom: none; }
+  .tick {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #dcfce7;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .tick svg { width: 8px; height: 8px; stroke: #16a34a; stroke-width: 3; fill: none; }
+  .test-name { color: var(--text); flex: 1; }
+  .test-time { font-size: 8pt; color: var(--muted); font-family: monospace; min-width: 40px; text-align: right; }
+
+  /* ── Manual test checklist ────────────────────────────────────────────── */
+  .checklist-section { page-break-before: always; }
+
+  .check-group {
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    page-break-inside: avoid;
+  }
+  .check-group-header {
+    padding: 9px 16px;
+    background: var(--subtle);
+    border-bottom: 1px solid var(--border);
+    font-size: 9pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+  .check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 7px 16px;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 9.5pt;
+    line-height: 1.5;
+  }
+  .check-item:last-child { border-bottom: none; }
+  .checkbox {
+    width: 14px; height: 14px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 3px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .check-text { color: var(--text); }
+  .tag {
+    display: inline-block;
+    font-size: 7.5pt;
+    font-weight: 700;
+    border-radius: 4px;
+    padding: 1px 6px;
+    margin-left: 6px;
+    vertical-align: middle;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .tag-security { background: #fef3c7; color: #b45309; }
+  .tag-e2e     { background: #ede9fe; color: #6d28d9; }
+  .tag-state   { background: #e0f2fe; color: #0369a1; }
+  .tag-ux      { background: #fce7f3; color: #be185d; }
+  .tag-db      { background: #dcfce7; color: #15803d; }
+
+  /* ── Footer ───────────────────────────────────────────────────────────── */
+  .footer {
+    margin-top: 48px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 8.5pt;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* ── Print rules ──────────────────────────────────────────────────────── */
+  @media print {
+    body { padding: 20px 28px; font-size: 10pt; }
+    .cover { padding: 40px 0 36px; }
+    .cover h1 { font-size: 22pt; }
+    .section-title { font-size: 13pt; }
+    a { color: inherit; text-decoration: none; }
+    .suite, .check-group { page-break-inside: avoid; }
+    .checklist-section { page-break-before: always; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!--  COVER PAGE                                                             -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="logo-line">Privé Group Real Estate</div>
+  <h1>RE-IMS Functional<br>Test Report</h1>
+  <div class="sub">Automated Test Suite &amp; Manual UI Checklist</div>
+
+  <div class="meta-grid">
+    <span class="meta-label">Project</span>
+    <span class="meta-value">prive-reims (Next.js 14 · Supabase)</span>
+    <span class="meta-label">Date</span>
+    <span class="meta-value">09 June 2026</span>
+    <span class="meta-label">Environment</span>
+    <span class="meta-value">Node 20 · Jest 29 · ts-jest 29</span>
+    <span class="meta-label">Deployment</span>
+    <span class="meta-value">reims-sigma.vercel.app</span>
+    <span class="meta-label">Test runner</span>
+    <span class="meta-value">npm test (jest --verbose)</span>
+    <span class="meta-label">Elapsed</span>
+    <span class="meta-value">0.831 s</span>
+  </div>
+
+  <div class="result-badge">
+    <div class="dot"></div>
+    72 / 72 TESTS PASSED — ALL SUITES GREEN
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!--  AUTOMATED RESULTS                                                      -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="section-title">Part 1 — <span>Automated Test Results</span></div>
+
+<div class="summary-grid">
+  <div class="card green"><div class="num">72</div><div class="lbl">Tests passed</div></div>
+  <div class="card red"><div class="num">0</div><div class="lbl">Tests failed</div></div>
+  <div class="card gold"><div class="num">5</div><div class="lbl">Test suites</div></div>
+  <div class="card blue"><div class="num">0.83s</div><div class="lbl">Run time</div></div>
+</div>
+
+<!-- ── Suite 1: legalDuration ─────────────────────────────────────────── -->
+<div class="suite">
+  <div class="suite-header">
+    <span class="suite-name">__tests__/lib/legalDuration.test.ts</span>
+    <span class="pass-count">✓ 29 passed</span>
+  </div>
+  <div class="group">
+    <div class="group-label">parseLegalDuration — 11 tests</div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">parses "1 Year"</span><span class="test-time">2 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">parses "2 Years"</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">parses "6 Months"</span><span class="test-time">2 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">parses "3 Weeks"</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">parses "30 Days"</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">is case-insensitive ("12 MONTHS")</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">handles singular "day"</span><span class="test-time">1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">handles decimal values ("1.5 years")</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">returns default {1, Years} for empty string</span><span class="test-time">3 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">returns default {1, Years} for unrecognised string</span><span class="test-time">1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">trims leading/trailing whitespace</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="group-label">calcEndDate — 7 tests</div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">returns empty string when start is empty</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">adds 1 year correctly</span><span class="test-time">1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">adds 6 months correctly</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">adds 2 weeks (14 days)</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">adds 30 days</span><span class="test-time">2 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">handles year boundary (Dec → Jan)</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">handles leap year correctly (Feb 28 + 1 day = Feb 29)</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="group-label">calcDurationFromDates — 8 tests</div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">returns {1, Years} when start is empty</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">returns {1, Years} when end is empty</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">returns {1, Days} when end is before start</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">detects exact 1-year span</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">detects exact 2-year span (no leap year)</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">detects exact month span (30 days)</span><span class="test-time">2 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">detects exact week span (14 days)</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">returns days for non-divisible span (15 days)</span><span class="test-time">1 ms</span></div>
+  </div>
+</div>
+
+<!-- ── Suite 2: shareUtils ────────────────────────────────────────────── -->
+<div class="suite">
+  <div class="suite-header">
+    <span class="suite-name">__tests__/lib/shareUtils.test.ts</span>
+    <span class="pass-count">✓ 18 passed</span>
+  </div>
+  <div class="group">
+    <div class="group-label">formatQAR — 4 tests</div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">formats zero</span><span class="test-time">1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">formats thousands with comma separator</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">formats large rent value</span><span class="test-time">1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">formats decimal value (begins with "QAR")</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="group-label">generateShareText — 7 tests</div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">includes property name</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">includes unit number</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">includes zone and zone code</span><span class="test-time">1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">includes rent amount</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">includes MOCI code</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">includes status without underscore (Under Maintenance)</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">is a single line (no newlines)</span><span class="test-time">1 ms</span></div>
+    <div class="group-label">generateEmailBody — 6 tests</div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">includes header line (Property Listing Enquiry)</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">includes property details (name, unit no, config)</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">includes rent formatted with "/ month"</span><span class="test-time">1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">includes company contact details (+974 7707 5959)</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">includes licence and CR numbers (773 / 187753)</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">is a multi-line string (&gt; 5 lines)</span><span class="test-time">&lt;1 ms</span></div>
+  </div>
+</div>
+
+<!-- ── Suite 3: auditLog ──────────────────────────────────────────────── -->
+<div class="suite">
+  <div class="suite-header">
+    <span class="suite-name">__tests__/lib/auditLog.test.ts</span>
+    <span class="pass-count">✓ 8 passed</span>
+  </div>
+  <div class="group">
+    <div class="group-label">logEvent — Supabase client mocked — 8 tests</div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">does nothing when unitId is empty</span><span class="test-time">1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">inserts a row with the correct shape (unit_id, action_type, operator, tab_context)</span><span class="test-time">1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">sets tab_context to null when tab is omitted</span><span class="test-time">1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">stores field, old/new values when provided</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">stores payload when provided</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">defaults payload to {} when omitted</span><span class="test-time">1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">is silent when Supabase insert throws (never blocks user action)</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">covers all 10 AuditAction values without throwing</span><span class="test-time">1 ms</span></div>
+  </div>
+</div>
+
+<!-- ── Suite 4: upload API ────────────────────────────────────────────── -->
+<div class="suite">
+  <div class="suite-header">
+    <span class="suite-name">__tests__/api/upload.test.ts</span>
+    <span class="pass-count">✓ 12 passed</span>
+  </div>
+  <div class="group">
+    <div class="group-label">POST /api/upload — parameter validation — 3 tests</div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">returns 400 when both file and path are missing</span><span class="test-time">8 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">returns 400 when file is missing but path is present</span><span class="test-time">2 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">returns 400 when path is missing but file is present</span><span class="test-time">5 ms</span></div>
+    <div class="group-label">POST /api/upload — file type validation — 8 tests</div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">accepts application/pdf → 200</span><span class="test-time">2 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">accepts image/jpeg → 200</span><span class="test-time">1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">accepts image/png → 200</span><span class="test-time">2 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">accepts image/webp → 200</span><span class="test-time">1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">rejects application/exe → 400</span><span class="test-time">1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">rejects text/plain → 400</span><span class="test-time">1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">rejects application/zip → 400</span><span class="test-time">1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">rejects application/javascript → 400</span><span class="test-time">1 ms</span></div>
+    <div class="group-label">POST /api/upload — file size &amp; Supabase error — 2 tests</div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">accepts file exactly at 50 MB limit → 200</span><span class="test-time">174 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">rejects file 1 byte over 50 MB → 400</span><span class="test-time">188 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">returns 500 when Supabase storage returns an error</span><span class="test-time">2 ms</span></div>
+  </div>
+</div>
+
+<!-- ── Suite 5: signed-url API ────────────────────────────────────────── -->
+<div class="suite">
+  <div class="suite-header">
+    <span class="suite-name">__tests__/api/signed-url.test.ts</span>
+    <span class="pass-count">✓ 9 passed</span>
+  </div>
+  <div class="group">
+    <div class="group-label">GET /api/signed-url — parameter &amp; security — 4 tests</div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">returns 400 when path param is missing</span><span class="test-time">2 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">rejects path with ".." (path traversal attack)</span><span class="test-time">1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">rejects absolute path starting with "/"</span><span class="test-time">1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">rejects embedded traversal (units/abc/../../../etc/passwd)</span><span class="test-time">&lt;1 ms</span></div>
+    <div class="group-label">GET /api/signed-url — success &amp; error — 3 tests</div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">returns 200 with signedUrl for a valid path</span><span class="test-time">1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">calls createSignedUrl with 3 600-second (1-hour) expiry</span><span class="test-time">1 ms</span></div>
+    <div class="test-row"><div class="tick"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div><span class="test-name">returns 500 when Supabase returns an error</span><span class="test-time">&lt;1 ms</span></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!--  MANUAL UI TEST CHECKLIST                                               -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="checklist-section">
+<div class="section-title">Part 2 — <span>Manual UI Test Checklist</span></div>
+<p style="font-size:9.5pt; color:#6b7280; margin-bottom:20px;">
+  These tests require a live browser session against the deployed app (reims-sigma.vercel.app) or local dev server.
+  Tick each box as you verify. Tags indicate the primary concern for each test.
+</p>
+
+<!-- Authentication -->
+<div class="check-group">
+  <div class="check-group-header">Authentication &amp; Access Control</div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Enter admin PIN <strong>PRIVE2024</strong> → all fields unlock for editing <span class="tag tag-security">Security</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Lock again (or navigate away) → fields return to read-only mode <span class="tag tag-security">Security</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Entering a wrong PIN shows an error and does not unlock <span class="tag tag-security">Security</span></span></div>
+</div>
+
+<!-- Inventory Table -->
+<div class="check-group">
+  <div class="check-group-header">Inventory Table — Search, Filter &amp; Pagination</div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Search box filters rows in real-time as you type (property, unit no, zone) <span class="tag tag-ux">UX</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Status filter dropdown correctly shows / hides rows by status <span class="tag tag-state">State</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Furnishing filter works in combination with status filter (both active simultaneously) <span class="tag tag-state">State</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Pagination: Next/Prev buttons work; page number badge updates correctly <span class="tag tag-ux">UX</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Context menu (right-click or ⋮ button) appears near the row without clipping the viewport edge <span class="tag tag-ux">UX</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">"Duplicate" from context menu: creates a <strong>-COPY</strong> row, table refreshes, success toast appears <span class="tag tag-db">DB</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Toast auto-dismisses after ~4–5 seconds <span class="tag tag-ux">UX</span></span></div>
+</div>
+
+<!-- Modal General -->
+<div class="check-group">
+  <div class="check-group-header">Modal — Open / Close / Tab Navigation</div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Clicking a row opens the slide-out modal with correct unit data pre-populated <span class="tag tag-db">DB</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">A <strong>RECORD_VIEW</strong> event appears in the Operational System Log after opening the modal <span class="tag tag-db">DB</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Close button (×) closes the modal; clicking the backdrop also closes it <span class="tag tag-ux">UX</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Switching tabs logs a <strong>TAB_NAVIGATE</strong> event in the System Log with the correct tab name <span class="tag tag-db">DB</span></span></div>
+</div>
+
+<!-- Property Tab -->
+<div class="check-group">
+  <div class="check-group-header">Property Tab</div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Realtor dropdown selection auto-fills the MOCI code field <span class="tag tag-state">State</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Zone dropdown selection auto-fills the zone code field <span class="tag tag-state">State</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Status dropdown change updates the status badge colour on save <span class="tag tag-state">State</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Amenities toggle buttons add/remove items; amenity count badge updates live <span class="tag tag-state">State</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Save → close → reopen: all Property fields match what was saved <span class="tag tag-db">DB</span></span></div>
+</div>
+
+<!-- Financials Tab -->
+<div class="check-group">
+  <div class="check-group-header">Financials Tab</div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Rent field updates the <strong>QAR x,xxx</strong> formatted display live <span class="tag tag-state">State</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Agency fee toggle shows / hides the fee amount and "paid by" fields <span class="tag tag-state">State</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Save → reload: all financial fields persist correctly <span class="tag tag-db">DB</span></span></div>
+</div>
+
+<!-- Commission & Legal Tab -->
+<div class="check-group">
+  <div class="check-group-header">Commission &amp; Legal Tab — Duration Auto-calc</div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Change start date → end date auto-calculates (start + duration) <span class="tag tag-state">State</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Change duration value / unit → end date auto-recalculates <span class="tag tag-state">State</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Change end date → duration auto-recalculates back to match <span class="tag tag-state">State</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Client type toggle <strong>Individual ↔ Company</strong>: Authorized Signatory field appears / disappears correctly <span class="tag tag-state">State</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Property registration status dropdown: "Registration by" field visible only for relevant statuses <span class="tag tag-state">State</span></span></div>
+</div>
+
+<!-- Commission & Legal Tab — Documents -->
+<div class="check-group">
+  <div class="check-group-header">Commission &amp; Legal Tab — Document Upload &amp; Link (CommDocRow)</div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text"><strong>QID row</strong>: Upload a PDF → spinner → green "done" card with filename displayed <span class="tag tag-db">DB</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text"><strong>QID row</strong>: Close and reopen modal → file still shows in green done state (async prop sync) <span class="tag tag-db">DB</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text"><strong>QID row</strong>: Click <strong>View</strong> button → signed URL opens document in new tab <span class="tag tag-security">Security</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text"><strong>QID row</strong>: Click × remove → card resets to idle "Upload file" state <span class="tag tag-state">State</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text"><strong>Passport row</strong>: Paste external URL → click <strong>Save Link</strong> → blue saved state with clickable link <span class="tag tag-db">DB</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text"><strong>Passport row</strong>: Remove link → resets to URL input state <span class="tag tag-state">State</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text"><strong>Other Documents row</strong>: Label input accepts custom text (e.g. "NOC Letter"); label persists on save <span class="tag tag-db">DB</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Upload file AND save URL on the same row → card turns green "Verified"; both sections act independently <span class="tag tag-state">State</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Commission Contract and Reg Certificate rows: same upload/URL/remove flows work as above <span class="tag tag-db">DB</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Commission &amp; Legal documents do <strong>NOT</strong> appear in the public PDF report (privacy boundary) <span class="tag tag-security">Security</span></span></div>
+</div>
+
+<!-- Operational Tab -->
+<div class="check-group">
+  <div class="check-group-header">Operational Tab</div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Inspection Report / Inventory Checklist / Handover Certificate upload rows: full upload, view, remove cycle works <span class="tag tag-db">DB</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Editing a text field then blurring triggers a <strong>FIELD_UPDATE</strong> event in the System Log <span class="tag tag-db">DB</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Save button triggers a <strong>RECORD_SAVE</strong> event in the System Log with payload <span class="tag tag-db">DB</span></span></div>
+</div>
+
+<!-- System Log -->
+<div class="check-group">
+  <div class="check-group-header">Operational Tab — System Log (Audit Trail)</div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">System Log shows events from all 4 tabs (RECORD_VIEW, TAB_NAVIGATE, FILE_UPLOAD, RECORD_SAVE, etc.) <span class="tag tag-db">DB</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">All 10 action type badges render with correct colours (RECORD_VIEW = purple, FILE_UPLOAD = blue, STATUS_CHANGE = orange, FIELD_UPDATE = teal, etc.) <span class="tag tag-ux">UX</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Each log entry shows: timestamp, operator ("Administrator"), tab context, and payload details <span class="tag tag-db">DB</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">"Refresh" button re-loads events from DB (no stale cache) <span class="tag tag-state">State</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Entry count label reads "immutable events · complete record history" (no delete/clear button present) <span class="tag tag-security">Security</span></span></div>
+</div>
+
+<!-- PDF Report -->
+<div class="check-group">
+  <div class="check-group-header">PDF Report (/report/[unitUuid])</div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Report page opens and all property metadata renders correctly (name, unit, zone, rent, type, config) <span class="tag tag-db">DB</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Print / Download button triggers browser print dialog <span class="tag tag-ux">UX</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">No commission / legal document links visible in the report output <span class="tag tag-security">Security</span></span></div>
+</div>
+
+<!-- Sharing -->
+<div class="check-group">
+  <div class="check-group-header">Sharing — WhatsApp, Email, Clipboard</div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">WhatsApp button opens <code>wa.me</code> with correct unit details URL-encoded in the message <span class="tag tag-e2e">E2E</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Email button opens <code>mailto:</code> with correct subject line and pre-filled body <span class="tag tag-e2e">E2E</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Copy button copies share text to clipboard; confirmation toast appears <span class="tag tag-ux">UX</span></span></div>
+</div>
+
+<!-- Theme -->
+<div class="check-group">
+  <div class="check-group-header">Theme Switcher</div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Opening the theme panel and selecting a different theme applies CSS variable changes immediately <span class="tag tag-ux">UX</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Theme choice is persisted in <code>localStorage</code>; page reload retains the selected theme <span class="tag tag-state">State</span></span></div>
+</div>
+
+<!-- Navigation -->
+<div class="check-group">
+  <div class="check-group-header">Navigation &amp; Responsive Layout</div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Side nav opens / closes via hamburger icon; <strong>Esc</strong> key also closes it <span class="tag tag-ux">UX</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Body scroll locks when side nav is open <span class="tag tag-ux">UX</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Active route is highlighted in the nav <span class="tag tag-ux">UX</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Mobile viewport (&lt; 640 px): floating action button visible, hamburger in header <span class="tag tag-ux">UX</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">Desktop viewport: full layout, correct spacing, no overflow clipping <span class="tag tag-ux">UX</span></span></div>
+</div>
+
+<!-- Error States -->
+<div class="check-group">
+  <div class="check-group-header">Error &amp; Network Failure States</div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">DevTools → Offline → attempt upload → shows "Network error — please retry" error state <span class="tag tag-e2e">E2E</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">"Retry" button in error state returns the row to idle <span class="tag tag-state">State</span></span></div>
+  <div class="check-item"><div class="checkbox"></div><span class="check-text">If Supabase is unreachable, inventory table shows a DB error banner (not a blank screen) <span class="tag tag-e2e">E2E</span></span></div>
+</div>
+
+</div><!-- /checklist-section -->
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!--  FOOTER                                                                 -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="footer">
+  <span>Privé Group Real Estate — RE-IMS Test Report · 09 June 2026</span>
+  <span>Generated by Claude Code (claude-sonnet-4-6)</span>
+</div>
+
+</body>
+</html>

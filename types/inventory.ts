@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // SECTION 1 — DOMAIN TYPES & DATA INTERFACES
-// Privé Group RE-IMS · Qatar Property Portfolio
+// Privé Group Vanguard REOS · Qatar Property Portfolio
 // ─────────────────────────────────────────────────────────────────────────────
 
 export enum Status {

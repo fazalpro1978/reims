@@ -2,7 +2,7 @@
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SECTION 3 — MAIN CORE UNITS INVENTORY PANEL
-// Privé Group RE-IMS · Admin Dashboard
+// Privé Group Vanguard REOS · Admin Dashboard
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, {
@@ -694,7 +694,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
               style={{ height: '36px', width: 'auto', flexShrink: 0 }}
             />
             <p className="text-[#888888] text-[11px] leading-tight hidden sm:block tracking-wide select-none">
-              Real Estate Information Management System
+              Vanguard REOS
             </p>
           </div>
 
@@ -1152,7 +1152,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
 
         {/* Footer note */}
         <p className="text-center text-xs text-[#666666] pb-4">
-          Privé Group RE-IMS · Qatar Property Portfolio · {units.length} active listings
+          Privé Group · Vanguard REOS · Qatar Property Portfolio · {units.length} active listings
         </p>
       </main>
 

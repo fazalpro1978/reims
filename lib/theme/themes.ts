@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// RE-IMS Theme Engine · Privé Group Real Estate
+// Vanguard REOS Theme Engine · Privé Group Real Estate
 // Eight hot-swappable branding themes: 5 Corporate + 3 Motorsport
 // ─────────────────────────────────────────────────────────────────────────────
 

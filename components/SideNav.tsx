@@ -1,7 +1,7 @@
 'use client';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SIDE NAVIGATION PANEL — Privé Group RE-IMS
+// SIDE NAVIGATION PANEL — Privé Group Vanguard REOS
 // Slide-out drawer · overlay on all screen sizes
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -233,7 +233,7 @@ export default function SideNav({ open, onClose }: SideNavProps) {
               style={{ height: '38px', width: 'auto', flexShrink: 0 }}
             />
             <p className="text-[#888888] text-[10px] leading-tight tracking-widest uppercase select-none">
-              RE-IMS · v1.0
+              Vanguard REOS · v1.0
             </p>
           </div>
           <button

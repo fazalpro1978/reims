@@ -102,7 +102,7 @@ async function seedEnv(env: typeof ENVIRONMENTS[0]) {
 }
 
 async function main() {
-  console.log('RE-IMS Seed Script');
+  console.log('Vanguard REOS Seed Script');
   console.log('==================');
   for (const env of ENVIRONMENTS) {
     await seedEnv(env);
