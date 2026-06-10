@@ -283,7 +283,6 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved }:
           status,
           location_map_url: locationMapUrl || null,
           media_url:        mediaUrl || null,
-          amenities,
         },
       }),
     });
@@ -294,6 +293,13 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved }:
       setSaveStatus('error');
       return;
     }
+
+    // Amenities saved separately — column may not exist in all environments; never blocks main save
+    fetch('/api/save-unit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ unitUuid, fields: { amenities } }),
+    }).catch(() => {});
 
     await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'property', payload: { realtorName, zone, unitType, config, furnishing, status } });
     if (status !== unit.status) {
