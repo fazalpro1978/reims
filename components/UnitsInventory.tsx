@@ -25,6 +25,7 @@ import {
   ContextMenuPosition,
 } from '../types/inventory';
 import { supabase } from '../lib/supabase/client';
+import { formatQAR, generateShareText, generateEmailBody } from '../lib/shareUtils';
 import UnitDetailsModal from './UnitDetailsModal';
 import { ThemePanel } from './ThemeSwitcher';
 
@@ -52,37 +53,6 @@ const STATUS_BADGE: Record<Status, { label: string; classes: string }> = {
 };
 
 // ── Utility ────────────────────────────────────────────────────────────────
-
-const formatQAR = (n: number) => `QAR ${n.toLocaleString('en-US')}`;
-
-function generateShareText(unit: UnitListing): string {
-  return (
-    `Property: ${unit.property}, Unit: ${unit.unitNo}, District: ${unit.zone} (Zone ${unit.zoneCode}), ` +
-    `Type: ${unit.type} · ${unit.config}, Furnishing: ${unit.furnishing}, ` +
-    `Rent: QAR ${unit.rent.toLocaleString()}/month, Status: ${unit.status.replace('_', ' ')}, ` +
-    `Realtor (MOCI): ${unit.realtorMOCI}`
-  );
-}
-
-function generateEmailBody(unit: UnitListing): string {
-  return [
-    `Property Listing Enquiry — Privé Group Real Estate`,
-    ``,
-    `Property:   ${unit.property}`,
-    `Unit No:    ${unit.unitNo}`,
-    `Type:       ${unit.type} — ${unit.config}`,
-    `District:   ${unit.zone} (Zone ${unit.zoneCode})`,
-    `Furnishing: ${unit.furnishing}`,
-    `Status:     ${unit.status.replace('_', ' ')}`,
-    `Rent:       QAR ${unit.rent.toLocaleString()} / month`,
-    ``,
-    `─────────────────────────────────────`,
-    `Privé Group Real Estate`,
-    `Tel / WhatsApp: +974 7707 5959`,
-    `Email: admin@privegroupre.com`,
-    `Brokerage Licence No 773 | CR No 187753`,
-  ].join('\n');
-}
 
 const KITCHEN_BADGE: Record<KitchenType, string> = {
   Open:   'border border-emerald-600/40 text-emerald-400 bg-emerald-500/10',
@@ -589,39 +559,28 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
   }, []);
 
   const handleDuplicate = useCallback(async (unit: UnitListing) => {
-    if (!unit.uuid) return;
-    // Fetch the full DB row so we copy every column, not just mapped fields
-    const { data: row, error: fetchErr } = await supabase
-      .from('units')
-      .select('*')
-      .eq('id', unit.uuid)
-      .single();
-    if (fetchErr || !row) {
-      setToast({ type: 'error', msg: 'Could not read unit data for duplication.' });
+    if (!unit.uuid) {
+      setToast({ type: 'error', msg: 'Cannot duplicate: unit has no database ID.' });
       setTimeout(() => setToast(null), 4000);
       return;
     }
-    // Build the duplicate — strip DB-managed identity columns, reset lease-specific fields
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = row;
-    const newCode = `${row.unit_code}-COPY`;
-    const newRow = {
-      ...rest,
-      unit_code:            newCode,
-      status:               'Available',
-      moci_contract_status: 'DRAFT',
-      moci_contract_number: null,
-      contract_start_date:  null,
-      contract_end_date:    null,
-    };
-    const { error: insertErr } = await supabase.from('units').insert(newRow);
-    if (insertErr) {
-      setToast({ type: 'error', msg: `Duplicate failed: ${insertErr.message}` });
+    setToast({ type: 'success', msg: 'Duplicating…' });
+
+    const res = await fetch('/api/duplicate-unit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ unitUuid: unit.uuid }),
+    });
+    const body = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      setToast({ type: 'error', msg: `Duplicate failed: ${body.error ?? `HTTP ${res.status}`}` });
       setTimeout(() => setToast(null), 5000);
       return;
     }
-    setToast({ type: 'success', msg: `Duplicated as ${newCode} — edit to update details.` });
-    setTimeout(() => setToast(null), 4000);
+
+    setToast({ type: 'success', msg: `Duplicated as ${body.newCode} — edit to update details.` });
+    setTimeout(() => setToast(null), 5000);
     setRefreshKey(k => k + 1);
   }, []);
 

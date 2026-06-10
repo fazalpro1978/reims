@@ -9,6 +9,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { UnitListing, Status, Furnishing, KitchenType, UnitType } from '../types/inventory';
 import { supabase } from '../lib/supabase/client';
 import { logEvent } from '../lib/auditLog';
+import { DurationUnit, parseLegalDuration, calcEndDate, calcDurationFromDates } from '../lib/legalDuration';
 import DocUploadRow from './DocUploadRow';
 import CommDocRow, { DocEntry } from './CommDocRow';
 
@@ -17,8 +18,8 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 function SaveBar({ status, onSave, errorMsg }: { status: SaveStatus; onSave: () => void; errorMsg?: string }) {
   return (
     <div className="sticky top-0 z-20 flex items-center justify-between gap-3 py-2.5 px-4 -mx-6 bg-[#111111] border-b border-[#2a2a2a] mb-1">
-      <span className="text-[10px] font-bold text-[#444444] uppercase tracking-widest">
-        {status === 'saving' ? 'Saving…' : status === 'saved' ? '✓ Saved to database' : status === 'error' ? errorMsg ?? 'Save failed' : 'Unsaved changes'}
+      <span className={`text-[10px] font-bold uppercase tracking-widest ${status === 'error' ? 'text-red-400' : status === 'saved' ? 'text-emerald-400' : 'text-[#666666]'}`}>
+        {status === 'saving' ? 'Saving…' : status === 'saved' ? '✓ Saved to database' : status === 'error' ? `✕ ${errorMsg ?? 'Save failed'}` : 'Unsaved changes'}
       </span>
       <button
         onClick={onSave}
@@ -190,11 +191,12 @@ function LockIcon() {
   );
 }
 
-function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin }: {
+function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved }: {
   unit: UnitListing;
   unitUuid: string;
   isAdmin: boolean;
   onRequestAdmin: () => void;
+  onStatusSaved?: (newStatus: Status) => void;
 }) {
   const [realtorName, setRealtorName] = useState(unit.realtorName);
   const [realtorMoci, setRealtorMoci] = useState(unit.realtorMOCI);
@@ -258,27 +260,46 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin }: {
   const handleSave = async () => {
     if (!unitUuid) return;
     setSaveStatus('saving');
-    const { error } = await supabase.from('units').update({
-      realtor_name: realtorName,
-      realtor_moci: realtorMoci,
-      property:     propertyName,
-      unit_no:      unitNo,
-      zone,
-      zone_code:        zoneCode,
-      type:             unitType,
-      config,
-      parking,
-      kitchen,
-      furnishing,
-      status,
-      location_map_url: locationMapUrl || null,
-      media_url:        mediaUrl || null,
-    }).eq('id', unitUuid);
-    if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
-    // Amenities saved separately — keeps main save from failing if the column hasn't been added yet
-    await supabase.from('units').update({ amenities }).eq('id', unitUuid);
+    setSaveError('');
+
+    // Use service-role API route to bypass Supabase RLS on the units table
+    const res = await fetch('/api/save-unit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        unitUuid,
+        fields: {
+          realtor_name: realtorName,
+          realtor_moci: realtorMoci,
+          property:     propertyName,
+          unit_no:      unitNo,
+          zone,
+          zone_code:        zoneCode,
+          type:             unitType,
+          config,
+          parking,
+          kitchen,
+          furnishing,
+          status,
+          location_map_url: locationMapUrl || null,
+          media_url:        mediaUrl || null,
+          amenities,
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setSaveError(body.error ?? `HTTP ${res.status}`);
+      setSaveStatus('error');
+      return;
+    }
+
     await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'property', payload: { realtorName, zone, unitType, config, furnishing, status } });
-    if (status !== unit.status) await logEvent({ unitId: unitUuid, action: 'STATUS_CHANGE', tab: 'property', field: 'Status', oldValue: unit.status, newValue: status });
+    if (status !== unit.status) {
+      await logEvent({ unitId: unitUuid, action: 'STATUS_CHANGE', tab: 'property', field: 'Status', oldValue: unit.status, newValue: status });
+      onStatusSaved?.(status);
+    }
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus('idle'), 2500);
   };
@@ -684,12 +705,21 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
 
   const handleSave = async () => {
     setSaveStatus('saving');
-    const prev = { rent: unit.rent, agency_fee: unit.agencyFee, service_charges: unit.serviceCharges };
-    const { error } = await supabase
-      .from('units')
-      .update({ rent: monthlyRent, agency_fee: contractCharges, service_charges: additionalCharges })
-      .eq('id', unitUuid);
-    if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
+    setSaveError('');
+    const res = await fetch('/api/save-unit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        unitUuid,
+        fields: { rent: monthlyRent, agency_fee: contractCharges, service_charges: additionalCharges },
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setSaveError(body.error ?? `HTTP ${res.status}`);
+      setSaveStatus('error');
+      return;
+    }
     await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'financials', payload: { monthlyRent, contractCharges, additionalCharges } });
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus('idle'), 2500);
@@ -1048,40 +1078,7 @@ function ClientInfoSection({ unitUuid }: { unitUuid: string }) {
 
 // ── Legal Duration & Conditions ────────────────────────────────────────────
 
-type DurationUnit = 'Days' | 'Weeks' | 'Months' | 'Years';
-
-function parseLegalDuration(s: string): { value: number; unit: DurationUnit } {
-  const m = s.trim().match(/^(\d+(?:\.\d+)?)\s*(day|days|week|weeks|month|months|year|years)/i);
-  if (!m) return { value: 1, unit: 'Years' };
-  const n = Number(m[1]);
-  const u = m[2].toLowerCase();
-  if (u.startsWith('day'))   return { value: n, unit: 'Days' };
-  if (u.startsWith('week'))  return { value: n, unit: 'Weeks' };
-  if (u.startsWith('month')) return { value: n, unit: 'Months' };
-  return { value: n, unit: 'Years' };
-}
-
 const toDateValue = (iso: string) => (iso ? iso.split('T')[0] : '');
-
-function calcEndDate(start: string, value: number, unit: DurationUnit): string {
-  if (!start) return '';
-  const d = new Date(start);
-  if (unit === 'Days')   d.setDate(d.getDate() + value);
-  if (unit === 'Weeks')  d.setDate(d.getDate() + value * 7);
-  if (unit === 'Months') d.setMonth(d.getMonth() + value);
-  if (unit === 'Years')  d.setFullYear(d.getFullYear() + value);
-  return d.toISOString().split('T')[0];
-}
-
-function calcDurationFromDates(start: string, end: string): { value: number; unit: DurationUnit } {
-  if (!start || !end) return { value: 1, unit: 'Years' };
-  const diffDays = Math.round((new Date(end).getTime() - new Date(start).getTime()) / 86400000);
-  if (diffDays <= 0) return { value: 1, unit: 'Days' };
-  if (diffDays % 365 === 0) return { value: diffDays / 365, unit: 'Years' };
-  if (diffDays % 30  === 0) return { value: diffDays / 30,  unit: 'Months' };
-  if (diffDays % 7   === 0) return { value: diffDays / 7,   unit: 'Weeks' };
-  return { value: diffDays, unit: 'Days' };
-}
 
 function LegalDurationSection({ unit, unitUuid }: { unit: UnitListing; unitUuid: string }) {
   const parsed = parseLegalDuration(unit.legalDuration);
@@ -1156,14 +1153,27 @@ function LegalDurationSection({ unit, unitUuid }: { unit: UnitListing; unitUuid:
 
   const handleSave = async () => {
     setSaveStatus('saving');
+    setSaveError('');
     const legalDuration = `${durationValue} ${durationUnit}`;
-    const { error } = await supabase.from('units').update({
-      listed_date:         listedDate || null,
-      contract_start_date: contractStartDate || null,
-      contract_end_date:   contractEndDate || null,
-      legal_duration:      legalDuration,
-    }).eq('id', unitUuid);
-    if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
+    const res = await fetch('/api/save-unit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        unitUuid,
+        fields: {
+          listed_date:         listedDate || null,
+          contract_start_date: contractStartDate || null,
+          contract_end_date:   contractEndDate || null,
+          legal_duration:      legalDuration,
+        },
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setSaveError(body.error ?? `HTTP ${res.status}`);
+      setSaveStatus('error');
+      return;
+    }
     await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'commission', field: 'Legal Duration', payload: { listedDate, contractStartDate, contractEndDate, legalDuration } });
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus('idle'), 2500);
@@ -1337,26 +1347,38 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
 
   const handleSave = async () => {
     setSaveStatus('saving');
-    const [{ error }, { error: unitError }] = await Promise.all([
-      supabase.from('unit_commissions').upsert({
-        unit_id:               unitUuid,
-        agency_fee_applicable: agencyFeeApplicable,
-        agency_fee_amount:     agencyFeeApplicable ? agencyFeeAmount : null,
-        paid_by:               agencyFeeApplicable ? paidBy : null,
-        paid_by_other:         paidBy === 'Other' ? paidByOther : null,
-        property_reg_status:   regStatus,
-        registration_by:       registrationBy || null,
-        doc_urls: Object.fromEntries(
-          (Object.entries(commDocs) as [string, DocEntry][])
-            .filter(([, v]) => v.path || v.url)
-            .map(([k, v]) => [k, { path: v.path || null, name: v.name || null, url: v.url || null }])
-        ),
-      }, { onConflict: 'unit_id' }),
-      supabase.from('units').update({
-        moci_contract_number: contractNumber || null,
-      }).eq('id', unitUuid),
-    ]);
-    if (error || unitError) { setSaveError((error ?? unitError)!.message); setSaveStatus('error'); return; }
+    setSaveError('');
+    // unit_commissions uses anon key — no RLS block on this table
+    const { error } = await supabase.from('unit_commissions').upsert({
+      unit_id:               unitUuid,
+      agency_fee_applicable: agencyFeeApplicable,
+      agency_fee_amount:     agencyFeeApplicable ? agencyFeeAmount : null,
+      paid_by:               agencyFeeApplicable ? paidBy : null,
+      paid_by_other:         paidBy === 'Other' ? paidByOther : null,
+      property_reg_status:   regStatus,
+      registration_by:       registrationBy || null,
+      doc_urls: Object.fromEntries(
+        (Object.entries(commDocs) as [string, DocEntry][])
+          .filter(([, v]) => v.path || v.url)
+          .map(([k, v]) => [k, { path: v.path || null, name: v.name || null, url: v.url || null }])
+      ),
+    }, { onConflict: 'unit_id' });
+    if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
+    // moci_contract_number lives on units — use service-role API to bypass RLS
+    const res = await fetch('/api/save-unit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        unitUuid,
+        fields: { moci_contract_number: contractNumber || null },
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setSaveError(body.error ?? `HTTP ${res.status}`);
+      setSaveStatus('error');
+      return;
+    }
     await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'commission', payload: { agencyFeeApplicable, agencyFeeAmount: agencyFeeApplicable ? agencyFeeAmount : null, paidBy: agencyFeeApplicable ? paidBy : null, regStatus, contractNumber } });
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus('idle'), 2500);
@@ -1934,6 +1956,7 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
   const [activeTab, setActiveTab] = useState<TabId>('property');
   const [visible, setVisible] = useState(false);
   const [unitUuid, setUnitUuid] = useState('');
+  const [displayStatus, setDisplayStatus] = useState<Status>(unit.status);
 
   // Admin mode — unlocks MOCI License and Unit Number editing
   const [isAdmin, setIsAdmin] = useState(false);
@@ -2026,8 +2049,8 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2.5 flex-wrap">
-                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_BADGE[unit.status]}`}>
-                  {unit.status.replace('_', ' ')}
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_BADGE[displayStatus]}`}>
+                  {displayStatus.replace('_', ' ')}
                 </span>
                 <span className="text-slate-300 text-xs font-mono">{unit.unitNo}</span>
                 <span className="text-slate-400 text-xs">·</span>
@@ -2135,7 +2158,7 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
 
         {/* ── Tab Content (scrollable) ── */}
         <div className="flex-1 overflow-y-auto px-6 py-5 bg-[#181818]" role="tabpanel">
-          {activeTab === 'property'    && <PropertyTab unit={unit} unitUuid={unitUuid} isAdmin={isAdmin} onRequestAdmin={() => setShowAdminDialog(true)} />}
+          {activeTab === 'property'    && <PropertyTab unit={unit} unitUuid={unitUuid} isAdmin={isAdmin} onRequestAdmin={() => setShowAdminDialog(true)} onStatusSaved={setDisplayStatus} />}
           {activeTab === 'financials'  && <FinancialsTab unit={unit} unitUuid={unitUuid} />}
           {activeTab === 'commission'  && <CommissionTab unit={unit} unitUuid={unitUuid} />}
           {activeTab === 'operational' && <OperationalTab unit={unit} unitUuid={unitUuid} />}
