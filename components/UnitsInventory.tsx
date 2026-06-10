@@ -25,7 +25,7 @@ import {
   ContextMenuPosition,
 } from '../types/inventory';
 import { supabase } from '../lib/supabase/client';
-import { formatQAR, generateShareText, generateEmailBody } from '../lib/shareUtils';
+import { formatQAR, generateShareText, generateEmailBody, generateInternalCopyText } from '../lib/shareUtils';
 import UnitDetailsModal from './UnitDetailsModal';
 import { ThemePanel } from './ThemeSwitcher';
 
@@ -232,9 +232,10 @@ interface ContextMenuProps {
   onEmail: (unit: UnitListing) => void;
   onDuplicate: (unit: UnitListing) => void;
   onDelete: (unit: UnitListing) => void;
+  onCopy: (unit: UnitListing) => void;
 }
 
-function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDuplicate, onDelete }: ContextMenuProps) {
+function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDuplicate, onDelete, onCopy }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -294,6 +295,15 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDupl
       {item(<IconEye />,  'View Details', () => onViewDetails(menu.unit),                              'text-slate-200 font-medium', '#22d3ee')}
       {item(<IconEdit />, 'Edit Unit',    () => onViewDetails(menu.unit),                              'text-slate-300',             '#c9a84c')}
       {item(<IconCopy />, 'Duplicate',    () => onDuplicate(menu.unit),                                'text-slate-300',             '#a78bfa')}
+      {item(
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>,
+        'Copy Details',
+        () => onCopy(menu.unit),
+        'text-red-400 font-medium',
+        '#f87171'
+      )}
 
       <div className="my-1 mx-1 border-t border-[#2a2a2a]" />
 
@@ -594,6 +604,13 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
 
   const handleViewDetails = useCallback((unit: UnitListing) => {
     setSelectedUnit(unit);
+  }, []);
+
+  const handleCopyUnit = useCallback((unit: UnitListing) => {
+    navigator.clipboard.writeText(generateInternalCopyText(unit)).then(() => {
+      setToast({ type: 'error', msg: '⚠ FOR INTERNAL USE ONLY' });
+      setTimeout(() => setToast(null), 3500);
+    });
   }, []);
 
   const handleDeleteRequest = useCallback((unit: UnitListing) => {
@@ -1140,6 +1157,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
           onEmail={handleEmail}
           onDuplicate={handleDuplicate}
           onDelete={handleDeleteRequest}
+          onCopy={handleCopyUnit}
         />
       )}
 

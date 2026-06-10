@@ -10,6 +10,7 @@ import { UnitListing, Status, Furnishing, KitchenType, UnitType } from '../types
 import { supabase } from '../lib/supabase/client';
 import { logEvent } from '../lib/auditLog';
 import { DurationUnit, parseLegalDuration, calcEndDate, calcDurationFromDates } from '../lib/legalDuration';
+import { generateInternalCopyText } from '../lib/shareUtils';
 import DocUploadRow from './DocUploadRow';
 import CommDocRow, { DocEntry } from './CommDocRow';
 
@@ -1974,6 +1975,7 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
   const [unitUuid, setUnitUuid] = useState('');
   const [displayStatus, setDisplayStatus] = useState<Status>(unit.status);
   const [copyToast, setCopyToast] = useState(false);
+  const [internalToast, setInternalToast] = useState(false);
 
   // Admin mode — unlocks MOCI License and Unit Number editing
   const [isAdmin, setIsAdmin] = useState(false);
@@ -2028,60 +2030,21 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
   }, []);
 
   // Build share payload
-  const fullPayload = [
-    `━━━ PROPERTY & UNIT — PRIVÉ GROUP REAL ESTATE ━━━`,
-    ``,
-    `IDENTIFICATION`,
-    `  Realtor          ${unit.realtorName}`,
-    `  MOCI License     ${unit.realtorMOCI}`,
-    `  Property         ${unit.property}`,
-    `  Unit No          ${unit.unitNo}`,
-    `  District / Area  ${unit.zone}`,
-    `  Zone Code        Zone ${unit.zoneCode}`,
-    ``,
-    `CLASSIFICATION`,
-    `  Type             ${unit.type}`,
-    `  Configuration    ${unit.config}`,
-    `  Furnishing       ${unit.furnishing}`,
-    `  Kitchen          ${unit.kitchen}`,
-    `  Parking          ${unit.parking ? 'Yes' : 'No'}`,
-    `  Status           ${unit.status.replace(/_/g, ' ')}`,
-    ...(unit.amenities?.length ? [
-      ``,
-      `AMENITIES`,
-      `  ${unit.amenities.join('  ·  ')}`,
-    ] : []),
-    ``,
-    `FINANCIALS`,
-    `  Monthly Rent     QAR ${unit.rent.toLocaleString()}`,
-    `  Service Charges  QAR ${unit.serviceCharges.toLocaleString()}`,
-    `  Deposit          QAR ${unit.depositAmount.toLocaleString()}`,
-    ``,
-    ...(unit.locationMapUrl || unit.mediaUrl ? [
-      `LINKS`,
-      ...(unit.locationMapUrl ? [`  Map    ${unit.locationMapUrl}`] : []),
-      ...(unit.mediaUrl       ? [`  Media  ${unit.mediaUrl}`]       : []),
-      ``,
-    ] : []),
-    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    `Privé Group Real Estate`,
-    `Tel / WhatsApp: +974 7707 5959  |  admin@privegroupre.com`,
-    `Brokerage Licence 773  |  CR 187753`,
-  ].join('\n');
-
   const handleCopy = () => {
-    navigator.clipboard.writeText(fullPayload).then(() => {
+    navigator.clipboard.writeText(generateInternalCopyText(unit)).then(() => {
       setCopyToast(true);
       setTimeout(() => setCopyToast(false), 2500);
+      setInternalToast(true);
+      setTimeout(() => setInternalToast(false), 3500);
     });
   };
 
   const handleWhatsApp = () =>
-    window.open(`https://wa.me/?text=${encodeURIComponent(fullPayload)}`, '_blank');
+    window.open(`https://wa.me/?text=${encodeURIComponent(generateInternalCopyText(unit))}`, '_blank');
 
   const handleEmail = () => {
     const subject = encodeURIComponent(`Property Details: ${unit.property} – Unit ${unit.unitNo}`);
-    const body = encodeURIComponent(fullPayload);
+    const body = encodeURIComponent(generateInternalCopyText(unit));
     window.open(`mailto:?subject=${subject}&body=${body}`);
   };
 
@@ -2324,6 +2287,23 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
         )}
 
       </div>
+
+      {/* ── FOR INTERNAL USE ONLY toast ── */}
+      {internalToast && (
+        <div style={{
+          position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 99999, display: 'flex', alignItems: 'center', gap: 10,
+          padding: '10px 20px', borderRadius: 10, fontSize: 13, fontWeight: 700,
+          background: '#7f1d1d', border: '1px solid #ef4444', color: '#fecaca',
+          whiteSpace: 'nowrap', boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+          letterSpacing: '0.05em', textTransform: 'uppercase',
+        }}>
+          <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+          For Internal Use Only
+        </div>
+      )}
     </>
   );
 }

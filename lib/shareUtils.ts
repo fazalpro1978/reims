@@ -11,6 +11,58 @@ export function generateShareText(unit: UnitListing): string {
   );
 }
 
+export function generateInternalCopyText(unit: UnitListing): string {
+  return [
+    `⚠ FOR INTERNAL USE ONLY — PRIVÉ GROUP REAL ESTATE ⚠`,
+    ``,
+    `PROPERTY FOCAL POINT`,
+    `  Unit Code          ${unit.id}`,
+    `  Realtor            ${unit.realtorName}`,
+    `  MOCI License       ${unit.realtorMOCI}`,
+    `  MOCI Contract No   ${unit.mociContractNumber || 'N/A'}`,
+    `  Contract Status    ${unit.mociContractStatus}`,
+    `  Legal Duration     ${unit.legalDuration || 'N/A'}`,
+    `  Contract Start     ${unit.contractStartDate || 'N/A'}`,
+    `  Contract End       ${unit.contractEndDate || 'N/A'}`,
+    ``,
+    `IDENTIFICATION`,
+    `  Property           ${unit.property}`,
+    `  Unit No            ${unit.unitNo}`,
+    `  District / Area    ${unit.zone}`,
+    `  Zone Code          Zone ${unit.zoneCode}`,
+    ``,
+    `CLASSIFICATION`,
+    `  Type               ${unit.type}`,
+    `  Configuration      ${unit.config}`,
+    `  Furnishing         ${unit.furnishing}`,
+    `  Kitchen            ${unit.kitchen}`,
+    `  Parking            ${unit.parking ? 'Yes' : 'No'}`,
+    `  Status             ${unit.status.replace(/_/g, ' ')}`,
+    ...(unit.amenities?.length ? [
+      ``,
+      `AMENITIES`,
+      `  ${unit.amenities.join('  ·  ')}`,
+    ] : []),
+    ``,
+    `FINANCIALS`,
+    `  Monthly Rent       QAR ${unit.rent.toLocaleString()}`,
+    `  Service Charges    QAR ${unit.serviceCharges.toLocaleString()}`,
+    `  Deposit            QAR ${unit.depositAmount.toLocaleString()}`,
+    `  Agency Fee         QAR ${unit.agencyFee.toLocaleString()}`,
+    ``,
+    ...(unit.locationMapUrl || unit.mediaUrl ? [
+      `LINKS`,
+      ...(unit.locationMapUrl ? [`  Map    ${unit.locationMapUrl}`] : []),
+      ...(unit.mediaUrl       ? [`  Media  ${unit.mediaUrl}`]       : []),
+      ``,
+    ] : []),
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `Privé Group Real Estate — CONFIDENTIAL`,
+    `Tel / WhatsApp: +974 7707 5959  |  admin@privegroupre.com`,
+    `Brokerage Licence 773  |  CR 187753`,
+  ].join('\n');
+}
+
 export function generateEmailBody(unit: UnitListing): string {
   return [
     `Property Listing Enquiry — Privé Group Real Estate`,
