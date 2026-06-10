@@ -191,12 +191,13 @@ function LockIcon() {
   );
 }
 
-function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved }: {
+function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, onAdminLock }: {
   unit: UnitListing;
   unitUuid: string;
   isAdmin: boolean;
   onRequestAdmin: () => void;
   onStatusSaved?: (newStatus: Status) => void;
+  onAdminLock?: () => void;
 }) {
   const [realtorName, setRealtorName] = useState(unit.realtorName);
   const [realtorMoci, setRealtorMoci] = useState(unit.realtorMOCI);
@@ -306,6 +307,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved }:
       await logEvent({ unitId: unitUuid, action: 'STATUS_CHANGE', tab: 'property', field: 'Status', oldValue: unit.status, newValue: status });
       onStatusSaved?.(status);
     }
+    onAdminLock?.();
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus('idle'), 2500);
   };
@@ -2164,7 +2166,7 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
 
         {/* ── Tab Content (scrollable) ── */}
         <div className="flex-1 overflow-y-auto px-6 py-5 bg-[#181818]" role="tabpanel">
-          {activeTab === 'property'    && <PropertyTab unit={unit} unitUuid={unitUuid} isAdmin={isAdmin} onRequestAdmin={() => setShowAdminDialog(true)} onStatusSaved={setDisplayStatus} />}
+          {activeTab === 'property'    && <PropertyTab unit={unit} unitUuid={unitUuid} isAdmin={isAdmin} onRequestAdmin={() => setShowAdminDialog(true)} onStatusSaved={setDisplayStatus} onAdminLock={() => setIsAdmin(false)} />}
           {activeTab === 'financials'  && <FinancialsTab unit={unit} unitUuid={unitUuid} />}
           {activeTab === 'commission'  && <CommissionTab unit={unit} unitUuid={unitUuid} />}
           {activeTab === 'operational' && <OperationalTab unit={unit} unitUuid={unitUuid} />}
