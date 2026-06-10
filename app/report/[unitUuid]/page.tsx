@@ -46,6 +46,7 @@ interface ReportData {
   mediaUrl:            string;
   images:              string[];
   operatorRemarks:     string;
+  salutation:          string;
 }
 
 // ── Supabase ──────────────────────────────────────────────────────────────────
@@ -116,12 +117,26 @@ body {
 
   .rpt-toolbar {
     width: 210mm; margin: 0 auto 10px; padding: 0 2px;
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
   }
   .rpt-toolbar-label {
     font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.6);
-    text-transform: uppercase; letter-spacing: 0.08em;
+    text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap;
   }
+  .rpt-toolbar-greeting {
+    display: flex; align-items: center; gap: 6px; flex: 1;
+  }
+  .rpt-toolbar-greeting label {
+    font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.5);
+    text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap;
+  }
+  .rpt-toolbar-greeting input {
+    flex: 1; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 4px; color: #fff; font-size: 11px; padding: 5px 10px;
+    outline: none;
+  }
+  .rpt-toolbar-greeting input::placeholder { color: rgba(255,255,255,0.35); }
+  .rpt-toolbar-greeting input:focus { border-color: #c9a84c; background: rgba(255,255,255,0.12); }
   .rpt-toolbar-btns { display: flex; gap: 8px; }
 
   .rpt-btn-print {
@@ -194,6 +209,11 @@ body {
 .rpt-asset-title {
   font-size: 13pt; font-weight: 700; color: #c9a84c;
   letter-spacing: 0.015em; line-height: 1.35;
+}
+.rpt-salutation {
+  font-size: 10.5pt; font-weight: 500; color: #334155;
+  margin-top: 5pt; margin-bottom: 2pt; line-height: 1.5;
+  font-style: italic;
 }
 
 /* ── Section label ───────────────────────────────────────────────────────────── */
@@ -361,6 +381,9 @@ function ReportDocument({ data }: { data: ReportData }) {
       <h1 className="rpt-asset-title">
         {data.propertyName}&nbsp;&bull;&nbsp;CODE:&nbsp;{data.unitCode}&nbsp;|&nbsp;Zone:&nbsp;{data.zoneCode}.&nbsp;{data.zoneName}
       </h1>
+      {data.salutation && (
+        <p className="rpt-salutation">{data.salutation}</p>
+      )}
       <hr className="rpt-hr-light" />
 
       {/* ── 3. Property & Unit Details ────────────────────────────────── */}
@@ -556,10 +579,11 @@ export default function ReportPage() {
   const params    = useParams();
   const unitUuid  = params?.unitUuid as string;
 
-  const [data,    setData   ] = useState<ReportData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError  ] = useState<string | null>(null);
-  const [generatedAt]         = useState(() => formatDateTime(new Date()));
+  const [data,       setData      ] = useState<ReportData | null>(null);
+  const [loading,    setLoading   ] = useState(true);
+  const [error,      setError     ] = useState<string | null>(null);
+  const [salutation, setSalutation] = useState('');
+  const [generatedAt]               = useState(() => formatDateTime(new Date()));
 
   useEffect(() => {
     if (!unitUuid) return;
@@ -611,6 +635,7 @@ export default function ReportPage() {
           mediaUrl:            row.media_url         ?? '',
           images:              parseArray(row.images),
           operatorRemarks:     row.operator_remarks  ?? '',
+          salutation:          '',
         });
       }
       setLoading(false);
@@ -638,13 +663,23 @@ export default function ReportPage() {
       {/* Toolbar — hidden on print via CSS */}
       <div className="rpt-toolbar">
         <span className="rpt-toolbar-label">Unit Report Preview — A4</span>
+        <div className="rpt-toolbar-greeting">
+          <label htmlFor="rpt-salutation-input">Salutation / Recipient Greeting</label>
+          <input
+            id="rpt-salutation-input"
+            type="text"
+            placeholder='e.g. Dear Mr. / Miss / Mrs. / Ms. Al Mansoori'
+            value={salutation}
+            onChange={e => setSalutation(e.target.value)}
+          />
+        </div>
         <div className="rpt-toolbar-btns">
           <button className="rpt-btn-close" onClick={() => window.close()}>✕ Close</button>
           <button className="rpt-btn-print" onClick={() => window.print()}>⬇ Download PDF</button>
         </div>
       </div>
 
-      <ReportDocument data={data} />
+      <ReportDocument data={{ ...data, salutation }} />
     </>
   );
 }
