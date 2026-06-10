@@ -1126,18 +1126,16 @@ function LegalDurationSection({ unit, unitUuid }: { unit: UnitListing; unitUuid:
       });
   }, [unitUuid]);
 
-  // Start date changed → recalculate duration from start+end (never touch end date)
+  // Start date changed → recalculate end date from start + contract duration (duration stays fixed)
   const handleStartChange = (start: string) => {
     setContractStartDate(start);
-    if (start && contractEndDate) {
-      const p = calcDurationFromDates(start, contractEndDate);
-      setDurationValue(p.value);
-      setDurationUnit(p.unit);
+    if (start && durationValue) {
+      setContractEndDate(calcEndDate(start, durationValue, durationUnit));
     }
     setLastModified(new Date().toISOString());
   };
 
-  // End date changed → recalculate duration from start+end (never touch start date)
+  // End date changed → recalculate duration from start→end (start date never changes)
   const handleEndChange = (end: string) => {
     setContractEndDate(end);
     if (end && contractStartDate) {
