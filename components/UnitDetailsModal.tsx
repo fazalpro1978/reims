@@ -578,7 +578,11 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
             <div className="flex flex-col gap-2 w-full">
               {locationMapUrl && isValidUrl(locationMapUrl) && (
                 <a href={locationMapUrl} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-[#c9a84c] hover:text-[#dfc070] text-sm font-medium w-fit">
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold w-fit"
+                  style={{ color: '#4ade80' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#86efac')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#4ade80')}
+                >
                   <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -610,7 +614,11 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
             <div className="flex flex-col gap-2 w-full">
               {mediaUrl && isValidUrl(mediaUrl) && (
                 <a href={mediaUrl} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-[#c9a84c] hover:text-[#dfc070] text-sm font-medium w-fit">
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold w-fit"
+                  style={{ color: '#60a5fa' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#93c5fd')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#60a5fa')}
+                >
                   <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
@@ -2139,13 +2147,45 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
           </button>
           <button
             onClick={handleEmail}
-            className="flex items-center gap-2 px-3.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold rounded-lg transition-colors whitespace-nowrap"
+            className="flex items-center gap-2 px-3.5 py-1.5 text-[#0f172a] text-xs font-semibold rounded-lg transition-colors whitespace-nowrap"
+            style={{ background: '#38bdf8' }}
+            onMouseEnter={e => (e.currentTarget.style.background = '#7dd3fc')}
+            onMouseLeave={e => (e.currentTarget.style.background = '#38bdf8')}
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
-            Email
+            Send via Email
           </button>
+          {unit.locationMapUrl && isValidUrl(unit.locationMapUrl) && (
+            <a
+              href={unit.locationMapUrl} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3.5 py-1.5 text-[#0f172a] text-xs font-semibold rounded-lg transition-colors whitespace-nowrap"
+              style={{ background: '#4ade80' }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#86efac')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#4ade80')}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Maps
+            </a>
+          )}
+          {unit.mediaUrl && isValidUrl(unit.mediaUrl) && (
+            <a
+              href={unit.mediaUrl} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3.5 py-1.5 text-[#0f172a] text-xs font-semibold rounded-lg transition-colors whitespace-nowrap"
+              style={{ background: '#60a5fa' }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#93c5fd')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#60a5fa')}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Media
+            </a>
+          )}
           <button
             onClick={handleCopy}
             className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${copyToast ? 'bg-emerald-700 text-emerald-100' : 'bg-slate-700 hover:bg-slate-600 text-white'}`}
