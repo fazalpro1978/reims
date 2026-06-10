@@ -462,11 +462,11 @@ function ReportDocument({ data }: { data: ReportData }) {
         </div>
         <div className="rpt-fin-row">
           <span className="rpt-fin-lbl" style={{ fontWeight: 700, color: '#334155' }}>Qatar Cool Deposit</span>
-          <span className="rpt-fin-val">{data.qatarCoolApplicable ? `QAR ${fmt(data.qatarCoolAmount)}` : 'Included'}</span>
+          <span className="rpt-fin-val">{data.qatarCoolApplicable ? `QAR ${fmt(data.qatarCoolAmount)}` : 'Not Applicable'}</span>
         </div>
         <div className="rpt-fin-row">
           <span className="rpt-fin-lbl" style={{ fontWeight: 700, color: '#334155' }}>Marafeq Deposit</span>
-          <span className="rpt-fin-val">{data.marafeqApplicable ? `QAR ${fmt(data.marafeqAmount)}` : 'Included'}</span>
+          <span className="rpt-fin-val">{data.marafeqApplicable ? `QAR ${fmt(data.marafeqAmount)}` : 'Not Applicable'}</span>
         </div>
         <div className="rpt-fin-row rpt-fin-total">
           <span className="rpt-fin-lbl-tot">Total Move-In Payment</span>
