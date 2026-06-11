@@ -26,6 +26,17 @@ function IcGrid() {
   );
 }
 
+function IcHash() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px] shrink-0">
+      <line x1="4" y1="9" x2="20" y2="9" />
+      <line x1="4" y1="15" x2="20" y2="15" />
+      <line x1="10" y1="3" x2="8" y2="21" />
+      <line x1="16" y1="3" x2="14" y2="21" />
+    </svg>
+  );
+}
+
 function IcBuilding() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px] shrink-0">
@@ -95,6 +106,7 @@ function IcClose() {
 }
 
 const ICON_MAP: Record<string, React.ReactNode> = {
+  hash:     <IcHash />,
   grid:     <IcGrid />,
   building: <IcBuilding />,
   users:    <IcUsers />,
@@ -106,6 +118,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 };
 
 const NAV_ICON_COLOR: Record<string, string> = {
+  hash:     '#e879f9',  // fuchsia        — Code Registry
   grid:     '#22d3ee',  // electric cyan  — Units Inventory
   building: '#a78bfa',  // neon violet    — Properties
   users:    '#4ade80',  // neon green     — Tenants
@@ -122,6 +135,7 @@ const NAV_SECTIONS = [
   {
     label: 'Portfolio',
     items: [
+      { id: 'code-registry', label: 'Code Registry',    href: '/code-registry', icon: 'hash', soon: false },
       { id: 'inventory',   label: 'Units Inventory',   href: '/',           icon: 'grid',     soon: false },
       { id: 'properties',  label: 'Properties',        href: '/properties', icon: 'building', soon: true  },
       { id: 'tenants',     label: 'Tenants',            href: '/tenants',    icon: 'users',    soon: true  },
