@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import * as XLSX from 'xlsx';
-import { PROPERTY_MATRIX } from '../lib/propertySchema';
+import { PROPERTY_MATRIX, CONFIGURATION_REGEX } from '../lib/propertySchema';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -106,6 +106,83 @@ function SectionCard({ title, children }: { title: string; children: React.React
     <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-5 space-y-4">
       <p className="text-[10px] font-bold text-[#555] uppercase tracking-[0.18em]">{title}</p>
       {children}
+    </div>
+  );
+}
+
+function PlusBtn({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title="Add new entry"
+      className="w-[18px] h-[18px] flex items-center justify-center rounded-full bg-[#1e1e1e] border border-[#2a2a2a] text-[#c9a84c] text-[13px] leading-none hover:bg-[#c9a84c]/10 hover:border-[#c9a84c]/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0"
+    >+</button>
+  );
+}
+
+function InlineAdd({
+  placeholder, onSave, onCancel, validate,
+}: {
+  placeholder: string;
+  onSave: (v: string) => Promise<void>;
+  onCancel: () => void;
+  validate?: (v: string) => string | null;
+}) {
+  const [val, setVal]       = useState('');
+  const [err, setErr]       = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    const t = val.trim();
+    if (!t) return;
+    if (validate) { const e = validate(t); if (e) { setErr(e); return; } }
+    setSaving(true);
+    try { await onSave(t); }
+    catch (e) { setErr(e instanceof Error ? e.message : 'Failed to save'); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div className="mt-1.5 space-y-1">
+      <div className="flex gap-2">
+        <input
+          autoFocus
+          value={val}
+          onChange={e => { setVal(e.target.value); setErr(null); }}
+          onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onCancel(); }}
+          placeholder={placeholder}
+          className="flex-1 bg-[#1a1a1a] border border-[#2a2a2a] text-[#e0e0e0] text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-[#c9a84c]/60 placeholder-[#555]"
+        />
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving || !val.trim()}
+          className="px-3 bg-[#c9a84c] hover:bg-[#dfc070] disabled:opacity-40 text-[#0f0f0f] text-sm font-bold rounded-lg transition-colors"
+        >
+          {saving ? '…' : 'Save'}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-2 text-[#666] hover:text-[#e0e0e0] text-sm transition-colors"
+        >✕</button>
+      </div>
+      {err && <p className="text-[11px] text-[#ef4444]">{err}</p>}
+    </div>
+  );
+}
+
+function Toast({ message, onDone }: { message: string; onDone: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 3000);
+    return () => clearTimeout(t);
+  }, [onDone]);
+  return (
+    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] bg-[#0a1a0a] border border-[#22c55e]/40 text-[#22c55e] text-sm px-5 py-3 rounded-xl shadow-2xl flex items-center gap-2 pointer-events-none select-none">
+      <span className="text-base leading-none">✓</span>
+      {message}
     </div>
   );
 }
@@ -323,28 +400,45 @@ function EntitySearch({
 
 // ── Register Tab ──────────────────────────────────────────────────────────────
 
-function RegisterTab({ options, onEntityAdded }: { options: Options; onEntityAdded: (e: Entity) => void }) {
+function RegisterTab({
+  options, onEntityAdded, onConfigAdded,
+}: {
+  options: Options;
+  onEntityAdded: (e: Entity) => void;
+  onConfigAdded: (c: PropConfig) => void;
+}) {
   const { configs, entities, agents, zones } = options;
 
-  const [coreType,    setCoreType]    = useState('');
-  const [subType,     setSubType]     = useState('');
-  const [typeCode,    setTypeCode]    = useState('');
-  const [entityCode,  setEntityCode]  = useState('');
-  const [agentCode,   setAgentCode]   = useState('');
-  const [municipality, setMunicipality] = useState('');
-  const [zoneCode,    setZoneCode]    = useState<number | null>(null);
-  const [buildingName, setBuildingName] = useState('');
-  const [floorRef,    setFloorRef]    = useState('');
-  const [unitRef,     setUnitRef]     = useState('');
-  const [notes,       setNotes]       = useState('');
+  const [coreType,       setCoreType]       = useState('');
+  const [subType,        setSubType]        = useState('');
+  const [typeCode,       setTypeCode]       = useState('');
+  const [entityCode,     setEntityCode]     = useState('');
+  const [agentCode,      setAgentCode]      = useState('');
+  const [municipality,   setMunicipality]   = useState('');
+  const [zoneCode,       setZoneCode]       = useState<number | null>(null);
+  const [buildingName,   setBuildingName]   = useState('');
+  const [floorRef,       setFloorRef]       = useState('');
+  const [unitRef,        setUnitRef]        = useState('');
+  const [notes,          setNotes]          = useState('');
 
-  const [submitting,     setSubmitting]     = useState(false);
-  const [generatedCode,  setGeneratedCode]  = useState<string | null>(null);
-  const [error,          setError]          = useState<string | null>(null);
+  const [submitting,    setSubmitting]    = useState(false);
+  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [error,         setError]         = useState<string | null>(null);
 
-  const coreTypes   = Array.from(new Set(configs.map(c => c.core_type)));
-  const subTypes    = Array.from(new Set(configs.filter(c => c.core_type === coreType).map(c => c.sub_type)));
-  const configOpts  = configs.filter(c => c.core_type === coreType && c.sub_type === subType);
+  // Inline-add state
+  const [extraCoreTypes, setExtraCoreTypes] = useState<string[]>([]);
+  const [extraSubTypes,  setExtraSubTypes]  = useState<Record<string, string[]>>({});
+  const [addingCoreType, setAddingCoreType] = useState(false);
+  const [addingSubType,  setAddingSubType]  = useState(false);
+  const [addingConfig,   setAddingConfig]   = useState(false);
+  const [toast,          setToast]          = useState<string | null>(null);
+
+  const coreTypes  = Array.from(new Set([...configs.map(c => c.core_type), ...extraCoreTypes]));
+  const subTypes   = Array.from(new Set([
+    ...configs.filter(c => c.core_type === coreType).map(c => c.sub_type),
+    ...(extraSubTypes[coreType] ?? []),
+  ]));
+  const configOpts     = configs.filter(c => c.core_type === coreType && c.sub_type === subType);
   const municipalities = Array.from(new Set(zones.map(z => z.municipality))).sort();
   const filteredZones  = zones.filter(z => z.municipality === municipality);
 
@@ -389,6 +483,7 @@ function RegisterTab({ options, onEntityAdded }: { options: Options; onEntityAdd
 
   return (
     <div className="space-y-4">
+      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
 
       {/* Success banner */}
       {generatedCode && (
@@ -424,22 +519,73 @@ function RegisterTab({ options, onEntityAdded }: { options: Options; onEntityAdd
       {/* Property Configuration */}
       <SectionCard title="Property Configuration">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Core Type */}
           <div>
-            <FieldLabel>Core Type *</FieldLabel>
+            <div className="flex items-center gap-1.5 mb-1">
+              <label className="text-[11px] font-semibold text-[#888888] uppercase tracking-widest">Core Type *</label>
+              <PlusBtn
+                onClick={() => { setAddingCoreType(t => !t); setAddingSubType(false); setAddingConfig(false); }}
+              />
+            </div>
             <Select value={coreType} onChange={handleCoreType}>
               <option value="">Select…</option>
               {coreTypes.map(t => <option key={t}>{t}</option>)}
             </Select>
+            {addingCoreType && (
+              <InlineAdd
+                placeholder="e.g. Commercial"
+                onSave={async (v) => {
+                  setExtraCoreTypes(prev => prev.includes(v) ? prev : [...prev, v]);
+                  setCoreType(v); setSubType(''); setTypeCode('');
+                  setAddingCoreType(false);
+                  setToast(`Core Type "${v}" added`);
+                }}
+                onCancel={() => setAddingCoreType(false)}
+              />
+            )}
           </div>
+
+          {/* Sub-Type */}
           <div>
-            <FieldLabel>Sub-Type *</FieldLabel>
+            <div className="flex items-center gap-1.5 mb-1">
+              <label className="text-[11px] font-semibold text-[#888888] uppercase tracking-widest">Sub-Type *</label>
+              <PlusBtn
+                onClick={() => { setAddingSubType(t => !t); setAddingCoreType(false); setAddingConfig(false); }}
+                disabled={!coreType}
+              />
+            </div>
             <Select value={subType} onChange={handleSubType} disabled={!coreType}>
               <option value="">Select…</option>
               {subTypes.map(s => <option key={s}>{s}</option>)}
             </Select>
+            {addingSubType && (
+              <InlineAdd
+                placeholder="e.g. Office Space"
+                onSave={async (v) => {
+                  setExtraSubTypes(prev => ({
+                    ...prev,
+                    [coreType]: (prev[coreType] ?? []).includes(v)
+                      ? (prev[coreType] ?? [])
+                      : [...(prev[coreType] ?? []), v],
+                  }));
+                  setSubType(v); setTypeCode('');
+                  setAddingSubType(false);
+                  setToast(`Sub-Type "${v}" added`);
+                }}
+                onCancel={() => setAddingSubType(false)}
+              />
+            )}
           </div>
+
+          {/* Configuration */}
           <div>
-            <FieldLabel>Configuration *</FieldLabel>
+            <div className="flex items-center gap-1.5 mb-1">
+              <label className="text-[11px] font-semibold text-[#888888] uppercase tracking-widest">Configuration *</label>
+              <PlusBtn
+                onClick={() => { setAddingConfig(t => !t); setAddingCoreType(false); setAddingSubType(false); }}
+                disabled={!subType}
+              />
+            </div>
             <Select value={typeCode} onChange={handleConfig} disabled={!subType}>
               <option value="">Select…</option>
               {configOpts.map(c => (
@@ -448,6 +594,38 @@ function RegisterTab({ options, onEntityAdded }: { options: Options; onEntityAdd
                 </option>
               ))}
             </Select>
+            {addingConfig && (
+              <InlineAdd
+                placeholder="e.g. 1 BHK or 2 BHK + Maid"
+                validate={(v) =>
+                  CONFIGURATION_REGEX.test(v)
+                    ? null
+                    : "Format: Studio, 1 BHK, 2 BHK + Maid, or 2 BHK + Maid (Private)"
+                }
+                onSave={async (v) => {
+                  const res = await fetch('/api/code-registry/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ coreType, subType, configuration: v }),
+                  });
+                  const json = await res.json();
+                  if (!res.ok || json.error) throw new Error('Failed to save configuration');
+                  const newCfg: PropConfig = {
+                    type_code:            json.type_code,
+                    core_type:            json.core_type,
+                    sub_type:             json.sub_type,
+                    configuration:        json.configuration,
+                    integration_scenario: json.integration_scenario ?? '',
+                    features:             json.features ?? '',
+                  };
+                  onConfigAdded(newCfg);
+                  setTypeCode(json.type_code);
+                  setAddingConfig(false);
+                  setToast(`Configuration "${v}" [${json.type_code}] saved`);
+                }}
+                onCancel={() => setAddingConfig(false)}
+              />
+            )}
           </div>
         </div>
         {typeCode && (
@@ -846,6 +1024,11 @@ export default function CodeRegistry() {
     setOptions(prev => prev ? { ...prev, entities: [...prev.entities, e].sort((a, b) => a.company_name.localeCompare(b.company_name)) } : prev);
   }
 
+  function handleConfigAdded(c: PropConfig) {
+    if (!options) return;
+    setOptions(prev => prev ? { ...prev, configs: [...prev.configs, c] } : prev);
+  }
+
   if (loadError) {
     return (
       <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center">
@@ -895,7 +1078,7 @@ export default function CodeRegistry() {
       {/* Content */}
       <div className="max-w-5xl mx-auto px-5 py-6">
         {activeTab === 'register'
-          ? <RegisterTab options={options} onEntityAdded={handleEntityAdded} />
+          ? <RegisterTab options={options} onEntityAdded={handleEntityAdded} onConfigAdded={handleConfigAdded} />
           : <SearchTab options={options} />
         }
       </div>

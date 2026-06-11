@@ -179,6 +179,13 @@ export const UNIT_CONFIGS_FULL: string[] = [
 
 // ── 5. Validation helpers ──────────────────────────────────────────────────────
 
+/**
+ * Strict regex for Configuration inputs in the Code Registry inline-add form.
+ * Valid examples: 'Studio', '1 BHK', '2 BHK + Maid', '3 BHK + Maid (Private)'
+ */
+export const CONFIGURATION_REGEX =
+  /^(Studio|\d+\+? BHK( \+ [A-Za-z''\/\- ]+(\([A-Za-z ]+\))?)?)$/;
+
 /** Returns true if value is a verbatim Configuration from the PropertyFinder matrix */
 export function isValidConfiguration(value: string): boolean {
   return (ALL_CONFIGURATIONS as readonly string[]).includes(value);
