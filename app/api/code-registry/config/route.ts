@@ -52,6 +52,19 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Server-side duplicate guard
+  const dupCheck = await fetch(
+    `${SB_URL}/rest/v1/cr_property_type_configs?core_type=eq.${encodeURIComponent(coreType.trim())}&sub_type=eq.${encodeURIComponent(subType.trim())}&configuration=eq.${encodeURIComponent(configuration.trim())}&select=type_code`,
+    { headers: H() },
+  );
+  const existing = await dupCheck.json();
+  if (Array.isArray(existing) && existing.length > 0) {
+    return NextResponse.json(
+      { error: 'duplicate', message: `"${configuration.trim()}" already exists under ${coreType.trim()} › ${subType.trim()}` },
+      { status: 409 },
+    );
+  }
+
   let typeCode: string;
   try {
     typeCode = await generateTypeCode(coreType.trim(), subType.trim(), configuration.trim());

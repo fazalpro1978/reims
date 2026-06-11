@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { PROPERTY_MATRIX, CONFIGURATION_REGEX } from '../lib/propertySchema';
+import TopBar from './TopBar';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -174,14 +175,19 @@ function InlineAdd({
   );
 }
 
-function Toast({ message, onDone }: { message: string; onDone: () => void }) {
+function Toast({ message, type = 'success', onDone }: { message: string; type?: 'success' | 'error'; onDone: () => void }) {
   useEffect(() => {
-    const t = setTimeout(onDone, 3000);
+    const t = setTimeout(onDone, 3500);
     return () => clearTimeout(t);
   }, [onDone]);
+  const isErr = type === 'error';
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] bg-[#0a1a0a] border border-[#22c55e]/40 text-[#22c55e] text-sm px-5 py-3 rounded-xl shadow-2xl flex items-center gap-2 pointer-events-none select-none">
-      <span className="text-base leading-none">✓</span>
+    <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] border text-sm px-5 py-3 rounded-xl shadow-2xl flex items-center gap-2 pointer-events-none select-none ${
+      isErr
+        ? 'bg-[#1a0808] border-[#ef4444]/50 text-[#ef4444]'
+        : 'bg-[#0a1a0a] border-[#22c55e]/40 text-[#22c55e]'
+    }`}>
+      <span className="text-base leading-none">{isErr ? '✕' : '✓'}</span>
       {message}
     </div>
   );
@@ -431,7 +437,7 @@ function RegisterTab({
   const [addingCoreType, setAddingCoreType] = useState(false);
   const [addingSubType,  setAddingSubType]  = useState(false);
   const [addingConfig,   setAddingConfig]   = useState(false);
-  const [toast,          setToast]          = useState<string | null>(null);
+  const [toast,          setToast]          = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   const coreTypes  = Array.from(new Set([...configs.map(c => c.core_type), ...extraCoreTypes]));
   const subTypes   = Array.from(new Set([
@@ -483,7 +489,7 @@ function RegisterTab({
 
   return (
     <div className="space-y-4">
-      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
+      {toast && <Toast message={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
 
       {/* Success banner */}
       {generatedCode && (
@@ -535,10 +541,15 @@ function RegisterTab({
               <InlineAdd
                 placeholder="e.g. Commercial"
                 onSave={async (v) => {
-                  setExtraCoreTypes(prev => prev.includes(v) ? prev : [...prev, v]);
+                  if (coreTypes.map(t => t.toLowerCase()).includes(v.toLowerCase())) {
+                    setToast({ msg: `"${v}" already exists as a Core Type`, type: 'error' });
+                    setAddingCoreType(false);
+                    return;
+                  }
+                  setExtraCoreTypes(prev => [...prev, v]);
                   setCoreType(v); setSubType(''); setTypeCode('');
                   setAddingCoreType(false);
-                  setToast(`Core Type "${v}" added`);
+                  setToast({ msg: `Core Type "${v}" added`, type: 'success' });
                 }}
                 onCancel={() => setAddingCoreType(false)}
               />
@@ -562,15 +573,18 @@ function RegisterTab({
               <InlineAdd
                 placeholder="e.g. Office Space"
                 onSave={async (v) => {
+                  if (subTypes.map(s => s.toLowerCase()).includes(v.toLowerCase())) {
+                    setToast({ msg: `"${v}" already exists under ${coreType}`, type: 'error' });
+                    setAddingSubType(false);
+                    return;
+                  }
                   setExtraSubTypes(prev => ({
                     ...prev,
-                    [coreType]: (prev[coreType] ?? []).includes(v)
-                      ? (prev[coreType] ?? [])
-                      : [...(prev[coreType] ?? []), v],
+                    [coreType]: [...(prev[coreType] ?? []), v],
                   }));
                   setSubType(v); setTypeCode('');
                   setAddingSubType(false);
-                  setToast(`Sub-Type "${v}" added`);
+                  setToast({ msg: `Sub-Type "${v}" added`, type: 'success' });
                 }}
                 onCancel={() => setAddingSubType(false)}
               />
@@ -603,12 +617,26 @@ function RegisterTab({
                     : "Format: Studio, 1 BHK, 2 BHK + Maid, or 2 BHK + Maid (Private)"
                 }
                 onSave={async (v) => {
+                  const duplicate = configs.find(
+                    c => c.core_type === coreType && c.sub_type === subType &&
+                         c.configuration.toLowerCase() === v.toLowerCase()
+                  );
+                  if (duplicate) {
+                    setToast({ msg: `"${v}" already exists under ${coreType} › ${subType}`, type: 'error' });
+                    setAddingConfig(false);
+                    return;
+                  }
                   const res = await fetch('/api/code-registry/config', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ coreType, subType, configuration: v }),
                   });
                   const json = await res.json();
+                  if (res.status === 409) {
+                    setToast({ msg: json.message ?? `"${v}" already exists`, type: 'error' });
+                    setAddingConfig(false);
+                    return;
+                  }
                   if (!res.ok || json.error) throw new Error('Failed to save configuration');
                   const newCfg: PropConfig = {
                     type_code:            json.type_code,
@@ -621,7 +649,7 @@ function RegisterTab({
                   onConfigAdded(newCfg);
                   setTypeCode(json.type_code);
                   setAddingConfig(false);
-                  setToast(`Configuration "${v}" [${json.type_code}] saved`);
+                  setToast({ msg: `Configuration "${v}" [${json.type_code}] saved`, type: 'success' });
                 }}
                 onCancel={() => setAddingConfig(false)}
               />
@@ -1007,7 +1035,7 @@ function SearchTab({ options }: { options: Options }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export default function CodeRegistry() {
+export default function CodeRegistry({ onMenuClick }: { onMenuClick?: () => void }) {
   const [options,    setOptions]    = useState<Options | null>(null);
   const [activeTab,  setActiveTab]  = useState<'register' | 'search'>('register');
   const [loadError,  setLoadError]  = useState(false);
@@ -1050,8 +1078,9 @@ export default function CodeRegistry() {
 
   return (
     <div className="min-h-screen bg-[#0f0f0f] text-[#e0e0e0]">
-      {/* Header */}
-      <div className="sticky top-0 z-30 bg-[#0f0f0f]/95 backdrop-blur border-b border-[#1a1a1a]">
+      <TopBar onMenuClick={onMenuClick} />
+      {/* Section sub-header */}
+      <div className="sticky top-[61px] z-20 bg-[#0f0f0f]/95 backdrop-blur border-b border-[#1a1a1a]">
         <div className="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-base font-bold text-[#e0e0e0] tracking-wide">Code Registry</h1>

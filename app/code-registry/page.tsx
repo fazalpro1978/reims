@@ -29,7 +29,7 @@ export default function CodeRegistryPage() {
         <HamburgerIcon />
       </button>
 
-      <CodeRegistry />
+      <CodeRegistry onMenuClick={() => setNavOpen(true)} />
     </>
   );
 }
