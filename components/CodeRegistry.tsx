@@ -196,20 +196,23 @@ function Toast({ message, type = 'success', onDone }: { message: string; type?: 
 // ── Code Preview ─────────────────────────────────────────────────────────────
 
 function CodePreview({
-  typeCode, entityCode, agentCode, zoneCode, generatedCode,
+  typeCode, entityCode, agentCode, zoneCode, generatedCode, nextSeq,
 }: {
   typeCode: string; entityCode: string; agentCode: string;
-  zoneCode: number | null; generatedCode?: string;
+  zoneCode: number | null; generatedCode?: string; nextSeq?: number;
 }) {
-  const segments = buildPreviewSegments(typeCode, entityCode, agentCode, zoneCode);
-  const labels   = ['TYPE', 'ENTITY', 'AGENT', 'ZONE', 'SEQ'];
+  const seqDisplay = nextSeq != null ? String(nextSeq).padStart(5, '0') : null;
+  const segments   = buildPreviewSegments(typeCode, entityCode, agentCode, zoneCode);
+  // Swap the SEQ segment placeholder for the actual next seq when known
+  if (seqDisplay && !generatedCode) segments[4] = seg(seqDisplay, '·····', '#c9a84c');
+  const labels = ['TYPE', 'ENTITY', 'AGENT', 'ZONE', 'SEQ'];
 
   const assembled = generatedCode ?? [
     typeCode   || '··',
     entityCode || '···',
     agentCode  || '··',
     zoneCode != null ? String(zoneCode).padStart(2, '0') : '··',
-    '·····',
+    seqDisplay ?? '·····',
   ].join('');
 
   return (
@@ -240,16 +243,24 @@ function CodePreview({
       </div>
 
       {/* Assembled */}
-      <div className="flex items-center gap-3 mt-3 pt-3 border-t border-[#1e1e1e]">
-        <span className="font-mono text-lg tracking-[0.15em] text-[#e0e0e0]">{assembled}</span>
-        {generatedCode && (
-          <button
-            onClick={() => copyToClipboard(generatedCode)}
-            title="Copy code"
-            className="text-[#c9a84c] hover:text-[#dfc070] text-xs border border-[#c9a84c]/30 rounded px-2 py-0.5 transition-colors"
-          >
-            Copy
-          </button>
+      <div className="mt-3 pt-3 border-t border-[#1e1e1e] space-y-1.5">
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-lg tracking-[0.15em] text-[#e0e0e0]">{assembled}</span>
+          {generatedCode && (
+            <button
+              onClick={() => copyToClipboard(generatedCode)}
+              title="Copy code"
+              className="text-[#c9a84c] hover:text-[#dfc070] text-xs border border-[#c9a84c]/30 rounded px-2 py-0.5 transition-colors"
+            >
+              Copy
+            </button>
+          )}
+        </div>
+        {!generatedCode && nextSeq != null && (
+          <p className="text-[11px] text-[#555]">
+            Auto-assigned: <span className="text-[#c9a84c] font-mono">{nextSeq}</span>
+            <span className="ml-1">(next in sequence)</span>
+          </p>
         )}
       </div>
     </div>
@@ -424,8 +435,8 @@ function RegisterTab({
   const [zoneCode,       setZoneCode]       = useState<number | null>(null);
   const [buildingName,   setBuildingName]   = useState('');
   const [floorRef,       setFloorRef]       = useState('');
-  const [unitRef,        setUnitRef]        = useState('');
   const [notes,          setNotes]          = useState('');
+  const [nextSeq,        setNextSeq]        = useState<number | undefined>(undefined);
 
   const [submitting,    setSubmitting]    = useState(false);
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
@@ -438,6 +449,13 @@ function RegisterTab({
   const [addingSubType,  setAddingSubType]  = useState(false);
   const [addingConfig,   setAddingConfig]   = useState(false);
   const [toast,          setToast]          = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/code-registry/next-seq')
+      .then(r => r.json())
+      .then(d => setNextSeq(d.nextSeq))
+      .catch(() => {});
+  }, []);
 
   const coreTypes  = Array.from(new Set([...configs.map(c => c.core_type), ...extraCoreTypes]));
   const subTypes   = Array.from(new Set([
@@ -462,7 +480,7 @@ function RegisterTab({
     setCoreType(''); setSubType(''); setTypeCode('');
     setEntityCode(''); setAgentCode('');
     setMunicipality(''); setZoneCode(null);
-    setBuildingName(''); setFloorRef(''); setUnitRef(''); setNotes('');
+    setBuildingName(''); setFloorRef(''); setNotes('');
     setGeneratedCode(null); setError(null);
   }
 
@@ -476,7 +494,7 @@ function RegisterTab({
       const res  = await fetch('/api/code-registry/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ typeCode, entityCode, agentCode, zoneCode, buildingName, floorRef, unitRef, notes }),
+        body: JSON.stringify({ typeCode, entityCode, agentCode, zoneCode, buildingName, floorRef, notes }),
       });
       const json = await res.json();
       if (!res.ok || json.error) { setError('Registration failed. Please try again.'); return; }
@@ -711,18 +729,14 @@ function RegisterTab({
 
       {/* Property Reference */}
       <SectionCard title="Property Reference (Optional)">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="sm:col-span-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
             <FieldLabel>Building Name</FieldLabel>
             <Input value={buildingName} onChange={setBuildingName} placeholder="e.g. Tornado Tower" />
           </div>
           <div>
             <FieldLabel>Floor</FieldLabel>
             <Input value={floorRef} onChange={setFloorRef} placeholder="e.g. 14" />
-          </div>
-          <div>
-            <FieldLabel>Unit Reference</FieldLabel>
-            <Input value={unitRef} onChange={setUnitRef} placeholder="e.g. TT-14-123" />
           </div>
         </div>
         <div>
@@ -736,6 +750,7 @@ function RegisterTab({
         typeCode={typeCode} entityCode={entityCode}
         agentCode={agentCode} zoneCode={zoneCode}
         generatedCode={generatedCode ?? undefined}
+        nextSeq={nextSeq}
       />
 
       {/* Submit */}
