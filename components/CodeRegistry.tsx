@@ -848,7 +848,7 @@ body{font-family:Arial,'Helvetica Neue',Helvetica,sans-serif;font-size:10pt;colo
   <span class="rpt-toolbar-label">${records.length} Record${records.length !== 1 ? 's' : ''}</span>
   <div class="rpt-toolbar-btns">
     <button class="rpt-btn-print" onclick="window.print()">Download PDF</button>
-    <button class="rpt-btn-close" onclick="window.close()">Close</button>
+    <button class="rpt-btn-close" onclick="window.parent.postMessage('cr-modal-close','*')">Close</button>
   </div>
 </div>
 <div class="rpt-page">
@@ -894,7 +894,7 @@ function buildCrWaText(records: RegistryRecord[]): string {
     (r.building_name ? `\n   Building: ${r.building_name}` : '') +
     `\n   Registered: ${new Date(r.created_at).toLocaleDateString('en-GB')}`
   ).join('\n\n');
-  return `*Privé Group Real Estate — Smart Code Registry*\n\n${lines}\n\n_Vanguard REOS · reims-sigma.vercel.app_`;
+  return `*Privé Group Real Estate — Smart Code Registry*\n\n${lines}\n\n_Connecting you with property, the Privé way_`;
 }
 
 function buildCrEmailBody(records: RegistryRecord[]): string {
@@ -908,7 +908,7 @@ function buildCrEmailBody(records: RegistryRecord[]): string {
     `\n   Registered: ${new Date(r.created_at).toLocaleDateString('en-GB')}`
   ).join('\n\n');
   const subject = `Smart Code Registry — ${records.length} Record${records.length !== 1 ? 's' : ''}`;
-  const body = `Smart Code Registry Export\nPrivé Group Real Estate\n${'─'.repeat(40)}\n\n${lines}\n\n${'─'.repeat(40)}\nVanguard REOS · reims-sigma.vercel.app`;
+  const body = `Smart Code Registry Export\nPrivé Group Real Estate\n${'─'.repeat(40)}\n\n${lines}\n\n${'─'.repeat(40)}\nConnecting you with property, the Privé way`;
   return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
@@ -921,17 +921,25 @@ function CrPdfModal({ records, onClose }: { records: RegistryRecord[]; onClose: 
   const html = buildCrReportHTML(records, salutation);
 
   function handleDownload() {
-    const w = window.open('', '_blank');
-    if (!w) return;
-    w.document.write(buildCrReportHTML(records, salutation));
-    w.document.close();
+    const blob = new Blob([buildCrReportHTML(records, salutation)], { type: 'text/html' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `Smart_Code_Registry_${new Date().toISOString().slice(0, 10)}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
-  // Close on Escape
+  // Close on Escape or postMessage from iframe
   useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', h);
-    return () => document.removeEventListener('keydown', h);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onMsg = (e: MessageEvent)  => { if (e.data === 'cr-modal-close') onClose(); };
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('message', onMsg);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('message', onMsg);
+    };
   }, [onClose]);
 
   return (
