@@ -847,7 +847,7 @@ body{font-family:Arial,'Helvetica Neue',Helvetica,sans-serif;font-size:10pt;colo
 <div class="rpt-toolbar">
   <span class="rpt-toolbar-label">${records.length} Record${records.length !== 1 ? 's' : ''}</span>
   <div class="rpt-toolbar-btns">
-    <button class="rpt-btn-print" onclick="window.print()">Download PDF</button>
+    <button class="rpt-btn-print" onclick="window.print()">PRINT REPORT</button>
     <button class="rpt-btn-close" onclick="window.parent.postMessage('cr-modal-close','*')">Close</button>
   </div>
 </div>
