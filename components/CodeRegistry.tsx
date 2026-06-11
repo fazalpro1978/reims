@@ -771,6 +771,215 @@ function RegisterTab({
   );
 }
 
+// ── Registry PDF report ───────────────────────────────────────────────────────
+
+function buildCrReportHTML(records: RegistryRecord[], salutation: string): string {
+  const generatedAt = new Date().toLocaleString('en-GB', {
+    day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+
+  const rows = records.map((r, i) => `
+    <tr style="background:${i % 2 === 1 ? '#f8fafc' : '#ffffff'}">
+      <td style="padding:5pt 7pt 5pt 0;border-bottom:1px solid #e2e8f0;font-family:monospace;font-size:9pt;font-weight:700;color:#6d28d9;letter-spacing:0.04em;white-space:nowrap">${r.smart_code}</td>
+      <td style="padding:5pt 7pt;border-bottom:1px solid #e2e8f0;font-size:8.5pt;white-space:nowrap">
+        <span style="background:#f3e8ff;color:#6d28d9;padding:1pt 5pt;border-radius:3pt;font-weight:700">${r.type_code}</span>
+        <span style="color:#555;margin-left:4pt">${r.configuration}</span>
+      </td>
+      <td style="padding:5pt 7pt;border-bottom:1px solid #e2e8f0;font-size:8.5pt">${r.company_name}<br><span style="color:#94a3b8;font-size:7.5pt">${r.entity_code}</span></td>
+      <td style="padding:5pt 7pt;border-bottom:1px solid #e2e8f0;font-size:8.5pt;white-space:nowrap"><span style="font-family:monospace;color:#15803d;font-weight:700">${r.agent_code}</span> <span style="color:#555">${r.agent_name}</span></td>
+      <td style="padding:5pt 7pt;border-bottom:1px solid #e2e8f0;font-size:8.5pt">${r.district_name}<br><span style="color:#94a3b8;font-size:7.5pt">Zone ${String(r.zone_code).padStart(2, '0')} · ${r.municipality}</span></td>
+      <td style="padding:5pt 7pt;border-bottom:1px solid #e2e8f0;font-size:8.5pt;color:#475569">${[r.building_name, r.floor_ref && `Fl.${r.floor_ref}`].filter(Boolean).join(' · ') || '—'}</td>
+      <td style="padding:5pt 0 5pt 7pt;border-bottom:1px solid #e2e8f0;font-size:8.5pt;color:#475569;white-space:nowrap">${new Date(r.created_at).toLocaleDateString('en-GB')}</td>
+    </tr>`).join('');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Smart Code Registry Report</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,'Helvetica Neue',Helvetica,sans-serif;font-size:10pt;color:#1a1a1a;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+@media screen{
+  body{background:#bfc4cc!important;padding:24px 0 48px}
+  .rpt-toolbar{width:210mm;margin:0 auto 10px;padding:0 2px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .rpt-toolbar-label{font-size:10px;font-weight:700;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap}
+  .rpt-toolbar-greeting{display:flex;align-items:center;gap:6px;flex:1}
+  .rpt-toolbar-greeting label{font-size:9px;font-weight:700;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap}
+  .rpt-toolbar-greeting input{flex:1;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:4px;color:#fff;font-size:11px;padding:5px 10px;outline:none}
+  .rpt-toolbar-greeting input:focus{border-color:#c9a84c}
+  .rpt-toolbar-btns{display:flex;gap:8px}
+  .rpt-btn-print{background:#c9a84c;color:#0f0f0f;border:none;padding:7px 20px;font-size:11px;font-weight:700;border-radius:5px;cursor:pointer}
+  .rpt-btn-print:hover{background:#dfc070}
+  .rpt-btn-close{background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.22);padding:7px 14px;font-size:11px;font-weight:600;border-radius:5px;cursor:pointer}
+  .rpt-btn-close:hover{background:rgba(255,255,255,0.22)}
+  .rpt-page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;box-shadow:0 8px 40px rgba(0,0,0,0.30);padding:18mm 16mm 22mm}
+}
+@media print{
+  .rpt-toolbar{display:none!important}
+  body{background:#fff!important}
+  .rpt-page{padding:0;box-shadow:none}
+  tr{page-break-inside:avoid}
+}
+@page{
+  size:A4 portrait;
+  margin:16mm 14mm 26mm 14mm;
+  @bottom-left{content:"Generated: ${generatedAt}";font-family:Arial,sans-serif;font-size:7.5pt;color:#64748b}
+  @bottom-center{content:"Page " counter(page) " / " counter(pages);font-family:Arial,sans-serif;font-size:7.5pt;color:#64748b}
+  @bottom-right{content:"Privé Group Real Estate  ·  privegroupre.com  ·  Confidential";font-family:Arial,sans-serif;font-size:7.5pt;font-weight:700;color:#1a1a1a}
+}
+.rpt-brand-tbl{width:100%;border-collapse:collapse;margin-bottom:8pt}
+.rpt-brand-name{font-size:16pt;font-weight:700;color:#0f172a;margin-bottom:4pt;line-height:1.15}
+.rpt-brand-addr{font-size:9pt;color:#64748b;line-height:1.55;margin-bottom:2pt}
+.rpt-brand-lic{font-size:9pt;color:#64748b;font-style:italic;line-height:1.4}
+.rpt-logo-img{height:68px;width:auto;display:block;margin-left:auto}
+.rpt-hr-gold{border:none;border-top:2px solid #c9a84c;margin:7pt 0 9pt}
+.rpt-hr-light{border:none;border-top:1px solid #e2e8f0;margin:9pt 0 8pt}
+.rpt-report-title{font-size:14pt;font-weight:700;color:#c9a84c;letter-spacing:0.01em;line-height:1.3}
+.rpt-salutation{font-size:10.5pt;font-weight:500;color:#334155;margin-top:5pt;margin-bottom:2pt;line-height:1.5;font-style:italic}
+.rpt-sec-lbl{font-size:7pt;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.18em;margin-top:10pt;margin-bottom:5pt}
+.rpt-reg-tbl{width:100%;border-collapse:collapse}
+.rpt-reg-tbl th{font-size:7pt;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.12em;text-align:left;padding:5pt 7pt 5pt 0;border-bottom:2px solid #c9a84c;white-space:nowrap}
+.rpt-reg-tbl th:last-child{padding-right:0}
+</style>
+</head>
+<body>
+<div class="rpt-toolbar">
+  <span class="rpt-toolbar-label">${records.length} Record${records.length !== 1 ? 's' : ''}</span>
+  <div class="rpt-toolbar-btns">
+    <button class="rpt-btn-print" onclick="window.print()">Download PDF</button>
+    <button class="rpt-btn-close" onclick="window.close()">Close</button>
+  </div>
+</div>
+<div class="rpt-page">
+  <table class="rpt-brand-tbl"><tbody><tr>
+    <td style="vertical-align:top;width:62%">
+      <p class="rpt-brand-name">Privé Group Real Estate Qatar</p>
+      <p class="rpt-brand-addr">Old Salata area, Office 902, Building No 08, GITCO Tower,<br>Emrair St, Doha&#8209;Qatar</p>
+      <p class="rpt-brand-lic">Brokerage Licence No 773 | CR No 187753</p>
+    </td>
+    <td style="vertical-align:top;text-align:right;width:38%">
+      <img src="/brand/logo-print.png" alt="Privé Group Real Estate" class="rpt-logo-img"/>
+    </td>
+  </tr></tbody></table>
+  <hr class="rpt-hr-gold"/>
+  <p class="rpt-report-title">Smart Code Registry Report</p>
+  ${salutation ? `<p class="rpt-salutation">${salutation}</p>` : ''}
+  <hr class="rpt-hr-light"/>
+  <p class="rpt-sec-lbl" style="margin-top:0">Registry Records — ${records.length} entr${records.length !== 1 ? 'ies' : 'y'}</p>
+  <table class="rpt-reg-tbl">
+    <thead><tr>
+      <th>Smart Code</th>
+      <th style="padding-left:7pt">Type</th>
+      <th style="padding-left:7pt">Company</th>
+      <th style="padding-left:7pt">Agent</th>
+      <th style="padding-left:7pt">Zone / District</th>
+      <th style="padding-left:7pt">Building</th>
+      <th style="padding-left:7pt">Registered</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+</div>
+</body>
+</html>`;
+}
+
+function buildCrWaText(records: RegistryRecord[]): string {
+  const lines = records.map((r, i) =>
+    `${i + 1}. *${r.smart_code}*\n` +
+    `   ${r.core_type} › ${r.sub_type} › ${r.configuration} [${r.type_code}]\n` +
+    `   Company: ${r.company_name}\n` +
+    `   Agent: ${r.agent_name} (${r.agent_code})\n` +
+    `   Zone ${String(r.zone_code).padStart(2, '0')} — ${r.district_name}, ${r.municipality}` +
+    (r.building_name ? `\n   Building: ${r.building_name}` : '') +
+    `\n   Registered: ${new Date(r.created_at).toLocaleDateString('en-GB')}`
+  ).join('\n\n');
+  return `*Privé Group Real Estate — Smart Code Registry*\n\n${lines}\n\n_Vanguard REOS · reims-sigma.vercel.app_`;
+}
+
+function buildCrEmailBody(records: RegistryRecord[]): string {
+  const lines = records.map((r, i) =>
+    `${i + 1}. ${r.smart_code}\n` +
+    `   ${r.core_type} › ${r.sub_type} › ${r.configuration} [${r.type_code}]\n` +
+    `   Company: ${r.company_name} (${r.entity_code})\n` +
+    `   Agent: ${r.agent_name} (${r.agent_code})\n` +
+    `   Zone ${String(r.zone_code).padStart(2, '0')} — ${r.district_name}, ${r.municipality}` +
+    (r.building_name ? `\n   Building: ${r.building_name}` : '') +
+    `\n   Registered: ${new Date(r.created_at).toLocaleDateString('en-GB')}`
+  ).join('\n\n');
+  const subject = `Smart Code Registry — ${records.length} Record${records.length !== 1 ? 's' : ''}`;
+  const body = `Smart Code Registry Export\nPrivé Group Real Estate\n${'─'.repeat(40)}\n\n${lines}\n\n${'─'.repeat(40)}\nVanguard REOS · reims-sigma.vercel.app`;
+  return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+// ── PDF Modal ─────────────────────────────────────────────────────────────────
+
+function CrPdfModal({ records, onClose }: { records: RegistryRecord[]; onClose: () => void }) {
+  const [salutation, setSalutation] = useState('');
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const html = buildCrReportHTML(records, salutation);
+
+  function handleDownload() {
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.write(buildCrReportHTML(records, salutation));
+    w.document.close();
+  }
+
+  // Close on Escape
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[300] flex flex-col bg-[#0a0a0a]">
+      {/* Toolbar */}
+      <div className="shrink-0 bg-[#111111] border-b border-[#1e1e1e] px-5 py-3 flex items-center gap-4">
+        <span className="text-[11px] font-bold text-[#555] uppercase tracking-widest shrink-0">
+          {records.length} Record{records.length !== 1 ? 's' : ''}
+        </span>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <label className="text-[9px] font-bold text-[#555] uppercase tracking-widest shrink-0">Salutation</label>
+          <input
+            value={salutation}
+            onChange={e => setSalutation(e.target.value)}
+            placeholder="e.g. Dear Mr. Ahmed Al-Rashid,"
+            className="flex-1 min-w-0 bg-[#1a1a1a] border border-[#2a2a2a] text-[#e0e0e0] text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#c9a84c]/60 placeholder-[#444]"
+          />
+        </div>
+        <div className="flex gap-2 shrink-0">
+          <button
+            onClick={handleDownload}
+            className="bg-[#c9a84c] hover:bg-[#dfc070] text-[#0f0f0f] text-sm font-bold px-4 py-2 rounded-lg transition-colors"
+          >
+            Download PDF
+          </button>
+          <button
+            onClick={onClose}
+            className="bg-[#1a1a1a] hover:bg-[#242424] border border-[#2a2a2a] text-[#888] hover:text-[#e0e0e0] text-sm px-4 py-2 rounded-lg transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+
+      {/* A4 Preview via srcdoc iframe */}
+      <div className="flex-1 overflow-hidden bg-[#bfc4cc]">
+        <iframe
+          ref={iframeRef}
+          srcDoc={html}
+          title="Registry PDF Preview"
+          className="w-full h-full border-0"
+          sandbox="allow-same-origin allow-scripts allow-modals"
+        />
+      </div>
+    </div>
+  );
+}
+
 // ── Search Tab ────────────────────────────────────────────────────────────────
 
 function SearchTab({ options }: { options: Options }) {
@@ -786,17 +995,38 @@ function SearchTab({ options }: { options: Options }) {
   const [q,            setQ]            = useState('');
   const [page,         setPage]         = useState(1);
 
-  const [results,  setResults]  = useState<RegistryRecord[]>([]);
-  const [total,    setTotal]    = useState(0);
-  const [loading,  setLoading]  = useState(false);
-  const [searched, setSearched] = useState(false);
+  const [results,     setResults]     = useState<RegistryRecord[]>([]);
+  const [total,       setTotal]       = useState(0);
+  const [loading,     setLoading]     = useState(false);
+  const [searched,    setSearched]    = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showPdf,     setShowPdf]     = useState(false);
 
   const filteredZones  = zones.filter(z => !municipality || z.municipality === municipality);
   const municipalities = Array.from(new Set(zones.map(z => z.municipality))).sort();
   const uniqueSubTypes = Array.from(new Set(configs.map(c => c.sub_type)));
 
+  const selectedRecords = results.filter(r => selectedIds.has(r.id));
+  const allSelected     = results.length > 0 && results.every(r => selectedIds.has(r.id));
+
+  function toggleRow(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (allSelected) {
+      setSelectedIds(prev => { const n = new Set(prev); results.forEach(r => n.delete(r.id)); return n; });
+    } else {
+      setSelectedIds(prev => { const n = new Set(prev); results.forEach(r => n.add(r.id)); return n; });
+    }
+  }
+
   const search = useCallback(async (p = 1) => {
-    setLoading(true); setSearched(true);
+    setLoading(true); setSearched(true); setSelectedIds(new Set());
     try {
       const params = new URLSearchParams({ page: String(p) });
       if (typeCode)    params.set('typeCode',    typeCode);
@@ -947,21 +1177,67 @@ function SearchTab({ options }: { options: Options }) {
       {/* Results */}
       {searched && (
         <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#1e1e1e]">
+          {/* Table toolbar */}
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#1e1e1e] gap-3 flex-wrap">
             <p className="text-sm text-[#888]">
               {loading ? 'Loading…' : `${total.toLocaleString()} record${total !== 1 ? 's' : ''} found`}
             </p>
-            <button
-              onClick={exportExcel}
-              disabled={!results.length}
-              className="flex items-center gap-2 text-xs font-semibold text-[#22c55e] border border-[#22c55e]/30 px-3 py-1.5 rounded-lg hover:bg-[#22c55e]/10 disabled:opacity-40 transition-colors"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              Export Excel
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={exportExcel}
+                disabled={!results.length}
+                className="flex items-center gap-2 text-xs font-semibold text-[#22c55e] border border-[#22c55e]/30 px-3 py-1.5 rounded-lg hover:bg-[#22c55e]/10 disabled:opacity-40 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Export Excel
+              </button>
+            </div>
           </div>
+
+          {/* Bulk action bar */}
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-3 px-5 py-2.5 bg-[#c9a84c]/8 border-b border-[#c9a84c]/20 flex-wrap">
+              <span className="text-xs font-bold text-[#c9a84c]">{selectedIds.size} selected</span>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="text-[10px] text-[#666] hover:text-[#e0e0e0] border border-[#2a2a2a] px-2 py-0.5 rounded transition-colors"
+              >Clear</button>
+              <div className="h-3 w-px bg-[#2a2a2a] mx-1" />
+              {/* WhatsApp */}
+              <button
+                onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(buildCrWaText(selectedRecords))}`, '_blank')}
+                className="flex items-center gap-1.5 text-xs font-semibold text-[#25d366] border border-[#25d366]/30 px-3 py-1.5 rounded-lg hover:bg-[#25d366]/10 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                  <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.532 5.848L.072 23.928l6.244-1.637A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.891 0-3.667-.493-5.205-1.355l-.372-.221-3.708.972.988-3.615-.243-.387A9.953 9.953 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
+                </svg>
+                WhatsApp
+              </button>
+              {/* Email */}
+              <button
+                onClick={() => { window.location.href = buildCrEmailBody(selectedRecords); }}
+                className="flex items-center gap-1.5 text-xs font-semibold text-[#38bdf8] border border-[#38bdf8]/30 px-3 py-1.5 rounded-lg hover:bg-[#38bdf8]/10 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+                Email
+              </button>
+              {/* PDF Report */}
+              <button
+                onClick={() => setShowPdf(true)}
+                className="flex items-center gap-1.5 text-xs font-semibold text-[#e879f9] border border-[#e879f9]/30 px-3 py-1.5 rounded-lg hover:bg-[#e879f9]/10 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                PDF Report
+              </button>
+            </div>
+          )}
 
           {results.length > 0 ? (
             <>
@@ -969,6 +1245,15 @@ function SearchTab({ options }: { options: Options }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-[#1e1e1e]">
+                      <th className="pl-4 pr-2 py-3 w-8">
+                        <input
+                          type="checkbox"
+                          checked={allSelected}
+                          onChange={toggleAll}
+                          title="Select all"
+                          className="w-3.5 h-3.5 accent-[#c9a84c] cursor-pointer"
+                        />
+                      </th>
                       {['Smart Code','Type','Company','Agent','Zone / District','Building','Registered'].map(h => (
                         <th key={h} className="text-left px-4 py-3 text-[10px] font-bold text-[#555] uppercase tracking-widest whitespace-nowrap">
                           {h}
@@ -978,12 +1263,24 @@ function SearchTab({ options }: { options: Options }) {
                   </thead>
                   <tbody>
                     {results.map(r => (
-                      <tr key={r.id} className="border-b border-[#1a1a1a] hover:bg-[#1a1a1a] transition-colors group">
+                      <tr
+                        key={r.id}
+                        className={`border-b border-[#1a1a1a] transition-colors group cursor-pointer ${selectedIds.has(r.id) ? 'bg-[#c9a84c]/5' : 'hover:bg-[#1a1a1a]'}`}
+                        onClick={() => toggleRow(r.id)}
+                      >
+                        <td className="pl-4 pr-2 py-3 w-8" onClick={e => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(r.id)}
+                            onChange={() => toggleRow(r.id)}
+                            className="w-3.5 h-3.5 accent-[#c9a84c] cursor-pointer"
+                          />
+                        </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <span className="font-mono text-sm text-[#e0e0e0] tracking-wider">{r.smart_code}</span>
                             <button
-                              onClick={() => copyToClipboard(r.smart_code)}
+                              onClick={e => { e.stopPropagation(); copyToClipboard(r.smart_code); }}
                               className="opacity-0 group-hover:opacity-100 text-[10px] text-[#c9a84c] border border-[#c9a84c]/30 rounded px-1.5 py-0.5 transition-all"
                             >
                               Copy
@@ -1043,6 +1340,10 @@ function SearchTab({ options }: { options: Options }) {
             )
           )}
         </div>
+      )}
+
+      {showPdf && (
+        <CrPdfModal records={selectedRecords} onClose={() => setShowPdf(false)} />
       )}
     </div>
   );
