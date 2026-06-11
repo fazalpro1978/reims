@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabase/client';
 import { logEvent } from '../lib/auditLog';
 import { DurationUnit, parseLegalDuration, calcEndDate, calcDurationFromDates } from '../lib/legalDuration';
 import { generateInternalCopyText, generatePublicShareText } from '../lib/shareUtils';
+import { UNIT_CONFIGS_FULL } from '../lib/propertySchema';
 import DocUploadRow from './DocUploadRow';
 import CommDocRow, { DocEntry } from './CommDocRow';
 import NeighborhoodGuide from './NeighborhoodGuide';
@@ -164,11 +165,7 @@ const ZONE_OPTIONS: { zone: string; code: number }[] = [
   { zone: 'Al Waab',                               code: 53 },
 ];
 
-const UNIT_CONFIGS = [
-  '1 BHK', '2 BHK', '3 BHK',
-  '4 BHK + Maid', '4 BHK + Maid (Private)',
-  '5 BHK + Maid (Private)', 'Penthouse', 'Studio',
-];
+const UNIT_CONFIGS = UNIT_CONFIGS_FULL;
 
 function isValidUrl(url: string): boolean {
   try { return Boolean(new URL(url)); } catch { return false; }

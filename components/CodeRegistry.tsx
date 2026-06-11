@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import * as XLSX from 'xlsx';
+import { PROPERTY_MATRIX } from '../lib/propertySchema';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
