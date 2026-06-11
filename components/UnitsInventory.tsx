@@ -571,7 +571,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
   // ── Share handlers ─────────────────────────────────────────────────────────
 
   const handleWhatsApp = useCallback((unit: UnitListing) => {
-    window.open(`https://wa.me/?text=${encodeURIComponent(generatePublicShareText(unit))}`, '_blank');
+    window.open(`https://wa.me/?text=${encodeURIComponent(generateInternalCopyText(unit))}`, '_blank');
   }, []);
 
   const handleEmail = useCallback((unit: UnitListing) => {
