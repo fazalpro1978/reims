@@ -28,6 +28,7 @@ import { supabase } from '../lib/supabase/client';
 import { formatQAR, generateShareText, generateEmailBody, generatePublicShareText, generateInternalCopyText } from '../lib/shareUtils';
 import UnitDetailsModal from './UnitDetailsModal';
 import TopBar from './TopBar';
+import Link from 'next/link';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -844,6 +845,17 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
 
           {/* ── Summary row ── */}
           <div className="mt-3 flex items-center justify-between flex-wrap gap-2">
+            <Link
+              href="/units-import"
+              className="flex items-center gap-1.5 text-xs font-semibold text-[#c9a84c] hover:text-[#dfc070] border border-[#c9a84c]/30 hover:border-[#c9a84c]/60 rounded-lg px-3 py-1.5 transition-all"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="w-3.5 h-3.5">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              Import Data
+            </Link>
             <p className="text-xs text-[#606060]">
               Showing{' '}
               <strong className="text-[#c0c0c0] font-semibold">{filteredUnits.length}</strong>
