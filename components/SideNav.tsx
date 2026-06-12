@@ -97,6 +97,15 @@ function IcHelp() {
   );
 }
 
+function IcIngest() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px] shrink-0">
+      <path d="M12 3v12M8 11l4 4 4-4" />
+      <path d="M20 21H4a1 1 0 01-1-1v-2a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-1 1z" />
+    </svg>
+  );
+}
+
 function IcClose() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="w-[15px] h-[15px]">
@@ -107,6 +116,7 @@ function IcClose() {
 
 const ICON_MAP: Record<string, React.ReactNode> = {
   hash:     <IcHash />,
+  ingest:   <IcIngest />,
   grid:     <IcGrid />,
   building: <IcBuilding />,
   users:    <IcUsers />,
@@ -119,6 +129,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 
 const NAV_ICON_COLOR: Record<string, string> = {
   hash:     '#e879f9',  // fuchsia        — Code Registry
+  ingest:   '#f97316',  // neon orange    — Data Ingestion
   grid:     '#22d3ee',  // electric cyan  — Units Inventory
   building: '#a78bfa',  // neon violet    — Properties
   users:    '#4ade80',  // neon green     — Tenants
@@ -135,8 +146,9 @@ const NAV_SECTIONS = [
   {
     label: 'Portfolio',
     items: [
-      { id: 'code-registry', label: 'Code Registry',    href: '/code-registry', icon: 'hash', soon: false },
-      { id: 'inventory',   label: 'Units Inventory',   href: '/',           icon: 'grid',     soon: false },
+      { id: 'code-registry', label: 'Code Registry',    href: '/code-registry', icon: 'hash',   soon: false },
+      { id: 'data-ingest',   label: 'Data Ingestion',   href: '/units-import',  icon: 'ingest', soon: false },
+      { id: 'inventory',     label: 'Units Inventory',  href: '/',              icon: 'grid',   soon: false },
       { id: 'properties',  label: 'Properties',        href: '/properties', icon: 'building', soon: true  },
       { id: 'tenants',     label: 'Tenants',            href: '/tenants',    icon: 'users',    soon: true  },
     ],
