@@ -110,7 +110,7 @@ function FieldCell({ value }: { value: unknown }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function UnitImportPipeline({ onMenuClick }: { onMenuClick?: () => void }) {
+export default function UnitImportPipeline({ onMenuClick, embedded = false }: { onMenuClick?: () => void; embedded?: boolean }) {
   const [stage, setStage] = useState<Stage>('upload');
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -255,18 +255,20 @@ export default function UnitImportPipeline({ onMenuClick }: { onMenuClick?: () =
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#0f0f0f]">
-      <TopBar onMenuClick={onMenuClick} />
+    <div className={embedded ? '' : 'min-h-screen bg-[#0f0f0f]'}>
+      {!embedded && <TopBar onMenuClick={onMenuClick} />}
 
       {/* Sub-header */}
-      <div className="sticky top-[61px] z-40 bg-[#0f0f0f]/95 backdrop-blur border-b border-[#1a1a1a]">
+      <div className={`${embedded ? '' : 'sticky top-[61px] z-40'} bg-[#0f0f0f]/95 backdrop-blur border-b border-[#1a1a1a]`}>
         <div className="max-w-screen-xl mx-auto px-5 py-3 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <Link href="/" className="text-[#555] hover:text-[#c9a84c] transition-colors">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="w-4 h-4">
-                <path d="M19 12H5M12 5l-7 7 7 7" />
-              </svg>
-            </Link>
+            {!embedded && (
+              <Link href="/" className="text-[#555] hover:text-[#c9a84c] transition-colors">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="w-4 h-4">
+                  <path d="M19 12H5M12 5l-7 7 7 7" />
+                </svg>
+              </Link>
+            )}
             <div>
               <h1 className="text-sm font-bold text-white">Property Data Ingestion</h1>
               {fileName && <p className="text-[10px] text-[#555]">{fileName}</p>}

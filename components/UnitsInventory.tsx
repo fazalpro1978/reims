@@ -29,6 +29,7 @@ import { formatQAR, generateShareText, generateEmailBody, generatePublicShareTex
 import UnitDetailsModal from './UnitDetailsModal';
 import TopBar from './TopBar';
 import Link from 'next/link';
+import UnitImportPipeline from './UnitImportPipeline';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -360,6 +361,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
   const [dbError, setDbError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+  const [view, setView] = useState<'inventory' | 'import'>('inventory');
 
   useEffect(() => {
     async function fetchUnits() {
@@ -662,13 +664,41 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
           </div>
         )}
 
-        {/* ── PAGE TITLE ── */}
-        <div>
-          <h2 className="text-xl font-bold text-white tracking-tight">Units Inventory</h2>
-          <p className="text-[#606060] text-sm mt-0.5">
-            Manage, filter, and monitor all Qatar property listings
-          </p>
+        {/* ── PAGE TITLE + VIEW TABS ── */}
+        <div className="flex items-end justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-xl font-bold text-white tracking-tight">Units Inventory</h2>
+            <p className="text-[#606060] text-sm mt-0.5">
+              {view === 'inventory'
+                ? 'Manage, filter, and monitor all Qatar property listings'
+                : 'Import property data from any file format'}
+            </p>
+          </div>
+          <div className="flex items-center gap-1 bg-[#141414] border border-[#1e1e1e] rounded-xl p-1">
+            {([
+              { key: 'inventory', label: 'Inventory' },
+              { key: 'import',    label: 'Import Data' },
+            ] as const).map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setView(t.key)}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  view === t.key
+                    ? 'bg-[#c9a84c] text-[#0f0f0f]'
+                    : 'text-[#555] hover:text-[#e0e0e0]'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {view === 'import' && (
+          <UnitImportPipeline embedded onMenuClick={onMenuClick} />
+        )}
+
+        {view === 'inventory' && (<>
 
         {/* ══════════════════════════════════════════════════════════════════════
             SECTION A: METRIC TICKER RIBBON
@@ -845,17 +875,6 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
 
           {/* ── Summary row ── */}
           <div className="mt-3 flex items-center justify-between flex-wrap gap-2">
-            <Link
-              href="/units-import"
-              className="flex items-center gap-1.5 text-xs font-semibold text-[#c9a84c] hover:text-[#dfc070] border border-[#c9a84c]/30 hover:border-[#c9a84c]/60 rounded-lg px-3 py-1.5 transition-all"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="w-3.5 h-3.5">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-              Import Data
-            </Link>
             <p className="text-xs text-[#606060]">
               Showing{' '}
               <strong className="text-[#c0c0c0] font-semibold">{filteredUnits.length}</strong>
@@ -1070,6 +1089,8 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
         <p className="text-center text-xs text-[#666666] pb-4">
           Privé Group · Vanguard REOS · Qatar Property Portfolio · {units.length} active listings
         </p>
+
+        </>)} {/* end view === 'inventory' */}
       </main>
 
       {/* ══════════════════════════════════════════════════════════════════════
