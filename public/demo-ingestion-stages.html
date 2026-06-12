@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Data Ingestion — Stage 2 & 3 Preview</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f0f0f; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; }
+  /* ── Layout ── */
+  .topbar { background: #111; border-bottom: 1px solid #1e1e1e; padding: 0 20px; height: 61px; display: flex; align-items: center; gap: 12px; }
+  .topbar-logo { font-size: 11px; font-weight: 800; letter-spacing: .15em; color: #c9a84c; text-transform: uppercase; }
+  .topbar-title { font-size: 11px; color: #444; font-weight: 600; letter-spacing: .05em; }
+  .subbar { background: rgba(15,15,15,.95); border-bottom: 1px solid #1a1a1a; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .back { color: #555; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; }
+  .back svg { width: 14px; height: 14px; }
+  .main { max-width: 1200px; margin: 0 auto; padding: 28px 20px; }
+  /* ── Stage indicator ── */
+  .stages { display: flex; align-items: center; gap: 0; }
+  .stage-item { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: .05em; }
+  .stage-done  { color: #22c55e; }
+  .stage-active{ color: #c9a84c; background: rgba(201,168,76,.1); }
+  .stage-idle  { color: #444; }
+  .stage-dot   { width: 14px; height: 14px; border-radius: 999px; border: 1.5px solid; display: flex; align-items: center; justify-content: center; font-size: 8px; flex-shrink: 0; }
+  .stage-line  { width: 20px; height: 1px; background: #2a2a2a; }
+  .stage-line-done { background: rgba(34,197,94,.4); }
+  .check svg   { width: 12px; height: 12px; }
+  /* ── Section headings ── */
+  .section-title { font-size: 14px; font-weight: 800; color: #fff; }
+  .section-sub   { font-size: 11px; color: #555; margin-top: 3px; }
+  /* ── Badges ── */
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 9px; font-weight: 800; border: 1px solid; white-space: nowrap; }
+  .badge-new    { color: #22c55e; background: rgba(34,197,94,.1);  border-color: rgba(34,197,94,.25); }
+  .badge-update { color: #c9a84c; background: rgba(201,168,76,.1); border-color: rgba(201,168,76,.25); }
+  .badge-error  { color: #ef4444; background: rgba(239,68,68,.1);  border-color: rgba(239,68,68,.25); }
+  .badge-warn   { color: #f59e0b; background: rgba(245,158,11,.1); border-color: rgba(245,158,11,.25); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  /* ── Summary chips ── */
+  .chip-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .chip { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #888; }
+  /* ── Table ── */
+  .card { border: 1px solid #1e1e1e; border-radius: 14px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  thead tr { background: #0d0d0d; border-bottom: 1px solid #1e1e1e; }
+  th { padding: 9px 8px; text-align: left; font-size: 9px; font-weight: 800; color: #555; text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; }
+  th.center { text-align: center; }
+  td { padding: 8px 8px; border-bottom: 1px solid #141414; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr.row-new    { }
+  tr.row-update { background: rgba(201,168,76,.03); }
+  tr.row-error  { background: rgba(239,68,68,.04); }
+  tr.row-warn   { background: rgba(245,158,11,.03); }
+  .mono { font-family: 'SF Mono', 'Fira Code', monospace; }
+  .dim  { color: #555; }
+  .muted { color: #888; }
+  .status-avail    { color: #22c55e; }
+  .status-leased   { color: #f97316; }
+  .status-reserved { color: #3b82f6; }
+  .type-code { font-family: monospace; font-size: 10px; color: #a855f7; background: rgba(168,85,247,.1); padding: 1px 6px; border-radius: 4px; }
+  /* row actions */
+  .row-actions { display: flex; gap: 3px; }
+  .btn-icon { width: 22px; height: 22px; border-radius: 6px; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #555; }
+  .btn-icon:hover { background: #1e1e1e; color: #e0e0e0; }
+  .btn-del:hover  { background: rgba(239,68,68,.1); color: #ef4444; }
+  /* ── Metric cards ── */
+  .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .metric-card { border: 1px solid #1e1e1e; background: #111; border-radius: 14px; padding: 16px 14px; }
+  .metric-num  { font-size: 26px; font-weight: 800; }
+  .metric-lbl  { font-size: 10px; color: #555; margin-top: 2px; }
+  /* ── Validation report ── */
+  .val-card { border: 1px solid #1e1e1e; border-radius: 14px; overflow: hidden; }
+  .val-head { background: #0d0d0d; border-bottom: 1px solid #1e1e1e; padding: 10px 16px; }
+  .val-head-lbl { font-size: 9px; font-weight: 800; color: #888; text-transform: uppercase; letter-spacing: .1em; }
+  .val-row { padding: 10px 16px; border-bottom: 1px solid #141414; display: flex; align-items: flex-start; gap: 10px; }
+  .val-row:last-child { border-bottom: none; }
+  .val-code { font-family: monospace; font-size: 11px; color: #fff; width: 110px; flex-shrink: 0; padding-top: 1px; }
+  .val-issues { display: flex; flex-direction: column; gap: 4px; }
+  .val-err  { font-size: 11px; color: #ef4444; display: flex; align-items: center; gap: 5px; }
+  .val-warn { font-size: 11px; color: #f59e0b; display: flex; align-items: center; gap: 5px; }
+  /* ── All-clear ── */
+  .all-clear { border: 1px solid rgba(34,197,94,.2); background: rgba(34,197,94,.05); border-radius: 12px; padding: 12px 16px; font-size: 12px; color: #22c55e; }
+  /* ── Import btn ── */
+  .btn-import { padding: 9px 20px; background: #c9a84c; color: #0f0f0f; font-size: 12px; font-weight: 800; border: none; border-radius: 10px; cursor: pointer; }
+  .btn-next   { padding: 8px 16px; background: #c9a84c; color: #0f0f0f; font-size: 11px; font-weight: 800; border: none; border-radius: 8px; cursor: pointer; }
+  /* ── Existing snap ── */
+  .snap { font-size: 9px; color: #555; margin-top: 2px; font-style: italic; }
+  /* ── Divider ── */
+  .divider { height: 1px; background: #1a1a1a; margin: 36px 0; }
+  .page-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .15em; color: #444; margin-bottom: 18px; }
+  .header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-logo">Privé REOS</div>
+  <div style="width:1px;height:18px;background:#222"></div>
+  <div class="topbar-title">Vanguard · Admin Dashboard</div>
+</div>
+
+<!-- SUB-BAR -->
+<div class="subbar">
+  <div class="back">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    <div>
+      <div style="color:#fff;font-size:12px;font-weight:800">Property Data Ingestion</div>
+      <div style="color:#555;font-size:9px">Al Darwish Availability List - 08.06.2026.xlsx</div>
+    </div>
+  </div>
+  <!-- Stage indicator -->
+  <div class="stages">
+    <!-- 1 done -->
+    <div class="stage-item stage-done">
+      <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+      1. Upload
+    </div>
+    <div class="stage-line stage-line-done"></div>
+    <!-- 2 active (VERIFY) -->
+    <div class="stage-item stage-active">
+      <span class="stage-dot" style="border-color:#c9a84c;color:#c9a84c">2</span>
+      2. Verification
+    </div>
+    <div class="stage-line"></div>
+    <!-- 3 idle -->
+    <div class="stage-item stage-idle">
+      <span class="stage-dot" style="border-color:#333;color:#444">3</span>
+      3. Validation
+    </div>
+    <div class="stage-line"></div>
+    <div class="stage-item stage-idle">
+      <span class="stage-dot" style="border-color:#333;color:#444">4</span>
+      Import
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!--  STAGE 2 — VERIFICATION                                       -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <div class="page-label">Stage 2 — Verification</div>
+
+  <div class="header-row">
+    <div>
+      <div class="section-title">Verification</div>
+      <div class="section-sub">Review extracted records. Edit or remove rows before validation.</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div class="chip-row">
+        <div class="chip"><span class="dot" style="background:#22c55e"></span>8 new</div>
+        <div class="chip"><span class="dot" style="background:#c9a84c"></span>2 updates</div>
+        <div class="chip"><span class="dot" style="background:#ef4444"></span>1 error</div>
+      </div>
+      <button class="btn-next">Next: Validate →</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="overflow-x:auto">
+    <table>
+      <thead>
+        <tr>
+          <th class="center" style="width:32px">#</th>
+          <th style="width:72px">Status</th>
+          <th>Unit Code</th>
+          <th>Property</th>
+          <th>Unit No</th>
+          <th>Zone</th>
+          <th>Type</th>
+          <th>Config</th>
+          <th>Furnishing</th>
+          <th>Status</th>
+          <th>Rent</th>
+          <th style="width:64px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Row 1: NEW -->
+        <tr class="row-new">
+          <td class="dim center">1</td>
+          <td><span class="badge badge-new"><span class="dot" style="background:#22c55e"></span>New</span></td>
+          <td class="mono" style="color:#e0e0e0">ADW-203</td>
+          <td style="color:#c8c8c8">Al Darwish Tower<br><span class="dim" style="font-size:9px">West Bay</span></td>
+          <td class="mono muted">203</td>
+          <td style="font-size:10px;color:#888">West Bay</td>
+          <td><span class="type-code">APT</span></td>
+          <td style="color:#c8c8c8">1 BHK</td>
+          <td style="color:#888;font-size:10px">Unfurnished</td>
+          <td class="status-avail">Available</td>
+          <td class="mono" style="color:#c9a84c">7,250</td>
+          <td><div class="row-actions"><button class="btn-icon" title="Edit">✎</button><button class="btn-icon btn-del" title="Remove">×</button></div></td>
+        </tr>
+        <!-- Row 2: NEW -->
+        <tr class="row-new">
+          <td class="dim center">2</td>
+          <td><span class="badge badge-new"><span class="dot" style="background:#22c55e"></span>New</span></td>
+          <td class="mono" style="color:#e0e0e0">ADW-606</td>
+          <td style="color:#c8c8c8">Al Darwish Tower<br><span class="dim" style="font-size:9px">West Bay</span></td>
+          <td class="mono muted">606</td>
+          <td style="font-size:10px;color:#888">West Bay</td>
+          <td><span class="type-code">APT</span></td>
+          <td style="color:#c8c8c8">1 BHK</td>
+          <td style="color:#888;font-size:10px">Unfurnished</td>
+          <td class="status-avail">Available</td>
+          <td class="mono" style="color:#c9a84c">7,250</td>
+          <td><div class="row-actions"><button class="btn-icon">✎</button><button class="btn-icon btn-del">×</button></div></td>
+        </tr>
+        <!-- Row 3: NEW -->
+        <tr class="row-new">
+          <td class="dim center">3</td>
+          <td><span class="badge badge-new"><span class="dot" style="background:#22c55e"></span>New</span></td>
+          <td class="mono" style="color:#e0e0e0">ADW-1101</td>
+          <td style="color:#c8c8c8">Al Darwish Tower<br><span class="dim" style="font-size:9px">West Bay</span></td>
+          <td class="mono muted">1101</td>
+          <td style="font-size:10px;color:#888">West Bay</td>
+          <td><span class="type-code">APT</span></td>
+          <td style="color:#c8c8c8">1 BHK</td>
+          <td style="color:#888;font-size:10px">Unfurnished</td>
+          <td class="status-avail">Available</td>
+          <td class="mono" style="color:#c9a84c">9,000</td>
+          <td><div class="row-actions"><button class="btn-icon">✎</button><button class="btn-icon btn-del">×</button></div></td>
+        </tr>
+        <!-- Row 4: UPDATE -->
+        <tr class="row-update">
+          <td class="dim center">4</td>
+          <td><span class="badge badge-update"><span class="dot" style="background:#c9a84c"></span>Update</span></td>
+          <td class="mono" style="color:#e0e0e0">ADW-1507</td>
+          <td style="color:#c8c8c8">Al Darwish Tower<br><span class="dim" style="font-size:9px">West Bay</span></td>
+          <td class="mono muted">1507</td>
+          <td style="font-size:10px;color:#888">West Bay</td>
+          <td><span class="type-code">APT</span></td>
+          <td style="color:#c8c8c8">1 BHK</td>
+          <td style="color:#888;font-size:10px">Unfurnished</td>
+          <td class="status-reserved">Reserved</td>
+          <td class="mono" style="color:#c9a84c">8,000</td>
+          <td><div class="row-actions"><button class="btn-icon">✎</button><button class="btn-icon btn-del">×</button></div></td>
+        </tr>
+        <!-- Row 5: NEW — WhatsApp data -->
+        <tr class="row-new">
+          <td class="dim center">5</td>
+          <td><span class="badge badge-new"><span class="dot" style="background:#22c55e"></span>New</span></td>
+          <td class="mono" style="color:#e0e0e0">RRM4-317</td>
+          <td style="color:#c8c8c8">RRM-4<br><span class="dim" style="font-size:9px">—</span></td>
+          <td class="mono muted">317</td>
+          <td style="font-size:10px;color:#888">—</td>
+          <td><span class="type-code">APT</span></td>
+          <td style="color:#c8c8c8">1 BHK</td>
+          <td style="color:#888;font-size:10px">Fully Furnished</td>
+          <td class="status-avail">Available</td>
+          <td class="mono" style="color:#c9a84c">4,750</td>
+          <td><div class="row-actions"><button class="btn-icon">✎</button><button class="btn-icon btn-del">×</button></div></td>
+        </tr>
+        <!-- Row 6: NEW -->
+        <tr class="row-new">
+          <td class="dim center">6</td>
+          <td><span class="badge badge-new"><span class="dot" style="background:#22c55e"></span>New</span></td>
+          <td class="mono" style="color:#e0e0e0">RRM4-204</td>
+          <td style="color:#c8c8c8">RRM-4<br><span class="dim" style="font-size:9px">—</span></td>
+          <td class="mono muted">204</td>
+          <td style="font-size:10px;color:#888">—</td>
+          <td><span class="type-code">APT</span></td>
+          <td style="color:#c8c8c8">1 BHK</td>
+          <td style="color:#888;font-size:10px">Fully Furnished</td>
+          <td class="status-reserved">Reserved</td>
+          <td class="mono" style="color:#c9a84c">5,000</td>
+          <td><div class="row-actions"><button class="btn-icon">✎</button><button class="btn-icon btn-del">×</button></div></td>
+        </tr>
+        <!-- Row 7: UPDATE -->
+        <tr class="row-update">
+          <td class="dim center">7</td>
+          <td><span class="badge badge-update"><span class="dot" style="background:#c9a84c"></span>Update</span></td>
+          <td class="mono" style="color:#e0e0e0">EMAD-A6-12</td>
+          <td style="color:#c8c8c8">E-A6 Airport<br><span class="dim" style="font-size:9px">Airport</span></td>
+          <td class="mono muted">Flat 12</td>
+          <td style="font-size:10px;color:#888">Airport</td>
+          <td><span class="type-code">APT</span></td>
+          <td style="color:#c8c8c8">2 BHK</td>
+          <td style="color:#888;font-size:10px">Unfurnished</td>
+          <td class="status-avail">Available</td>
+          <td class="mono" style="color:#c9a84c">5,000</td>
+          <td><div class="row-actions"><button class="btn-icon">✎</button><button class="btn-icon btn-del">×</button></div></td>
+        </tr>
+        <!-- Row 8: ERROR (unit_code missing) -->
+        <tr class="row-error">
+          <td class="dim center">8</td>
+          <td><span class="badge badge-error"><span class="dot" style="background:#ef4444"></span>Error</span></td>
+          <td class="mono" style="color:#ef4444;font-size:10px">—</td>
+          <td style="color:#c8c8c8">New Salatha<br><span class="dim" style="font-size:9px">New Salatha</span></td>
+          <td class="mono muted">92</td>
+          <td style="font-size:10px;color:#888">New Salatha</td>
+          <td><span class="type-code">APT</span></td>
+          <td style="color:#c8c8c8">Studio</td>
+          <td style="color:#888;font-size:10px">Fully Furnished</td>
+          <td class="status-avail">Available</td>
+          <td class="mono" style="color:#c9a84c">2,900</td>
+          <td><div class="row-actions"><button class="btn-icon" title="Edit to fix">✎</button><button class="btn-icon btn-del">×</button></div></td>
+        </tr>
+        <!-- Row 9: NEW -->
+        <tr class="row-new">
+          <td class="dim center">9</td>
+          <td><span class="badge badge-new"><span class="dot" style="background:#22c55e"></span>New</span></td>
+          <td class="mono" style="color:#e0e0e0">BYWK-308</td>
+          <td style="color:#c8c8c8">Retaj Baywalk<br><span class="dim" style="font-size:9px">The Pearl-Qatar</span></td>
+          <td class="mono muted">308</td>
+          <td style="font-size:10px;color:#888">The Pearl-Qatar</td>
+          <td><span class="type-code">APT</span></td>
+          <td style="color:#c8c8c8">1 BHK</td>
+          <td style="color:#888;font-size:10px">Fully Furnished</td>
+          <td class="status-avail">Available</td>
+          <td class="mono" style="color:#c9a84c">9,000</td>
+          <td><div class="row-actions"><button class="btn-icon">✎</button><button class="btn-icon btn-del">×</button></div></td>
+        </tr>
+        <!-- Row 10: NEW -->
+        <tr class="row-new">
+          <td class="dim center">10</td>
+          <td><span class="badge badge-new"><span class="dot" style="background:#22c55e"></span>New</span></td>
+          <td class="mono" style="color:#e0e0e0">BYWK-311</td>
+          <td style="color:#c8c8c8">Retaj Baywalk<br><span class="dim" style="font-size:9px">The Pearl-Qatar</span></td>
+          <td class="mono muted">311</td>
+          <td style="font-size:10px;color:#888">The Pearl-Qatar</td>
+          <td><span class="type-code">APT</span></td>
+          <td style="color:#c8c8c8">1 BHK</td>
+          <td style="color:#888;font-size:10px">Fully Furnished</td>
+          <td class="status-avail">Available</td>
+          <td class="mono" style="color:#c9a84c">9,000</td>
+          <td><div class="row-actions"><button class="btn-icon">✎</button><button class="btn-icon btn-del">×</button></div></td>
+        </tr>
+        <!-- Row 11: NEW, warning -->
+        <tr class="row-warn">
+          <td class="dim center">11</td>
+          <td><span class="badge badge-warn"><span class="dot" style="background:#f59e0b"></span>Warn</span></td>
+          <td class="mono" style="color:#e0e0e0">EV25-VF31</td>
+          <td style="color:#c8c8c8">EV25<br><span class="dim" style="font-size:9px">—</span></td>
+          <td class="mono muted">VF31-V</td>
+          <td style="font-size:10px;color:#888">—</td>
+          <td><span class="type-code">VIL</span></td>
+          <td style="color:#c8c8c8">6 BHK</td>
+          <td style="color:#888;font-size:10px">Unfurnished</td>
+          <td class="status-leased">Leased</td>
+          <td class="mono" style="color:#c9a84c">9,462</td>
+          <td><div class="row-actions"><button class="btn-icon">✎</button><button class="btn-icon btn-del">×</button></div></td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- Error detail -->
+  <div style="margin-top:12px;border:1px solid rgba(239,68,68,.2);background:rgba(239,68,68,.05);border-radius:12px;padding:12px 16px">
+    <div style="font-size:10px;font-weight:800;color:#ef4444;margin-bottom:8px">Rows with errors — will be skipped unless fixed:</div>
+    <div style="font-size:11px;color:#888"><span style="color:#fff;font-family:monospace">Row 8 (New Salatha-92)</span> — unit_code required</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!--  STAGE 3 — VALIDATION                                         -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+
+  <!-- Update stage indicator to show Stage 3 active -->
+  <div class="subbar" style="margin: -1px -20px 28px; padding: 10px 20px;">
+    <div class="back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px;height:14px"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      <div>
+        <div style="color:#fff;font-size:12px;font-weight:800">Property Data Ingestion</div>
+        <div style="color:#555;font-size:9px">Al Darwish Availability List - 08.06.2026.xlsx</div>
+      </div>
+    </div>
+    <div class="stages">
+      <div class="stage-item stage-done">
+        <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" style="width:12px;height:12px"><path d="M20 6L9 17l-5-5"/></svg></span>
+        1. Upload
+      </div>
+      <div class="stage-line stage-line-done"></div>
+      <div class="stage-item stage-done">
+        <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" style="width:12px;height:12px"><path d="M20 6L9 17l-5-5"/></svg></span>
+        2. Verification
+      </div>
+      <div class="stage-line stage-line-done"></div>
+      <div class="stage-item stage-active">
+        <span class="stage-dot" style="border-color:#c9a84c;color:#c9a84c">3</span>
+        3. Validation
+      </div>
+      <div class="stage-line"></div>
+      <div class="stage-item stage-idle">
+        <span class="stage-dot" style="border-color:#333;color:#444">4</span>
+        Import
+      </div>
+    </div>
+  </div>
+
+  <div class="page-label">Stage 3 — Validation</div>
+
+  <div class="header-row">
+    <div>
+      <div class="section-title">Validation</div>
+      <div class="section-sub">Data integrity checks complete. Review before final import.</div>
+    </div>
+    <button class="btn-import">Import 10 Records</button>
+  </div>
+
+  <!-- Score cards -->
+  <div class="metric-grid" style="margin-bottom:20px">
+    <div class="metric-card">
+      <div class="metric-num" style="color:#22c55e">10</div>
+      <div class="metric-lbl">Ready to Import</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-num" style="color:#3b82f6">8</div>
+      <div class="metric-lbl">New Records</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-num" style="color:#c9a84c">2</div>
+      <div class="metric-lbl">Updates</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-num" style="color:#ef4444">1</div>
+      <div class="metric-lbl">Errors (skipped)</div>
+    </div>
+  </div>
+
+  <!-- Validation report -->
+  <div class="val-card" style="margin-bottom:16px">
+    <div class="val-head">
+      <div class="val-head-lbl">Validation Report</div>
+    </div>
+    <!-- Error -->
+    <div class="val-row">
+      <div class="val-code">New Salatha-92</div>
+      <div class="val-issues">
+        <div class="val-err">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" style="width:11px;height:11px;flex-shrink:0"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          unit_code required — row will be skipped
+        </div>
+      </div>
+    </div>
+    <!-- Warning -->
+    <div class="val-row">
+      <div class="val-code">EV25-VF31</div>
+      <div class="val-issues">
+        <div class="val-warn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" style="width:11px;height:11px;flex-shrink:0"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+          unit_no missing — recommended field
+        </div>
+        <div class="val-warn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" style="width:11px;height:11px;flex-shrink:0"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+          zone missing — recommended field
+        </div>
+      </div>
+    </div>
+    <!-- Warning only -->
+    <div class="val-row">
+      <div class="val-code">RRM4-204</div>
+      <div class="val-issues">
+        <div class="val-warn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" style="width:11px;height:11px;flex-shrink:0"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+          zone missing — recommended field
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8 records passed clean -->
+  <div class="all-clear">
+    8 of 10 records passed all validation checks with no issues.
+  </div>
+
+</div>
+</body>
+</html>
