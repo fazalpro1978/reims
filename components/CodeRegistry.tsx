@@ -1479,11 +1479,22 @@ function SearchTab({ options }: { options: Options }) {
 
           {results.length > 0 ? (
             <>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div>
+                <table className="w-full text-sm table-fixed">
+                  <colgroup>
+                    <col className="w-8" />
+                    <col className="w-[152px]" />
+                    <col className="w-[90px]" />
+                    <col className="w-[110px]" />
+                    <col />
+                    <col className="w-[110px]" />
+                    <col className="w-[130px]" />
+                    <col className="w-[100px]" />
+                    <col className="w-8" />
+                  </colgroup>
                   <thead>
                     <tr className="border-b border-[#1e1e1e]">
-                      <th className="pl-4 pr-2 py-3 w-8">
+                      <th className="pl-3 pr-1 py-2.5 w-8">
                         <input
                           type="checkbox"
                           checked={allSelected}
@@ -1492,12 +1503,12 @@ function SearchTab({ options }: { options: Options }) {
                           className="w-3.5 h-3.5 accent-[#c9a84c] cursor-pointer"
                         />
                       </th>
-                      {['Smart Code','Status','Type','Company','Agent','Zone / District','Building','Registered'].map(h => (
-                        <th key={h} className="text-left px-4 py-3 text-[10px] font-bold text-[#555] uppercase tracking-widest whitespace-nowrap">
+                      {['Smart Code','Status','Type','Company','Agent','Zone / District','Ref / Date'].map(h => (
+                        <th key={h} className="text-left px-2 py-2.5 text-[10px] font-bold text-[#555] uppercase tracking-widest whitespace-nowrap">
                           {h}
                         </th>
                       ))}
-                      <th className="px-3 py-3 w-8" />
+                      <th className="px-2 py-2.5 w-8" />
                     </tr>
                   </thead>
                   <tbody>
@@ -1507,7 +1518,7 @@ function SearchTab({ options }: { options: Options }) {
                         className={`border-b border-[#1a1a1a] transition-colors group cursor-pointer ${selectedIds.has(r.id) ? 'bg-[#c9a84c]/5' : 'hover:bg-[#1a1a1a]'}`}
                         onClick={() => toggleRow(r.id)}
                       >
-                        <td className="pl-4 pr-2 py-3 w-8" onClick={e => e.stopPropagation()}>
+                        <td className="pl-3 pr-1 py-2.5 w-8" onClick={e => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={selectedIds.has(r.id)}
@@ -1515,43 +1526,43 @@ function SearchTab({ options }: { options: Options }) {
                             className="w-3.5 h-3.5 accent-[#c9a84c] cursor-pointer"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-sm text-[#e0e0e0] tracking-wider">{r.smart_code}</span>
+                        <td className="px-2 py-2.5">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="font-mono text-xs text-[#e0e0e0] tracking-widest shrink-0">{r.smart_code}</span>
                             <button
                               onClick={e => { e.stopPropagation(); copyToClipboard(r.smart_code); }}
-                              className="opacity-0 group-hover:opacity-100 text-[10px] text-[#c9a84c] border border-[#c9a84c]/30 rounded px-1.5 py-0.5 transition-all"
+                              className="opacity-0 group-hover:opacity-100 text-[9px] text-[#c9a84c] border border-[#c9a84c]/30 rounded px-1 py-0.5 transition-all shrink-0"
                             >
                               Copy
                             </button>
                           </div>
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-2 py-2.5">
                           <StatusBadge status={r.status ?? 'Active'} />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="text-xs font-mono text-[#a855f7] bg-[#a855f7]/10 px-1.5 py-0.5 rounded">{r.type_code}</span>
-                          <span className="ml-2 text-[#888] text-xs">{r.configuration}</span>
+                        <td className="px-2 py-2.5">
+                          <span className="text-[10px] font-mono text-[#a855f7] bg-[#a855f7]/10 px-1.5 py-0.5 rounded">{r.type_code}</span>
+                          <p className="text-[10px] text-[#666] truncate mt-0.5">{r.configuration}</p>
                         </td>
-                        <td className="px-4 py-3">
-                          <p className="text-[#e0e0e0] text-xs">{r.company_name}</p>
-                          <p className="text-[#555] text-[10px]">{r.entity_code}</p>
+                        <td className="px-2 py-2.5 min-w-0">
+                          <p className="text-xs text-[#e0e0e0] truncate">{r.company_name}</p>
+                          <p className="text-[10px] text-[#555] font-mono">{r.entity_code}</p>
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="text-xs font-mono text-[#22c55e]">{r.agent_code}</span>
-                          <span className="ml-1 text-[#888] text-xs">{r.agent_name}</span>
+                        <td className="px-2 py-2.5">
+                          <span className="text-[10px] font-mono text-[#22c55e]">{r.agent_code}</span>
+                          <p className="text-[10px] text-[#666] truncate">{r.agent_name}</p>
                         </td>
-                        <td className="px-4 py-3">
-                          <p className="text-[#e0e0e0] text-xs">{r.district_name}</p>
-                          <p className="text-[#555] text-[10px]">Zone {String(r.zone_code).padStart(2,'0')} · {r.municipality}</p>
+                        <td className="px-2 py-2.5">
+                          <p className="text-[10px] text-[#e0e0e0] truncate">{r.district_name}</p>
+                          <p className="text-[10px] text-[#555]">Z{String(r.zone_code).padStart(2,'0')}</p>
                         </td>
-                        <td className="px-4 py-3 text-[#888] text-xs">
-                          {[r.building_name, r.floor_ref && `Fl.${r.floor_ref}`, r.unit_ref].filter(Boolean).join(' · ') || '—'}
+                        <td className="px-2 py-2.5">
+                          <p className="text-[10px] text-[#888] truncate">
+                            {[r.building_name, r.floor_ref && `Fl.${r.floor_ref}`].filter(Boolean).join(' · ') || '—'}
+                          </p>
+                          <p className="text-[10px] text-[#555]">{new Date(r.created_at).toLocaleDateString('en-GB')}</p>
                         </td>
-                        <td className="px-4 py-3 text-[#555] text-xs whitespace-nowrap">
-                          {new Date(r.created_at).toLocaleDateString('en-GB')}
-                        </td>
-                        <td className="px-3 py-3 w-8" onClick={e => e.stopPropagation()}>
+                        <td className="px-2 py-2.5 w-8" onClick={e => e.stopPropagation()}>
                           <button
                             onClick={e => { e.stopPropagation(); setDetailRecord(r); }}
                             className="opacity-0 group-hover:opacity-100 w-6 h-6 rounded hover:bg-[#252525] flex items-center justify-center text-[#666] hover:text-[#e0e0e0] transition-all"
