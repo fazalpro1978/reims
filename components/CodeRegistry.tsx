@@ -276,6 +276,237 @@ function CodePreview({
   );
 }
 
+// ── Agent Search ─────────────────────────────────────────────────────────────
+
+function AgentSearch({
+  agents, value, onSelect, onNewAgent,
+}: {
+  agents: Agent[];
+  value: string;
+  onSelect: (code: string) => void;
+  onNewAgent: (a: Agent) => void;
+}) {
+  const [open,     setOpen]     = useState(false);
+  const [q,        setQ]        = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [newName,  setNewName]  = useState('');
+  const [adding,   setAdding]   = useState(false);
+  const [addErr,   setAddErr]   = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+
+  const selected = agents.find(a => a.agent_code === value);
+  const filtered = q
+    ? agents.filter(a =>
+        a.full_name.toLowerCase().includes(q.toLowerCase()) ||
+        a.agent_code.toLowerCase().includes(q.toLowerCase()))
+    : agents;
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  async function handleAdd() {
+    if (!newName.trim()) return;
+    setAdding(true); setAddErr('');
+    try {
+      const res  = await fetch('/api/code-registry/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fullName: newName.trim() }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) { setAddErr('Failed to register agent. Try again.'); return; }
+      const a: Agent = { agent_code: json.agentCode, full_name: json.fullName };
+      onNewAgent(a);
+      onSelect(json.agentCode);
+      setShowForm(false); setNewName(''); setOpen(false);
+    } finally { setAdding(false); }
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <div
+        onClick={() => setOpen(o => !o)}
+        className="w-full bg-[#1a1a1a] border border-[#2a2a2a] text-sm rounded-lg px-3 py-2.5 cursor-pointer flex items-center justify-between hover:border-[#3a3a3a] transition-colors"
+      >
+        <span className={selected ? 'text-[#e0e0e0]' : 'text-[#555]'}>
+          {selected
+            ? <><span className="font-mono text-[#22c55e] mr-2">{selected.agent_code}</span>{selected.full_name}</>
+            : 'Select agent…'}
+        </span>
+        <svg className="w-4 h-4 text-[#555] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
+
+      {open && (
+        <div className="absolute z-50 w-full mt-1 bg-[#161616] border border-[#2a2a2a] rounded-xl shadow-2xl overflow-hidden">
+          <div className="p-2 border-b border-[#1e1e1e]">
+            <input
+              autoFocus
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              placeholder="Search agent name or code…"
+              className="w-full bg-[#1a1a1a] border border-[#2a2a2a] text-[#e0e0e0] text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-[#c9a84c]/60 placeholder-[#555]"
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {filtered.map(a => (
+              <div
+                key={a.agent_code}
+                onClick={() => { onSelect(a.agent_code); setOpen(false); setQ(''); }}
+                className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-[#1e1e1e] transition-colors ${value === a.agent_code ? 'bg-[#1e1e1e]' : ''}`}
+              >
+                <span className="font-mono text-xs text-[#22c55e] w-6 shrink-0">{a.agent_code}</span>
+                <p className="text-sm text-[#e0e0e0] truncate">{a.full_name}</p>
+              </div>
+            ))}
+            {filtered.length === 0 && (
+              <p className="px-3 py-3 text-sm text-[#555] text-center">No agents found</p>
+            )}
+          </div>
+          <div className="border-t border-[#1e1e1e] p-2">
+            {!showForm ? (
+              <button
+                onClick={() => { setShowForm(true); setAddErr(''); }}
+                className="w-full text-sm text-[#c9a84c] hover:text-[#dfc070] py-2 flex items-center justify-center gap-2 transition-colors"
+              >
+                <span className="text-lg leading-none">+</span> Register New Agent
+              </button>
+            ) : (
+              <div className="space-y-2 p-1">
+                <input
+                  autoFocus
+                  value={newName}
+                  onChange={e => { setNewName(e.target.value); setAddErr(''); }}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') { setShowForm(false); setNewName(''); } }}
+                  placeholder="Full name (e.g. Mohammed Al-Rashid)…"
+                  className="w-full bg-[#1a1a1a] border border-[#2a2a2a] text-[#e0e0e0] text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-[#c9a84c]/60 placeholder-[#555]"
+                />
+                {addErr && <p className="text-[11px] text-[#ef4444]">{addErr}</p>}
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleAdd}
+                    disabled={adding || !newName.trim()}
+                    className="flex-1 bg-[#c9a84c] hover:bg-[#dfc070] disabled:opacity-40 text-[#0f0f0f] text-sm font-bold py-2 rounded-lg transition-colors"
+                  >
+                    {adding ? 'Registering…' : 'Register'}
+                  </button>
+                  <button
+                    onClick={() => { setShowForm(false); setNewName(''); setAddErr(''); }}
+                    className="px-3 text-[#888] hover:text-[#e0e0e0] text-sm transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <p className="text-[10px] text-[#555]">Agent code auto-assigned from initials.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Zone Inline Add ───────────────────────────────────────────────────────────
+
+function ZoneInlineAdd({
+  municipalities, onSave, onCancel,
+}: {
+  municipalities: string[];
+  onSave: (zone: Zone) => void;
+  onCancel: () => void;
+}) {
+  const [municipality,  setMunicipality]  = useState('');
+  const [customMuni,    setCustomMuni]    = useState('');
+  const [districtName,  setDistrictName]  = useState('');
+  const [saving,        setSaving]        = useState(false);
+  const [err,           setErr]           = useState('');
+
+  const effectiveMuni = municipality === '__new__' ? customMuni.trim() : municipality;
+
+  async function handleSave() {
+    if (!districtName.trim() || !effectiveMuni) {
+      setErr('Both municipality and district name are required.');
+      return;
+    }
+    setSaving(true); setErr('');
+    try {
+      const res = await fetch('/api/code-registry/zone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ districtName: districtName.trim(), municipality: effectiveMuni }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) { setErr('Failed to register zone. Try again.'); return; }
+      onSave({ zone_code: json.zoneCode, district_name: json.districtName, municipality: json.municipality });
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div className="mt-3 rounded-xl border border-[#c9a84c]/20 bg-[#c9a84c]/5 p-4 space-y-3">
+      <p className="text-[10px] font-bold text-[#c9a84c] uppercase tracking-widest">Register New Zone</p>
+
+      <div>
+        <label className="block text-[10px] font-semibold text-[#888] uppercase tracking-widest mb-1">Municipality</label>
+        <select
+          value={municipality}
+          onChange={e => { setMunicipality(e.target.value); setErr(''); }}
+          className="w-full bg-[#1a1a1a] border border-[#2a2a2a] text-[#e0e0e0] text-sm rounded-lg px-3 py-2.5 focus:outline-none focus:border-[#c9a84c]/60"
+        >
+          <option value="">Select existing…</option>
+          {municipalities.map(m => <option key={m}>{m}</option>)}
+          <option value="__new__">+ Add new municipality…</option>
+        </select>
+        {municipality === '__new__' && (
+          <input
+            autoFocus
+            value={customMuni}
+            onChange={e => { setCustomMuni(e.target.value); setErr(''); }}
+            placeholder="New municipality name…"
+            className="mt-1.5 w-full bg-[#1a1a1a] border border-[#2a2a2a] text-[#e0e0e0] text-sm rounded-lg px-3 py-2.5 focus:outline-none focus:border-[#c9a84c]/60 placeholder-[#555]"
+          />
+        )}
+      </div>
+
+      <div>
+        <label className="block text-[10px] font-semibold text-[#888] uppercase tracking-widest mb-1">District / Zone Name</label>
+        <input
+          value={districtName}
+          onChange={e => { setDistrictName(e.target.value); setErr(''); }}
+          onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onCancel(); }}
+          placeholder="e.g. West Bay, The Pearl…"
+          className="w-full bg-[#1a1a1a] border border-[#2a2a2a] text-[#e0e0e0] text-sm rounded-lg px-3 py-2.5 focus:outline-none focus:border-[#c9a84c]/60 placeholder-[#555]"
+        />
+      </div>
+
+      {err && <p className="text-[11px] text-[#ef4444]">{err}</p>}
+
+      <div className="flex gap-2">
+        <button
+          onClick={handleSave}
+          disabled={saving || !districtName.trim() || !effectiveMuni}
+          className="flex-1 bg-[#c9a84c] hover:bg-[#dfc070] disabled:opacity-40 text-[#0f0f0f] text-sm font-bold py-2 rounded-lg transition-colors"
+        >
+          {saving ? 'Registering…' : 'Register Zone'}
+        </button>
+        <button
+          onClick={onCancel}
+          className="px-4 text-[#888] hover:text-[#e0e0e0] text-sm border border-[#2a2a2a] rounded-lg transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+      <p className="text-[10px] text-[#555]">Zone code auto-assigned as next available number.</p>
+    </div>
+  );
+}
+
 // ── Entity Search ─────────────────────────────────────────────────────────────
 
 function EntitySearch({
@@ -427,11 +658,13 @@ function EntitySearch({
 // ── Register Tab ──────────────────────────────────────────────────────────────
 
 function RegisterTab({
-  options, onEntityAdded, onConfigAdded,
+  options, onEntityAdded, onConfigAdded, onAgentAdded, onZoneAdded,
 }: {
   options: Options;
-  onEntityAdded: (e: Entity) => void;
-  onConfigAdded: (c: PropConfig) => void;
+  onEntityAdded:  (e: Entity) => void;
+  onConfigAdded:  (c: PropConfig) => void;
+  onAgentAdded:   (a: Agent) => void;
+  onZoneAdded:    (z: Zone) => void;
 }) {
   const { configs, entities, agents, zones } = options;
 
@@ -458,6 +691,7 @@ function RegisterTab({
   const [addingCoreType, setAddingCoreType] = useState(false);
   const [addingSubType,  setAddingSubType]  = useState(false);
   const [addingConfig,   setAddingConfig]   = useState(false);
+  const [addingZone,     setAddingZone]     = useState(false);
   const [toast,          setToast]          = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
@@ -506,6 +740,7 @@ function RegisterTab({
     setMunicipality(''); setZoneCode(null);
     setBuildingName(''); setFloorRef(''); setNotes('');
     setGeneratedCode(null); setError(null);
+    setAddingZone(false);
   }
 
   async function handleSubmit() {
@@ -761,18 +996,24 @@ function RegisterTab({
 
       {/* Agent */}
       <SectionCard title="Agent *">
-        <Select value={agentCode} onChange={setAgentCode}>
-          <option value="">Select agent…</option>
-          {agents.map(a => (
-            <option key={a.agent_code} value={a.agent_code}>
-              {a.agent_code} — {a.full_name}
-            </option>
-          ))}
-        </Select>
+        <AgentSearch
+          agents={agents}
+          value={agentCode}
+          onSelect={setAgentCode}
+          onNewAgent={a => {
+            onAgentAdded(a);
+            setAgentCode(a.agent_code);
+            setToast({ msg: `Agent "${a.full_name}" [${a.agent_code}] registered`, type: 'success' });
+          }}
+        />
       </SectionCard>
 
       {/* Zone */}
-      <SectionCard title="Zone *">
+      <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-bold text-[#555] uppercase tracking-[0.18em]">Zone *</p>
+          <PlusBtn onClick={() => setAddingZone(z => !z)} />
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <FieldLabel>Municipality</FieldLabel>
@@ -793,7 +1034,20 @@ function RegisterTab({
             </Select>
           </div>
         </div>
-      </SectionCard>
+        {addingZone && (
+          <ZoneInlineAdd
+            municipalities={municipalities}
+            onSave={(z) => {
+              onZoneAdded(z);
+              setMunicipality(z.municipality);
+              setZoneCode(z.zone_code);
+              setAddingZone(false);
+              setToast({ msg: `Zone "${z.district_name}" [${String(z.zone_code).padStart(2,'0')}] registered`, type: 'success' });
+            }}
+            onCancel={() => setAddingZone(false)}
+          />
+        )}
+      </div>
 
       {/* Property Reference */}
       <SectionCard title="Property Reference (Optional)">
@@ -1705,13 +1959,19 @@ export default function CodeRegistry({ onMenuClick }: { onMenuClick?: () => void
   }, []);
 
   function handleEntityAdded(e: Entity) {
-    if (!options) return;
     setOptions(prev => prev ? { ...prev, entities: [...prev.entities, e].sort((a, b) => a.company_name.localeCompare(b.company_name)) } : prev);
   }
 
   function handleConfigAdded(c: PropConfig) {
-    if (!options) return;
     setOptions(prev => prev ? { ...prev, configs: [...prev.configs, c] } : prev);
+  }
+
+  function handleAgentAdded(a: Agent) {
+    setOptions(prev => prev ? { ...prev, agents: [...prev.agents, a].sort((x, y) => x.agent_code.localeCompare(y.agent_code)) } : prev);
+  }
+
+  function handleZoneAdded(z: Zone) {
+    setOptions(prev => prev ? { ...prev, zones: [...prev.zones, z].sort((x, y) => x.zone_code - y.zone_code) } : prev);
   }
 
   if (loadError) {
@@ -1764,7 +2024,7 @@ export default function CodeRegistry({ onMenuClick }: { onMenuClick?: () => void
       {/* Content */}
       <div className="max-w-5xl mx-auto px-5 py-6">
         {activeTab === 'register'
-          ? <RegisterTab options={options} onEntityAdded={handleEntityAdded} onConfigAdded={handleConfigAdded} />
+          ? <RegisterTab options={options} onEntityAdded={handleEntityAdded} onConfigAdded={handleConfigAdded} onAgentAdded={handleAgentAdded} onZoneAdded={handleZoneAdded} />
           : <SearchTab options={options} />
         }
       </div>
