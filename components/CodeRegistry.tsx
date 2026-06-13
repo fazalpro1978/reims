@@ -10,6 +10,7 @@ import TopBar from './TopBar';
 type PropConfig = {
   type_code: string; core_type: string; sub_type: string;
   configuration: string; integration_scenario: string; features: string;
+  category: 'C' | 'R';
 };
 type Entity = {
   entity_code: string; company_name: string; classification: string; is_manual: boolean;
@@ -18,7 +19,7 @@ type Agent = { agent_code: string; full_name: string };
 type Zone  = { zone_code: number; district_name: string; municipality: string };
 
 type RegistryRecord = {
-  id: string; smart_code: string; status: string;
+  id: string; smart_code: string; status: string; category: 'C' | 'R';
   type_code: string; core_type: string; sub_type: string; configuration: string;
   entity_code: string; company_name: string; classification: string;
   agent_code: string; agent_name: string;
@@ -54,14 +55,15 @@ function seg(val: string | null, placeholder: string, color: string) {
 }
 
 function buildPreviewSegments(
-  typeCode: string, entityCode: string, agentCode: string, zoneCode: number | null,
+  category: string, typeCode: string, entityCode: string, agentCode: string, zoneCode: number | null,
 ) {
   return [
+    seg(category   || null, '·',     '#ef4444'),
     seg(typeCode   || null, '··',    '#a855f7'),
     seg(entityCode || null, '···',   '#3b82f6'),
     seg(agentCode  || null, '··',    '#22c55e'),
     seg(zoneCode != null ? String(zoneCode).padStart(2, '0') : null, '··', '#f97316'),
-    seg(null, '·····', '#c9a84c'),
+    seg(null, '····', '#c9a84c'),
   ];
 }
 
@@ -202,23 +204,24 @@ function Toast({ message, type = 'success', onDone }: { message: string; type?: 
 // ── Code Preview ─────────────────────────────────────────────────────────────
 
 function CodePreview({
-  typeCode, entityCode, agentCode, zoneCode, generatedCode, nextSeq,
+  category, typeCode, entityCode, agentCode, zoneCode, generatedCode, nextSeq,
 }: {
-  typeCode: string; entityCode: string; agentCode: string;
+  category: string; typeCode: string; entityCode: string; agentCode: string;
   zoneCode: number | null; generatedCode?: string; nextSeq?: number;
 }) {
-  const seqDisplay = nextSeq != null ? String(nextSeq).padStart(5, '0') : null;
-  const segments   = buildPreviewSegments(typeCode, entityCode, agentCode, zoneCode);
+  const seqDisplay = nextSeq != null ? String(nextSeq).padStart(4, '0') : null;
+  const segments   = buildPreviewSegments(category, typeCode, entityCode, agentCode, zoneCode);
   // Swap the SEQ segment placeholder for the actual next seq when known
-  if (seqDisplay && !generatedCode) segments[4] = seg(seqDisplay, '·····', '#c9a84c');
-  const labels = ['TYPE', 'ENTITY', 'AGENT', 'ZONE', 'SEQ'];
+  if (seqDisplay && !generatedCode) segments[5] = seg(seqDisplay, '····', '#c9a84c');
+  const labels = ['CAT', 'TYPE', 'ENTITY', 'AGENT', 'ZONE', 'SEQ'];
 
   const assembled = generatedCode ?? [
+    category   || '·',
     typeCode   || '··',
     entityCode || '···',
     agentCode  || '··',
     zoneCode != null ? String(zoneCode).padStart(2, '0') : '··',
-    seqDisplay ?? '·····',
+    seqDisplay ?? '····',
   ].join('');
 
   return (
@@ -432,6 +435,7 @@ function RegisterTab({
 }) {
   const { configs, entities, agents, zones } = options;
 
+  const [category,       setCategory]       = useState<'C' | 'R' | ''>('');
   const [coreType,       setCoreType]       = useState('');
   const [subType,        setSubType]        = useState('');
   const [typeCode,       setTypeCode]       = useState('');
@@ -457,21 +461,34 @@ function RegisterTab({
   const [toast,          setToast]          = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
-    fetch('/api/code-registry/next-seq')
+    if (!category || !typeCode || !entityCode || !agentCode || !zoneCode) {
+      setNextSeq(undefined);
+      return;
+    }
+    const zone = String(zoneCode).padStart(2, '0');
+    const prefix = `${category}${typeCode}${entityCode}${agentCode}${zone}`;
+    fetch(`/api/code-registry/next-seq?prefix=${encodeURIComponent(prefix)}`)
       .then(r => r.json())
       .then(d => setNextSeq(d.nextSeq))
       .catch(() => {});
-  }, []);
+  }, [category, typeCode, entityCode, agentCode, zoneCode]);
 
-  const coreTypes  = Array.from(new Set([...configs.map(c => c.core_type), ...extraCoreTypes]));
+  const categoryFilteredConfigs = category
+    ? configs.filter(c => c.category === category)
+    : configs;
+  const coreTypes  = Array.from(new Set([...categoryFilteredConfigs.map(c => c.core_type), ...extraCoreTypes]));
   const subTypes   = Array.from(new Set([
-    ...configs.filter(c => c.core_type === coreType).map(c => c.sub_type),
+    ...categoryFilteredConfigs.filter(c => c.core_type === coreType).map(c => c.sub_type),
     ...(extraSubTypes[coreType] ?? []),
   ]));
-  const configOpts     = configs.filter(c => c.core_type === coreType && c.sub_type === subType);
+  const configOpts     = categoryFilteredConfigs.filter(c => c.core_type === coreType && c.sub_type === subType);
   const municipalities = Array.from(new Set(zones.map(z => z.municipality))).sort();
   const filteredZones  = zones.filter(z => z.municipality === municipality);
 
+  function handleCategory(v: string) {
+    setCategory(v as 'C' | 'R' | '');
+    setCoreType(''); setSubType(''); setTypeCode('');
+  }
   function handleCoreType(v: string) {
     setCoreType(v); setSubType(''); setTypeCode('');
   }
@@ -483,6 +500,7 @@ function RegisterTab({
   function handleZone(v: string) { setZoneCode(v ? parseInt(v) : null); }
 
   function resetForm() {
+    setCategory('');
     setCoreType(''); setSubType(''); setTypeCode('');
     setEntityCode(''); setAgentCode('');
     setMunicipality(''); setZoneCode(null);
@@ -491,8 +509,8 @@ function RegisterTab({
   }
 
   async function handleSubmit() {
-    if (!typeCode || !entityCode || !agentCode || !zoneCode) {
-      setError('Please complete all required fields: Type, Entity, Agent, and Zone.');
+    if (!category || !typeCode || !entityCode || !agentCode || !zoneCode) {
+      setError('Please complete all required fields: Category, Type, Entity, Agent, and Zone.');
       return;
     }
     setSubmitting(true); setError(null);
@@ -509,7 +527,7 @@ function RegisterTab({
     finally   { setSubmitting(false); }
   }
 
-  const allFilled = !!(typeCode && entityCode && agentCode && zoneCode);
+  const allFilled = !!(category && typeCode && entityCode && agentCode && zoneCode);
 
   return (
     <div className="space-y-4">
@@ -546,9 +564,52 @@ function RegisterTab({
         </div>
       )}
 
+      {/* Category */}
+      <SectionCard title="Market Category *">
+        <div className="grid grid-cols-2 gap-3">
+          {([
+            { val: 'R', label: 'Residential', desc: 'Apartments, Villas, Townhouses…', color: '#3b82f6' },
+            { val: 'C', label: 'Commercial',  desc: 'Offices, Retail, Warehouses…',   color: '#f97316' },
+          ] as const).map((opt) => (
+            <button
+              key={opt.val}
+              onClick={() => handleCategory(opt.val)}
+              className={`rounded-xl border p-4 text-left transition-all ${
+                category === opt.val
+                  ? 'border-opacity-60 bg-opacity-8'
+                  : 'border-[#2a2a2a] bg-[#0d0d0d] hover:border-[#3a3a3a]'
+              }`}
+              style={category === opt.val ? {
+                borderColor: opt.color + '60',
+                backgroundColor: opt.color + '10',
+              } : {}}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span
+                  className="w-6 h-6 rounded-md text-xs font-bold flex items-center justify-center font-mono"
+                  style={{ background: opt.color + '20', color: opt.color }}
+                >
+                  {opt.val}
+                </span>
+                <span className="text-sm font-bold text-white">{opt.label}</span>
+                {category === opt.val && (
+                  <svg className="w-4 h-4 ml-auto shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" style={{ color: opt.color }}>
+                    <path d="M20 6L9 17l-5-5"/>
+                  </svg>
+                )}
+              </div>
+              <p className="text-[11px] text-[#555]">{opt.desc}</p>
+            </button>
+          ))}
+        </div>
+      </SectionCard>
+
       {/* Property Configuration */}
-      <SectionCard title="Property Configuration">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <SectionCard title={`Property Configuration${category ? ` — ${category === 'R' ? 'Residential' : 'Commercial'}` : ''}`}>
+        {!category && (
+          <p className="text-xs text-[#555] italic">Select a market category above first.</p>
+        )}
+        <div className={`grid grid-cols-1 sm:grid-cols-3 gap-4 ${!category ? 'opacity-40 pointer-events-none' : ''}`}>
           {/* Core Type */}
           <div>
             <div className="flex items-center gap-1.5 mb-1">
@@ -653,7 +714,7 @@ function RegisterTab({
                   const res = await fetch('/api/code-registry/config', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ coreType, subType, configuration: v }),
+                    body: JSON.stringify({ coreType, subType, configuration: v, category }),
                   });
                   const json = await res.json();
                   if (res.status === 409) {
@@ -669,6 +730,7 @@ function RegisterTab({
                     configuration:        json.configuration,
                     integration_scenario: json.integration_scenario ?? '',
                     features:             json.features ?? '',
+                    category:             json.category ?? category ?? 'R',
                   };
                   onConfigAdded(newCfg);
                   setTypeCode(json.type_code);
@@ -753,7 +815,7 @@ function RegisterTab({
 
       {/* Code Preview */}
       <CodePreview
-        typeCode={typeCode} entityCode={entityCode}
+        category={category} typeCode={typeCode} entityCode={entityCode}
         agentCode={agentCode} zoneCode={zoneCode}
         generatedCode={generatedCode ?? undefined}
         nextSeq={nextSeq}
@@ -929,6 +991,15 @@ function CrDetailModal({
                   })}
                 </div>
               </div>
+              <Row label="Category"    value={
+                <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  record.category === 'C'
+                    ? 'bg-[#f97316]/10 text-[#f97316] border border-[#f97316]/20'
+                    : 'bg-[#3b82f6]/10 text-[#3b82f6] border border-[#3b82f6]/20'
+                }`}>
+                  {record.category} — {record.category === 'C' ? 'Commercial' : 'Residential'}
+                </span>
+              } />
               <Row label="Sequence"    value={<span className="font-mono text-[#c9a84c]">#{record.sequence_number}</span>} />
               <Row label="Type Code"   value={<span className="font-mono text-xs text-[#a855f7] bg-[#a855f7]/10 px-1.5 py-0.5 rounded">{record.type_code}</span>} />
               <Row label="Core Type"   value={record.core_type} />
