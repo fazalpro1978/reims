@@ -507,6 +507,123 @@ function ZoneInlineAdd({
   );
 }
 
+// ── Entity Inline Add ─────────────────────────────────────────────────────────
+
+function EntityInlineAdd({
+  onSave, onCancel,
+}: { onSave: (e: Entity) => void; onCancel: () => void }) {
+  const [name,    setName]    = useState('');
+  const [cls,     setCls]     = useState('Independent');
+  const [saving,  setSaving]  = useState(false);
+  const [err,     setErr]     = useState('');
+
+  async function handleSave() {
+    if (!name.trim()) return;
+    setSaving(true); setErr('');
+    try {
+      const res  = await fetch('/api/code-registry/entity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyName: name.trim(), classification: cls }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) { setErr('Failed to register company. Try again.'); return; }
+      onSave({ entity_code: json.entityCode, company_name: json.companyName, classification: cls, is_manual: true });
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div className="rounded-xl border border-[#c9a84c]/20 bg-[#c9a84c]/5 p-4 space-y-3">
+      <p className="text-[10px] font-bold text-[#c9a84c] uppercase tracking-widest">Register New Company</p>
+      <div>
+        <label className="block text-[10px] font-semibold text-[#888] uppercase tracking-widest mb-1">Company Name</label>
+        <input
+          autoFocus
+          value={name}
+          onChange={e => { setName(e.target.value); setErr(''); }}
+          onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onCancel(); }}
+          placeholder="e.g. Al Rayyan Real Estate Co."
+          className="w-full bg-[#1a1a1a] border border-[#2a2a2a] text-[#e0e0e0] text-sm rounded-lg px-3 py-2.5 focus:outline-none focus:border-[#c9a84c]/60 placeholder-[#555]"
+        />
+      </div>
+      <div>
+        <label className="block text-[10px] font-semibold text-[#888] uppercase tracking-widest mb-1">Classification</label>
+        <select
+          value={cls}
+          onChange={e => setCls(e.target.value)}
+          className="w-full bg-[#1a1a1a] border border-[#2a2a2a] text-[#e0e0e0] text-sm rounded-lg px-3 py-2.5 focus:outline-none focus:border-[#c9a84c]/60"
+        >
+          {CLASSIFICATIONS.map(c => <option key={c}>{c}</option>)}
+        </select>
+      </div>
+      {err && <p className="text-[11px] text-[#ef4444]">{err}</p>}
+      <div className="flex gap-2">
+        <button onClick={handleSave} disabled={saving || !name.trim()}
+          className="flex-1 bg-[#c9a84c] hover:bg-[#dfc070] disabled:opacity-40 text-[#0f0f0f] text-sm font-bold py-2 rounded-lg transition-colors">
+          {saving ? 'Registering…' : 'Register Company'}
+        </button>
+        <button onClick={onCancel} className="px-4 text-[#888] hover:text-[#e0e0e0] text-sm border border-[#2a2a2a] rounded-lg transition-colors">
+          Cancel
+        </button>
+      </div>
+      <p className="text-[10px] text-[#555]">Entity code auto-assigned from company name.</p>
+    </div>
+  );
+}
+
+// ── Agent Inline Add ──────────────────────────────────────────────────────────
+
+function AgentInlineAdd({
+  onSave, onCancel,
+}: { onSave: (a: Agent) => void; onCancel: () => void }) {
+  const [name,   setName]   = useState('');
+  const [saving, setSaving] = useState(false);
+  const [err,    setErr]    = useState('');
+
+  async function handleSave() {
+    if (!name.trim()) return;
+    setSaving(true); setErr('');
+    try {
+      const res  = await fetch('/api/code-registry/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fullName: name.trim() }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) { setErr('Failed to register agent. Try again.'); return; }
+      onSave({ agent_code: json.agentCode, full_name: json.fullName });
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div className="rounded-xl border border-[#c9a84c]/20 bg-[#c9a84c]/5 p-4 space-y-3">
+      <p className="text-[10px] font-bold text-[#c9a84c] uppercase tracking-widest">Register New Agent</p>
+      <div>
+        <label className="block text-[10px] font-semibold text-[#888] uppercase tracking-widest mb-1">Full Name</label>
+        <input
+          autoFocus
+          value={name}
+          onChange={e => { setName(e.target.value); setErr(''); }}
+          onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onCancel(); }}
+          placeholder="e.g. Mohammed Al-Rashid"
+          className="w-full bg-[#1a1a1a] border border-[#2a2a2a] text-[#e0e0e0] text-sm rounded-lg px-3 py-2.5 focus:outline-none focus:border-[#c9a84c]/60 placeholder-[#555]"
+        />
+      </div>
+      {err && <p className="text-[11px] text-[#ef4444]">{err}</p>}
+      <div className="flex gap-2">
+        <button onClick={handleSave} disabled={saving || !name.trim()}
+          className="flex-1 bg-[#c9a84c] hover:bg-[#dfc070] disabled:opacity-40 text-[#0f0f0f] text-sm font-bold py-2 rounded-lg transition-colors">
+          {saving ? 'Registering…' : 'Register Agent'}
+        </button>
+        <button onClick={onCancel} className="px-4 text-[#888] hover:text-[#e0e0e0] text-sm border border-[#2a2a2a] rounded-lg transition-colors">
+          Cancel
+        </button>
+      </div>
+      <p className="text-[10px] text-[#555]">Agent code auto-assigned from initials.</p>
+    </div>
+  );
+}
+
 // ── Entity Search ─────────────────────────────────────────────────────────────
 
 function EntitySearch({
@@ -691,6 +808,8 @@ function RegisterTab({
   const [addingCoreType, setAddingCoreType] = useState(false);
   const [addingSubType,  setAddingSubType]  = useState(false);
   const [addingConfig,   setAddingConfig]   = useState(false);
+  const [addingEntity,   setAddingEntity]   = useState(false);
+  const [addingAgent,    setAddingAgent]    = useState(false);
   const [addingZone,     setAddingZone]     = useState(false);
   const [toast,          setToast]          = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
@@ -740,7 +859,7 @@ function RegisterTab({
     setMunicipality(''); setZoneCode(null);
     setBuildingName(''); setFloorRef(''); setNotes('');
     setGeneratedCode(null); setError(null);
-    setAddingZone(false);
+    setAddingEntity(false); setAddingAgent(false); setAddingZone(false);
   }
 
   async function handleSubmit() {
@@ -985,17 +1104,36 @@ function RegisterTab({
       </SectionCard>
 
       {/* Entity */}
-      <SectionCard title="Developer / Company *">
+      <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-bold text-[#555] uppercase tracking-[0.18em]">Developer / Company *</p>
+          <PlusBtn onClick={() => { setAddingEntity(e => !e); setAddingAgent(false); }} />
+        </div>
         <EntitySearch
           entities={entities}
           value={entityCode}
           onSelect={setEntityCode}
           onNewEntity={e => { onEntityAdded(e); setEntityCode(e.entity_code); }}
         />
-      </SectionCard>
+        {addingEntity && (
+          <EntityInlineAdd
+            onSave={(e) => {
+              onEntityAdded(e);
+              setEntityCode(e.entity_code);
+              setAddingEntity(false);
+              setToast({ msg: `Company "${e.company_name}" [${e.entity_code}] registered`, type: 'success' });
+            }}
+            onCancel={() => setAddingEntity(false)}
+          />
+        )}
+      </div>
 
       {/* Agent */}
-      <SectionCard title="Agent *">
+      <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-bold text-[#555] uppercase tracking-[0.18em]">Agent *</p>
+          <PlusBtn onClick={() => { setAddingAgent(a => !a); setAddingEntity(false); }} />
+        </div>
         <AgentSearch
           agents={agents}
           value={agentCode}
@@ -1006,7 +1144,18 @@ function RegisterTab({
             setToast({ msg: `Agent "${a.full_name}" [${a.agent_code}] registered`, type: 'success' });
           }}
         />
-      </SectionCard>
+        {addingAgent && (
+          <AgentInlineAdd
+            onSave={(a) => {
+              onAgentAdded(a);
+              setAgentCode(a.agent_code);
+              setAddingAgent(false);
+              setToast({ msg: `Agent "${a.full_name}" [${a.agent_code}] registered`, type: 'success' });
+            }}
+            onCancel={() => setAddingAgent(false)}
+          />
+        )}
+      </div>
 
       {/* Zone */}
       <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-5 space-y-4">
