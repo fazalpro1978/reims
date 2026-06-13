@@ -43,7 +43,7 @@ async function generateTypeCode(
 }
 
 export async function POST(req: NextRequest) {
-  const { coreType, subType, configuration } = await req.json();
+  const { coreType, subType, configuration, category } = await req.json();
 
   if (!coreType?.trim() || !subType?.trim() || !configuration?.trim()) {
     return NextResponse.json(
@@ -80,6 +80,7 @@ export async function POST(req: NextRequest) {
       core_type:            coreType.trim(),
       sub_type:             subType.trim(),
       configuration:        configuration.trim(),
+      category:             (category === 'C' || category === 'R') ? category : 'R',
       integration_scenario: '',
       features:             '',
     }),

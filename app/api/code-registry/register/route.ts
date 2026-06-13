@@ -36,5 +36,5 @@ export async function POST(req: NextRequest) {
   if (!res.ok) return NextResponse.json({ error: json }, { status: 500 });
 
   const row = Array.isArray(json) ? json[0] : json;
-  return NextResponse.json({ smartCode: row.smart_code, sequenceNumber: row.sequence_number });
+  return NextResponse.json({ smartCode: row.smart_code, sequenceNumber: row.sequence_number, category: row.category });
 }
