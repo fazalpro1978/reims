@@ -474,7 +474,7 @@ function RegisterTab({
   }, [category, typeCode, entityCode, agentCode, zoneCode]);
 
   const categoryFilteredConfigs = category
-    ? configs.filter(c => c.category === category)
+    ? configs.filter(c => (c.category ?? 'R') === category)
     : configs;
   const coreTypes  = Array.from(new Set([...categoryFilteredConfigs.map(c => c.core_type), ...extraCoreTypes]));
   const subTypes   = Array.from(new Set([
