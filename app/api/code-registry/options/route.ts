@@ -6,7 +6,7 @@ const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const H = () => ({ apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` });
 
 async function getAll(path: string) {
-  const res = await fetch(`${SB_URL}/rest/v1/${path}`, { headers: H() });
+  const res = await fetch(`${SB_URL}/rest/v1/${path}`, { headers: H(), cache: 'no-store' });
   if (!res.ok) return [];
   const d = await res.json();
   return Array.isArray(d) ? d : [];
