@@ -867,21 +867,21 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
       {/* ── Service & Utility Charges ── */}
       <SectionCard title="Service & Utility Charges">
         <DepositRow
-          label="Kahramaa Deposit"
+          label="Kahramaa Deposit (Refundable)"
           applicable={kahramaaApplicable}
           onToggle={setKahramaaApplicable}
           amount={kahramaaAmount}
           onAmount={setKahramaaAmount}
         />
         <DepositRow
-          label="Qatar Cool Deposit"
+          label="Qatar Cool Deposit (Refundable)"
           applicable={qatarCoolApplicable}
           onToggle={setQatarCoolApplicable}
           amount={qatarCoolAmount}
           onAmount={setQatarCoolAmount}
         />
         <DepositRow
-          label="Marafeq Deposit"
+          label="Marafeq Deposit (Refundable)"
           applicable={marafeqApplicable}
           onToggle={setMarafeqApplicable}
           amount={marafeqAmount}
