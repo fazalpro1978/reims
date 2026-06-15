@@ -700,15 +700,18 @@ function DepositRow({ label, applicable, onToggle, amount, onAmount }: {
         <div className="flex flex-col gap-2">
           <ApplicableToggle value={applicable} onChange={onToggle} trueLabel="Applicable" falseLabel="Not Applicable" />
           {applicable && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-[#666666] select-none">QAR</span>
-              <input
-                type="number"
-                min={0}
-                value={amount}
-                onChange={(e) => onAmount(Math.max(0, Number(e.target.value)))}
-                className="w-32 text-right text-sm font-semibold text-[#e0e0e0] bg-[#111111] border border-[#333333] rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] tabular-nums"
-              />
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-[#666666] select-none">QAR</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={amount}
+                  onChange={(e) => onAmount(Math.max(0, Number(e.target.value)))}
+                  className="w-32 text-right text-sm font-semibold text-[#e0e0e0] bg-[#111111] border border-[#333333] rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] tabular-nums"
+                />
+              </div>
+              <span className="text-xs font-semibold text-emerald-400">(REFUNDABLE)</span>
             </div>
           )}
         </div>
@@ -867,21 +870,21 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
       {/* ── Service & Utility Charges ── */}
       <SectionCard title="Service & Utility Charges">
         <DepositRow
-          label="Kahramaa Deposit (Refundable)"
+          label="Kahramaa Deposit"
           applicable={kahramaaApplicable}
           onToggle={setKahramaaApplicable}
           amount={kahramaaAmount}
           onAmount={setKahramaaAmount}
         />
         <DepositRow
-          label="Qatar Cool Deposit (Refundable)"
+          label="Qatar Cool Deposit"
           applicable={qatarCoolApplicable}
           onToggle={setQatarCoolApplicable}
           amount={qatarCoolAmount}
           onAmount={setQatarCoolAmount}
         />
         <DepositRow
-          label="Marafeq Deposit (Refundable)"
+          label="Marafeq Deposit"
           applicable={marafeqApplicable}
           onToggle={setMarafeqApplicable}
           amount={marafeqAmount}
