@@ -472,7 +472,7 @@ function ReportDocument({ data, neighborhood }: { data: ReportData; neighborhood
         )}
         {secDep > 0 && (
           <div className="rpt-fin-row">
-            <span className="rpt-fin-lbl">Security Deposit <span style={{ fontSize: '8pt', color: '#16a34a' }}>(Refundable)</span></span>
+            <span className="rpt-fin-lbl">Security Deposit <span style={{ fontSize: '8pt', color: '#16a34a' }}>(Refundable)*</span></span>
             <span className="rpt-fin-val">QAR {fmt(secDep)}</span>
           </div>
         )}
@@ -506,15 +506,15 @@ function ReportDocument({ data, neighborhood }: { data: ReportData; neighborhood
           </div>
         )}
         <div className="rpt-fin-row">
-          <span className="rpt-fin-lbl" style={{ fontWeight: 700, color: '#334155' }}>Kahramaa Deposit <span style={{ fontSize: '8pt', color: '#16a34a' }}>(Refundable)</span></span>
+          <span className="rpt-fin-lbl" style={{ fontWeight: 700, color: '#334155' }}>Kahramaa Deposit <span style={{ fontSize: '8pt', color: '#16a34a' }}>(Refundable)*</span></span>
           <span className="rpt-fin-val">{data.kahramaaApplicable ? `QAR ${fmt(data.kahramaaAmount)}` : 'Included'}</span>
         </div>
         <div className="rpt-fin-row">
-          <span className="rpt-fin-lbl" style={{ fontWeight: 700, color: '#334155' }}>Qatar Cool Deposit <span style={{ fontSize: '8pt', color: '#16a34a' }}>(Refundable)</span></span>
+          <span className="rpt-fin-lbl" style={{ fontWeight: 700, color: '#334155' }}>Qatar Cool Deposit <span style={{ fontSize: '8pt', color: '#16a34a' }}>(Refundable)*</span></span>
           <span className="rpt-fin-val">{data.qatarCoolApplicable ? `QAR ${fmt(data.qatarCoolAmount)}` : 'Not Applicable'}</span>
         </div>
         <div className="rpt-fin-row">
-          <span className="rpt-fin-lbl" style={{ fontWeight: 700, color: '#334155' }}>Marafeq Deposit <span style={{ fontSize: '8pt', color: '#16a34a' }}>(Refundable)</span></span>
+          <span className="rpt-fin-lbl" style={{ fontWeight: 700, color: '#334155' }}>Marafeq Deposit <span style={{ fontSize: '8pt', color: '#16a34a' }}>(Refundable)*</span></span>
           <span className="rpt-fin-val">{data.marafeqApplicable ? `QAR ${fmt(data.marafeqAmount)}` : 'Not Applicable'}</span>
         </div>
         <div className="rpt-fin-row rpt-fin-total">
@@ -522,6 +522,7 @@ function ReportDocument({ data, neighborhood }: { data: ReportData; neighborhood
           <span className="rpt-fin-val-tot">QAR {fmt(total)}</span>
         </div>
       </div>
+      <p style={{ fontSize: '7.5pt', color: '#94a3b8', marginTop: '4px', marginBottom: '0' }}>* T&amp;C apply.</p>
 
       {/* ── 6. Location & Media Anchors ───────────────────────────────── */}
       <p className="rpt-sec-lbl">Location &amp; Media</p>

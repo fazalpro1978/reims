@@ -711,7 +711,7 @@ function DepositRow({ label, applicable, onToggle, amount, onAmount }: {
                   className="w-32 text-right text-sm font-semibold text-[#e0e0e0] bg-[#111111] border border-[#333333] rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] tabular-nums"
                 />
               </div>
-              <span className="text-xs font-semibold text-emerald-400">(REFUNDABLE)</span>
+              <span className="text-xs font-semibold text-emerald-400">(REFUNDABLE)*</span>
             </div>
           )}
         </div>
@@ -843,7 +843,7 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
             <div className="flex items-baseline gap-2">
               <span className="font-semibold text-[#e0e0e0]">{formatQAR(monthlyRent)}</span>
               <span className="text-xs text-[#555555]">= 1 month&apos;s rent</span>
-              <span className="text-xs font-semibold text-emerald-400">(REFUNDABLE)</span>
+              <span className="text-xs font-semibold text-emerald-400">(REFUNDABLE)*</span>
             </div>
           }
         />
