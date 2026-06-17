@@ -127,13 +127,14 @@ const EMPTY_FORM = {
   client_name: '', client_phone: '', client_email: '', client_nationality: '',
   source: '', listing_type: 'Rent', property_type: '', config: '',
   bathrooms_min: '', budget_min: '', budget_max: '',
-  preferred_zones: '', furnishing: '', assigned_agent: '', follow_up_date: '', notes: '',
+  preferred_zones: '', furnishing: '', follow_up_date: '', notes: '',
 };
 
-function InquiryForm({ onSave, onCancel, initial }: {
+function InquiryForm({ onSave, onCancel, initial, formError }: {
   onSave: (data: Record<string, unknown>) => Promise<void>;
   onCancel: () => void;
   initial?: Partial<typeof EMPTY_FORM>;
+  formError?: string | null;
 }) {
   const [form, setForm] = useState({ ...EMPTY_FORM, ...initial });
   const [saving, setSaving] = useState(false);
@@ -144,24 +145,24 @@ function InquiryForm({ onSave, onCancel, initial }: {
     e.preventDefault();
     setSaving(true);
     const payload: Record<string, unknown> = {
-      client_name:     form.client_name.trim(),
-      client_phone:    form.client_phone   || null,
-      client_email:    form.client_email   || null,
-      client_nationality: form.client_nationality || null,
-      source:          form.source         || null,
-      listing_type:    form.listing_type   || null,
-      property_type:   form.property_type  || null,
-      config:          form.config         || null,
-      bathrooms_min:   form.bathrooms_min  ? Number(form.bathrooms_min)  : null,
-      budget_min:      form.budget_min     ? Number(form.budget_min)     : null,
-      budget_max:      form.budget_max     ? Number(form.budget_max)     : null,
-      preferred_zones: form.preferred_zones
+      client_name:        form.client_name.trim(),
+      client_phone:       form.client_phone        || null,
+      client_email:       form.client_email        || null,
+      client_nationality: form.client_nationality  || null,
+      source:             form.source              || null,
+      listing_type:       form.listing_type        || null,
+      property_type:      form.property_type       || null,
+      config:             form.config              || null,
+      bathrooms_min:      form.bathrooms_min  ? Number(form.bathrooms_min)  : null,
+      budget_min:         form.budget_min     ? Number(form.budget_min)     : null,
+      budget_max:         form.budget_max     ? Number(form.budget_max)     : null,
+      preferred_zones:    form.preferred_zones
         ? form.preferred_zones.split(',').map(z => z.trim()).filter(Boolean)
         : [],
-      furnishing:      form.furnishing     || null,
-      assigned_agent:  form.assigned_agent || null,
-      follow_up_date:  form.follow_up_date || null,
-      notes:           form.notes          || null,
+      furnishing:         form.furnishing          || null,
+      follow_up_date:     form.follow_up_date      || null,
+      notes:              form.notes               || null,
+      // assigned_agent is not collected here; set by admin after matching
     };
     await onSave(payload);
     setSaving(false);
@@ -235,11 +236,8 @@ function InquiryForm({ onSave, onCancel, initial }: {
       </div>
 
       <div className="border-t border-[#1e1e1e] pt-4">
-        <p className="text-xs font-semibold text-[#666] uppercase tracking-wider mb-3">Assignment</p>
+        <p className="text-xs font-semibold text-[#666] uppercase tracking-wider mb-3">Scheduling</p>
         <div className="grid grid-cols-2 gap-4">
-          <FieldWrapper label="Assigned Agent">
-            <input value={form.assigned_agent} onChange={e => set('assigned_agent', e.target.value)} className={INP_CLS} placeholder="Agent name" />
-          </FieldWrapper>
           <FieldWrapper label="Follow-up Date">
             <input type="date" value={form.follow_up_date} onChange={e => set('follow_up_date', e.target.value)} className={INP_CLS} />
           </FieldWrapper>
@@ -250,6 +248,17 @@ function InquiryForm({ onSave, onCancel, initial }: {
           </FieldWrapper>
         </div>
       </div>
+
+      {/* Agent assignment happens post-matching — a note to set expectations */}
+      <p className="text-[11px] text-[#444] border border-[#1e1e1e] rounded-lg px-3 py-2">
+        Agent assignment is available in the inquiry drawer after a property match is confirmed.
+      </p>
+
+      {formError && (
+        <div className="px-3 py-2 rounded-lg bg-[#f43f5e15] border border-[#f43f5e44] text-xs text-[#f87171]">
+          {formError}
+        </div>
+      )}
 
       <div className="flex justify-end gap-3 pt-2">
         <button type="button" onClick={onCancel} className="px-4 py-2 text-sm text-[#888] hover:text-[#ccc] transition-colors">Cancel</button>
@@ -409,21 +418,34 @@ function InquiryDrawer({ inquiry, onClose, onUpdate }: {
   onClose: () => void;
   onUpdate: (updated: Inquiry) => void;
 }) {
-  const [tab, setTab] = useState<'matches' | 'details'>('matches');
-  const [status, setStatus] = useState(inquiry.status);
-  const [saving, setSaving] = useState(false);
+  const [tab, setTab]           = useState<'matches' | 'details'>('matches');
+  const [status, setStatus]     = useState(inquiry.status);
+  const [agentInput, setAgentInput] = useState(inquiry.assigned_agent ?? '');
+  const [agentSaving, setAgentSaving] = useState(false);
+  const [saving, setSaving]     = useState(false);
+
+  const patch = async (fields: Record<string, unknown>) => {
+    const res  = await fetch(`/api/inquiries/${inquiry.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields),
+    });
+    const data = await res.json();
+    if (data.inquiry) onUpdate(data.inquiry);
+    return data;
+  };
 
   const updateStatus = async (s: string) => {
     setStatus(s as Inquiry['status']);
     setSaving(true);
-    const res = await fetch(`/api/inquiries/${inquiry.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: s }),
-    });
-    const data = await res.json();
-    if (data.inquiry) onUpdate(data.inquiry);
+    await patch({ status: s });
     setSaving(false);
+  };
+
+  const assignAgent = async () => {
+    setAgentSaving(true);
+    await patch({ assigned_agent: agentInput.trim() || null });
+    setAgentSaving(false);
   };
 
   const sm = STATUS_META[status] ?? STATUS_META.new;
@@ -501,16 +523,33 @@ function InquiryDrawer({ inquiry, onClose, onUpdate }: {
             <MatchingGrid inquiryId={inquiry.id} />
           ) : (
             <div className="space-y-3 text-sm overflow-y-auto h-full">
+              {/* Agent assignment — post-matching routing control */}
+              <div className="p-3 bg-[#111] border border-[#1e1e1e] rounded-lg mb-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[#555] mb-2">Assign Agent</p>
+                <div className="flex gap-2">
+                  <input
+                    value={agentInput}
+                    onChange={e => setAgentInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && assignAgent()}
+                    placeholder="Agent name…"
+                    className="flex-1 bg-[#0a0a0a] border border-[#2a2a2a] text-[#e0e0e0] text-xs rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#f43f5e] placeholder-[#444]"
+                  />
+                  <button onClick={assignAgent} disabled={agentSaving}
+                    className="px-3 py-2 bg-[#f43f5e] text-white text-xs font-semibold rounded-lg hover:bg-[#e11d48] disabled:opacity-40 transition-colors">
+                    {agentSaving ? '…' : 'Save'}
+                  </button>
+                </div>
+              </div>
+
               {[
-                ['Source', inquiry.source],
-                ['Nationality', inquiry.client_nationality],
-                ['Furnishing', inquiry.furnishing],
-                ['Bathrooms min', inquiry.bathrooms_min],
-                ['Assigned Agent', inquiry.assigned_agent],
-                ['Follow-up', inquiry.follow_up_date],
-                ['Last Matched', inquiry.last_matched_at ? new Date(inquiry.last_matched_at).toLocaleString() : '—'],
-                ['Created', new Date(inquiry.created_at).toLocaleString()],
-              ].map(([k, v]) => v ? (
+                ['Source',       inquiry.source],
+                ['Nationality',  inquiry.client_nationality],
+                ['Furnishing',   inquiry.furnishing],
+                ['Bathrooms min',inquiry.bathrooms_min],
+                ['Follow-up',    inquiry.follow_up_date],
+                ['Last Matched', inquiry.last_matched_at ? new Date(inquiry.last_matched_at).toLocaleString() : null],
+                ['Created',      new Date(inquiry.created_at).toLocaleString()],
+              ].map(([k, v]) => v != null ? (
                 <div key={k as string} className="flex gap-4">
                   <span className="text-[#555] w-28 shrink-0">{k}</span>
                   <span className="text-[#ccc]">{String(v)}</span>
@@ -621,15 +660,19 @@ export default function SynergyCenter({ onMenuClick }: { onMenuClick?: () => voi
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [search, setSearch]             = useState('');
   const [showForm, setShowForm]         = useState(false);
+  const [formError, setFormError]       = useState<string | null>(null);
   const [selected, setSelected]         = useState<Inquiry | null>(null);
   const [unreadCount, setUnreadCount]   = useState(0);
 
   const load = async () => {
     setLoading(true);
-    const res  = await fetch('/api/inquiries');
-    const data = await res.json();
-    setInquiries(data.inquiries ?? []);
-    setLoading(false);
+    try {
+      const res  = await fetch('/api/inquiries');
+      const data = await res.json();
+      setInquiries(data.inquiries ?? []);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadUnread = async () => {
@@ -640,18 +683,31 @@ export default function SynergyCenter({ onMenuClick }: { onMenuClick?: () => voi
 
   useEffect(() => { load(); loadUnread(); }, []);
 
+  const openForm = () => { setFormError(null); setShowForm(true); };
+
   const createInquiry = async (payload: Record<string, unknown>) => {
-    const res = await fetch('/api/inquiries', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (data.inquiry) {
+    setFormError(null);
+    try {
+      const res  = await fetch('/api/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.inquiry) {
+        setFormError(data.error ?? 'Failed to save inquiry. Please try again.');
+        return;
+      }
+
       setInquiries(prev => [data.inquiry, ...prev]);
       setShowForm(false);
-      // Auto-run matching
+
+      // Auto-run matching; always refresh list when done regardless of outcome
       fetch(`/api/inquiries/${data.inquiry.id}/match`, { method: 'POST' })
-        .then(() => load());
+        .finally(() => load());
+    } catch {
+      setFormError('Network error — please check your connection and try again.');
     }
   };
 
@@ -685,7 +741,7 @@ export default function SynergyCenter({ onMenuClick }: { onMenuClick?: () => voi
           <span className="px-3 py-1 rounded-full bg-[#f43f5e15] text-[#f43f5e] border border-[#f43f5e22]">{stats.open} Open</span>
           <span className="px-3 py-1 rounded-full bg-[#4ade8015] text-[#4ade80] border border-[#4ade8022]">{stats.matches} Matches</span>
         </div>
-        <button onClick={() => setShowForm(true)}
+        <button onClick={openForm}
           className="flex items-center gap-1.5 px-4 py-2 bg-[#f43f5e] text-white text-sm font-semibold rounded-lg hover:bg-[#e11d48] transition-colors">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
           New Inquiry
@@ -805,7 +861,7 @@ export default function SynergyCenter({ onMenuClick }: { onMenuClick?: () => voi
               </button>
             </div>
             <div className="px-6 py-5">
-              <InquiryForm onSave={createInquiry} onCancel={() => setShowForm(false)} />
+              <InquiryForm onSave={createInquiry} onCancel={() => setShowForm(false)} formError={formError} />
             </div>
           </div>
         </div>
