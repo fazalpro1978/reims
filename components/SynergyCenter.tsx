@@ -1,6 +1,13 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import TopBar from './TopBar';
+import UnitDetailsModal from './UnitDetailsModal';
+import { supabase } from '../lib/supabase/client';
+import { generatePublicShareText } from '../lib/shareUtils';
+import {
+  UnitListing, UnitType, Furnishing, Status,
+  ListingType, KitchenType, MociContractStatus,
+} from '../types/inventory';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -107,6 +114,53 @@ function ScoreBar({ score }: { score: number }) {
       <span style={{ color }} className="text-[10px] font-bold">{score}%</span>
     </div>
   );
+}
+
+// ─── Unit row mapper (mirrors UnitsInventory mapping) ────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapDbRowToUnit(row: any): UnitListing {
+  return {
+    id:                  row.unit_code ?? '',
+    uuid:                row.id        ?? '',
+    realtorName:         row.realtor_name        ?? '',
+    realtorMOCI:         row.realtor_moci         ?? '',
+    property:            row.property             ?? '',
+    unitNo:              row.unit_no              ?? '',
+    zoneCode:            Number(row.zone_code)    || 0,
+    zone:                row.zone                 ?? '',
+    type:                (row.type                ?? 'Apartment') as UnitType,
+    config:              row.config               ?? '',
+    bathrooms:           Number(row.bathrooms)    || 0,
+    parking:             row.parking              ?? false,
+    amenities:           row.amenities            ?? [],
+    kitchen:             (row.kitchen             ?? 'Open') as KitchenType,
+    furnishing:          (row.furnishing          ?? 'Unfurnished') as Furnishing,
+    listingType:         (row.listing_type        ?? 'Rent') as ListingType,
+    status:              (row.status              ?? 'Available') as Status,
+    rent:                Number(row.rent)         || 0,
+    serviceCharges:      Number(row.service_charges) || 0,
+    depositAmount:       Number(row.deposit_amount)  || 0,
+    agencyFee:           Number(row.agency_fee)      || 0,
+    kahramaaApplicable:  row.kahramaa_applicable   ?? true,
+    kahramaaAmount:      Number(row.kahramaa_amount) || 2000,
+    qatarCoolApplicable: row.qatar_cool_applicable ?? true,
+    qatarCoolAmount:     Number(row.qatar_cool_amount) || 3000,
+    marafeqApplicable:   row.marafeq_applicable    ?? true,
+    marafeqAmount:       Number(row.marafeq_amount)   || 3000,
+    mociContractStatus:  (row.moci_contract_status ?? '') as MociContractStatus,
+    mociContractNumber:  row.moci_contract_number  ?? '',
+    legalDuration:       row.legal_duration        ?? '',
+    contractStartDate:   row.contract_start_date   ?? '',
+    contractEndDate:     row.contract_end_date      ?? '',
+    maintenanceNotes:    row.unit_operational?.[0]?.maintenance_notes ?? '',
+    accessLockbox:       row.unit_operational?.[0]?.access_lockbox    ?? '',
+    assetHistoryLinks:   row.asset_history_links   ?? [],
+    locationMapUrl:      row.location_map_url       ?? '',
+    mediaUrl:            row.media_url              ?? '',
+    listedDate:          row.listed_date            ?? '',
+    lastUpdated:         row.updated_at             ?? '',
+  };
 }
 
 // ─── Inquiry Form ─────────────────────────────────────────────────────────────
@@ -272,15 +326,25 @@ function InquiryForm({ onSave, onCancel, initial, formError }: {
 
 // ─── Matching Units Grid ───────────────────────────────────────────────────────
 
-function MatchingGrid({ inquiryId }: { inquiryId: string }) {
-  const [matches, setMatches]   = useState<InquiryMatch[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [running, setRunning]   = useState(false);
-  const [filter, setFilter]     = useState<'all' | 1 | 2 | 3>('all');
+const SCORE_THRESHOLD_ACTIONS  = 50;   // "View Details" deep-link
+const SCORE_THRESHOLD_PREMIUM  = 80;   // Full sharing suite
+
+function MatchingGrid({ inquiryId, clientEmail }: {
+  inquiryId:   string;
+  clientEmail?: string;
+}) {
+  const [matches,     setMatches]     = useState<InquiryMatch[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [running,     setRunning]     = useState(false);
+  const [filter,      setFilter]      = useState<'all' | 1 | 2 | 3>('all');
+  const [previewUnit, setPreviewUnit] = useState<UnitListing | null>(null);
+  const [fetchingId,  setFetchingId]  = useState<string | null>(null);
+
+  const unitCache = useRef<Map<string, UnitListing>>(new Map());
 
   const loadMatches = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/inquiries/${inquiryId}/match`);
+    const res  = await fetch(`/api/inquiries/${inquiryId}/match`);
     const data = await res.json();
     setMatches(data.matches ?? []);
     setLoading(false);
@@ -296,7 +360,7 @@ function MatchingGrid({ inquiryId }: { inquiryId: string }) {
   };
 
   const toggleShortlist = async (match: InquiryMatch) => {
-    const res = await fetch(`/api/inquiries/${inquiryId}/shortlist`, {
+    const res  = await fetch(`/api/inquiries/${inquiryId}/shortlist`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ matchId: match.id, shortlisted: !match.is_shortlisted }),
@@ -307,13 +371,57 @@ function MatchingGrid({ inquiryId }: { inquiryId: string }) {
     }
   };
 
-  const visible = filter === 'all' ? matches : matches.filter(m => m.match_tier === filter);
+  // Fetch full unit from DB, cache by unitId to avoid repeat fetches
+  const fetchUnit = useCallback(async (unitId: string): Promise<UnitListing | null> => {
+    if (unitCache.current.has(unitId)) return unitCache.current.get(unitId)!;
+    setFetchingId(unitId);
+    const { data, error } = await supabase
+      .from('units')
+      .select('*, unit_operational (maintenance_notes, access_lockbox)')
+      .eq('id', unitId)
+      .single();
+    setFetchingId(null);
+    if (error || !data) return null;
+    const unit = mapDbRowToUnit(data);
+    unitCache.current.set(unitId, unit);
+    return unit;
+  }, []);
+
+  const handleViewDetails = async (unitId: string | null) => {
+    if (!unitId) return;
+    const unit = await fetchUnit(unitId);
+    if (unit) setPreviewUnit(unit);
+  };
+
+  const handleWhatsApp = async (unitId: string | null) => {
+    if (!unitId) return;
+    const unit = await fetchUnit(unitId);
+    if (!unit) return;
+    window.open(`https://wa.me/?text=${encodeURIComponent(generatePublicShareText(unit))}`, '_blank');
+  };
+
+  const handlePdf = (unitId: string | null) => {
+    if (!unitId) return;
+    window.open(`/report/${unitId}`, '_blank');
+  };
+
+  const handleEmail = async (unitId: string | null) => {
+    if (!unitId) return;
+    const unit = await fetchUnit(unitId);
+    if (!unit) return;
+    const subject = encodeURIComponent(`Property Details: ${unit.property} – Unit ${unit.unitNo}`);
+    const body    = encodeURIComponent(generatePublicShareText(unit));
+    window.open(`mailto:?subject=${subject}&body=${body}`);
+  };
+
+  const visible    = filter === 'all' ? matches : matches.filter(m => m.match_tier === filter);
   const shortlisted = matches.filter(m => m.is_shortlisted).length;
-  const tier1 = matches.filter(m => m.match_tier === 1).length;
-  const tier2 = matches.filter(m => m.match_tier === 2).length;
-  const tier3 = matches.filter(m => m.match_tier === 3).length;
+  const tier1      = matches.filter(m => m.match_tier === 1).length;
+  const tier2      = matches.filter(m => m.match_tier === 2).length;
+  const tier3      = matches.filter(m => m.match_tier === 3).length;
 
   return (
+    <>
     <div className="flex flex-col h-full">
       {/* Grid header */}
       <div className="flex items-center justify-between mb-4">
@@ -329,7 +437,6 @@ function MatchingGrid({ inquiryId }: { inquiryId: string }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* Tier filter */}
           <div className="flex bg-[#111] border border-[#222] rounded-lg overflow-hidden text-xs">
             {(['all', 1, 2, 3] as const).map(t => (
               <button key={t} onClick={() => setFilter(t)}
@@ -361,8 +468,13 @@ function MatchingGrid({ inquiryId }: { inquiryId: string }) {
       ) : (
         <div className="flex-1 overflow-y-auto space-y-2 pr-1">
           {visible.map(m => {
-            const snap = m.unit_snapshot;
-            const tier = TIER_META[m.match_tier];
+            const snap    = m.unit_snapshot;
+            const tier    = TIER_META[m.match_tier];
+            const score   = Math.round(m.match_score);
+            const showActions  = score > SCORE_THRESHOLD_ACTIONS;
+            const showPremium  = score > SCORE_THRESHOLD_PREMIUM;
+            const isFetching   = fetchingId === m.unit_id;
+
             return (
               <div key={m.id} className={`border rounded-xl p-3 transition-colors ${m.is_shortlisted ? 'border-[#f43f5e44] bg-[#f43f5e08]' : 'border-[#1e1e1e] bg-[#111] hover:border-[#2a2a2a]'}`}>
                 <div className="flex items-start justify-between gap-3">
@@ -374,6 +486,11 @@ function MatchingGrid({ inquiryId }: { inquiryId: string }) {
                       </span>
                       <span className="text-xs font-mono text-[#c9a84c]">{m.unit_code}</span>
                       <span className="w-1.5 h-1.5 rounded-full bg-[#4ade80] shrink-0" title="Available" />
+                      {showPremium && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#c9a84c22] text-[#c9a84c] border border-[#c9a84c44]">
+                          PREMIUM
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm font-medium text-[#e0e0e0] truncate">{snap.property} · {snap.unit_no}</p>
                     <p className="text-xs text-[#666] mt-0.5">{snap.zone} · {snap.type} · {snap.config}</p>
@@ -387,9 +504,10 @@ function MatchingGrid({ inquiryId }: { inquiryId: string }) {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                       </svg>
                     </button>
-                    <ScoreBar score={Math.round(m.match_score)} />
+                    <ScoreBar score={score} />
                   </div>
                 </div>
+
                 {/* Match reason chips */}
                 <div className="flex gap-1 mt-2 flex-wrap">
                   {m.match_reasons.budget && (
@@ -398,16 +516,89 @@ function MatchingGrid({ inquiryId }: { inquiryId: string }) {
                     </span>
                   )}
                   {m.match_reasons.zone === 'exact' && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#38bdf822] text-[#38bdf8]">Zone ✓</span>}
-                  {m.match_reasons.type === true && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#a78bfa22] text-[#a78bfa]">Type ✓</span>}
-                  {m.match_reasons.config === true && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#fb923c22] text-[#fb923c]">Config ✓</span>}
+                  {m.match_reasons.type === true      && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#a78bfa22] text-[#a78bfa]">Type ✓</span>}
+                  {m.match_reasons.config === true    && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#fb923c22] text-[#fb923c]">Config ✓</span>}
                   {m.match_reasons.bathrooms === true && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#e879f922] text-[#e879f9]">Bath ✓</span>}
                 </div>
+
+                {/* ── Score-gated action row ────────────────────────────── */}
+                {showActions && (
+                  <div className="flex items-center gap-1.5 mt-2.5 pt-2.5 border-t border-[#1a1a1a]">
+                    {/* View Details — score > 50 */}
+                    <button
+                      onClick={() => handleViewDetails(m.unit_id)}
+                      disabled={isFetching}
+                      title="Open in Units Inventory — View Details"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] text-[#aaa] text-[11px] font-medium rounded-lg hover:border-[#c9a84c] hover:text-[#c9a84c] disabled:opacity-40 transition-colors"
+                    >
+                      {isFetching ? (
+                        <span className="w-3 h-3 border border-[#aaa] border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3 h-3">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      )}
+                      View Details
+                    </button>
+
+                    {/* Premium suite — score > 80 */}
+                    {showPremium && (
+                      <>
+                        {/* PDF Report */}
+                        <button
+                          onClick={() => handlePdf(m.unit_id)}
+                          title="Download PDF Proposal Report"
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] text-[#aaa] text-[11px] font-medium rounded-lg hover:border-[#f43f5e] hover:text-[#f43f5e] transition-colors"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3 h-3">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                          </svg>
+                          PDF
+                        </button>
+
+                        {/* WhatsApp */}
+                        <button
+                          onClick={() => handleWhatsApp(m.unit_id)}
+                          disabled={isFetching}
+                          title="Share via WhatsApp"
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] text-[#aaa] text-[11px] font-medium rounded-lg hover:border-[#25d366] hover:text-[#25d366] disabled:opacity-40 transition-colors"
+                        >
+                          <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                          </svg>
+                          WhatsApp
+                        </button>
+
+                        {/* Email */}
+                        <button
+                          onClick={() => handleEmail(m.unit_id)}
+                          disabled={isFetching}
+                          title="Send email proposal"
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] text-[#aaa] text-[11px] font-medium rounded-lg hover:border-[#c9a84c] hover:text-[#c9a84c] disabled:opacity-40 transition-colors"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3 h-3">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                          Email
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+                {/* ── end action row ────────────────────────────────────── */}
               </div>
             );
           })}
         </div>
       )}
     </div>
+
+    {/* UnitDetailsModal — rendered when View Details is triggered (score > 50) */}
+    {previewUnit && (
+      <UnitDetailsModal unit={previewUnit} onClose={() => setPreviewUnit(null)} />
+    )}
+
+    </>
   );
 }
 
@@ -520,7 +711,7 @@ function InquiryDrawer({ inquiry, onClose, onUpdate }: {
         {/* Tab content */}
         <div className="flex-1 overflow-hidden p-5">
           {tab === 'matches' ? (
-            <MatchingGrid inquiryId={inquiry.id} />
+            <MatchingGrid inquiryId={inquiry.id} clientEmail={inquiry.client_email ?? undefined} />
           ) : (
             <div className="space-y-3 text-sm overflow-y-auto h-full">
               {/* Agent assignment — post-matching routing control */}
