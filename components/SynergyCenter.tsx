@@ -1242,153 +1242,192 @@ export default function SynergyCenter({ onMenuClick }: { onMenuClick?: () => voi
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#e0e0e0]">
+    <div className="h-screen bg-[#0a0a0a] text-[#e0e0e0] flex flex-col overflow-hidden">
       <TopBar onMenuClick={onMenuClick} />
-      {/* ── Page sub-header ── */}
-      <header className="bg-[#0d0d0d] border-b border-[#1a1a1a] px-4 sm:px-6 py-3 flex items-center gap-4">
-        <div className="flex-1">
-          <h1 className="text-base font-bold text-[#e0e0e0]">Synergy Center</h1>
-          <p className="text-[11px] text-[#555]">Inquiry Matching & Auto-Shortlist Engine</p>
-        </div>
-        {/* Stats pills */}
-        <div className="hidden sm:flex items-center gap-2 text-xs">
-          <span className="px-3 py-1 rounded-full bg-[#1a1a1a] text-[#888]">{stats.total} Inquiries</span>
-          <span className="px-3 py-1 rounded-full bg-[#f43f5e15] text-[#f43f5e] border border-[#f43f5e22]">{stats.open} Open</span>
-          <span className="px-3 py-1 rounded-full bg-[#4ade8015] text-[#4ade80] border border-[#4ade8022]">{stats.matches} Matches</span>
-        </div>
-        <button onClick={openForm}
-          className="flex items-center gap-1.5 px-4 py-2 bg-[#f43f5e] text-white text-sm font-semibold rounded-lg hover:bg-[#e11d48] transition-colors">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-          New Inquiry
-        </button>
-      </header>
 
-      {/* ── Tab bar ── */}
-      <div className="flex border-b border-[#1a1a1a] px-4 sm:px-6">
-        <button onClick={() => setTab('inquiries')}
-          className={`px-4 py-3 text-xs font-semibold border-b-2 transition-colors ${tab === 'inquiries' ? 'border-[#f43f5e] text-[#f43f5e]' : 'border-transparent text-[#555] hover:text-[#888]'}`}>
-          Inquiries
-        </button>
-        <button onClick={() => { setTab('notifications'); loadUnread(); }}
-          className={`relative px-4 py-3 text-xs font-semibold border-b-2 transition-colors ${tab === 'notifications' ? 'border-[#f43f5e] text-[#f43f5e]' : 'border-transparent text-[#555] hover:text-[#888]'}`}>
-          Notifications
-          {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-[#f43f5e] text-white text-[9px] font-bold flex items-center justify-center">
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </span>
-          )}
-        </button>
-      </div>
+      <div className="flex flex-1 overflow-hidden">
 
-      <main className="px-4 sm:px-6 py-5">
-        {tab === 'inquiries' ? (
-          <>
-            {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-5">
-              <input
-                value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Search by name, ref, phone…"
-                className="flex-1 bg-[#111] border border-[#222] text-[#e0e0e0] text-sm rounded-lg px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-[#f43f5e] placeholder-[#444]"
-              />
-              <div className="flex gap-1.5 overflow-x-auto">
-                {PIPELINE_STATUSES.map(s => {
-                  const m = s === 'all' ? null : STATUS_META[s];
-                  const active = statusFilter === s;
-                  return (
-                    <button key={s} onClick={() => setStatusFilter(s)}
-                      style={active && m ? { background: m.bg, borderColor: m.color, color: m.color } : {}}
-                      className={`shrink-0 text-xs px-3 py-1.5 rounded-full border font-medium transition-colors capitalize ${active && !m ? 'bg-[#f43f5e] text-white border-[#f43f5e]' : !active ? 'border-[#222] text-[#555] hover:border-[#444] hover:text-[#888]' : ''}`}>
-                      {s === 'all' ? 'All' : STATUS_META[s].label}
-                    </button>
-                  );
-                })}
+        {/* ── Left Sidebar ── */}
+        <aside className="w-56 shrink-0 bg-[#0d0d0d] border-r border-[#1a1a1a] flex flex-col">
+
+          {/* Branding */}
+          <div className="px-4 pt-5 pb-4 border-b border-[#1a1a1a]">
+            <h1 className="text-sm font-bold text-[#e0e0e0]">Synergy Center</h1>
+            <p className="text-[10px] text-[#444] mt-0.5">Inquiry & Matching Pipeline</p>
+          </div>
+
+          {/* Metric tiles */}
+          <div className="p-3 space-y-1.5 border-b border-[#1a1a1a]">
+            {[
+              { label: 'Total Inquiries', value: stats.total,   color: '#e0e0e0', bg: '#ffffff08' },
+              { label: 'Open',            value: stats.open,    color: '#f43f5e', bg: '#f43f5e10' },
+              { label: 'Won',             value: stats.won,     color: '#4ade80', bg: '#4ade8010' },
+              { label: 'Total Matches',   value: stats.matches, color: '#c9a84c', bg: '#c9a84c10' },
+            ].map(s => (
+              <div key={s.label} style={{ background: s.bg }} className="flex items-center justify-between px-3 py-2 rounded-lg">
+                <span className="text-[10px] text-[#555]">{s.label}</span>
+                <span style={{ color: s.color }} className="text-sm font-bold tabular-nums">{s.value}</span>
               </div>
+            ))}
+          </div>
+
+          {/* Pipeline nav */}
+          <div className="flex-1 overflow-y-auto py-3">
+            <p className="px-4 pb-2 text-[9px] uppercase tracking-widest text-[#383838] font-semibold">Pipeline</p>
+            <div className="px-2 space-y-0.5">
+              {PIPELINE_STATUSES.map(s => {
+                const m      = s === 'all' ? null : STATUS_META[s];
+                const count  = s === 'all' ? inquiries.length : inquiries.filter(i => i.status === s).length;
+                const active = statusFilter === s && tab === 'inquiries';
+                return (
+                  <button key={s}
+                    onClick={() => { setStatusFilter(s); setTab('inquiries'); }}
+                    style={active && m ? { background: m.bg, color: m.color } : active ? { background: '#f43f5e18', color: '#f43f5e' } : {}}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors text-xs ${!active ? 'text-[#555] hover:text-[#999] hover:bg-[#ffffff06]' : 'font-semibold'}`}>
+                    <span className="capitalize">{s === 'all' ? 'All Inquiries' : STATUS_META[s].label}</span>
+                    <span className="text-[10px] opacity-60 tabular-nums">{count}</span>
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Inquiry list */}
-            {loading ? (
-              <div className="flex justify-center py-20">
-                <div className="w-8 h-8 border-2 border-[#f43f5e] border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-24 text-center">
-                <div className="text-5xl mb-4">📋</div>
-                <p className="text-sm text-[#555]">{inquiries.length === 0 ? 'No inquiries yet. Click "+ New Inquiry" to get started.' : 'No inquiries match your filter.'}</p>
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {filtered.map(inq => {
-                  const sm2 = STATUS_META[inq.status] ?? STATUS_META.new;
-                  return (
-                    <div key={inq.id} onClick={() => setSelected(inq)}
-                      className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-xl p-4 cursor-pointer hover:border-[#f43f5e44] hover:bg-[#110810] transition-colors group">
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <div>
-                          <p className="text-[10px] font-mono text-[#f43f5e] mb-0.5">{inq.ref_no}</p>
-                          <p className="text-sm font-semibold text-[#e0e0e0] group-hover:text-white">{inq.client_name}</p>
-                        </div>
-                        <div className="flex flex-col items-end gap-1.5 shrink-0">
-                          <Badge label={sm2.label} color={sm2.color} bg={sm2.bg} />
-                          {inq.assigned_agent && (() => {
-                            const a = agents.find(ag => ag.agent_code === inq.assigned_agent);
-                            if (!a) return null;
-                            return (
-                              <div className="flex items-center gap-1.5">
-                                <div className="w-5 h-5 rounded-full bg-[#22c55e22] border border-[#22c55e44] flex items-center justify-center shrink-0">
-                                  <span className="font-mono text-[9px] font-bold text-[#22c55e]">{a.agent_code}</span>
+            <div className="mx-2 my-3 border-t border-[#1a1a1a]" />
+
+            {/* Notifications nav item */}
+            <div className="px-2">
+              <button
+                onClick={() => { setTab('notifications'); loadUnread(); }}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors text-xs ${tab === 'notifications' ? 'bg-[#f43f5e18] text-[#f43f5e] font-semibold' : 'text-[#555] hover:text-[#999] hover:bg-[#ffffff06]'}`}>
+                <div className="flex items-center gap-2">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  Notifications
+                </div>
+                {unreadCount > 0 && (
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#f43f5e] text-white">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* New Inquiry CTA */}
+          <div className="p-3 border-t border-[#1a1a1a]">
+            <button onClick={openForm}
+              className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 bg-[#f43f5e] text-white text-sm font-semibold rounded-lg hover:bg-[#e11d48] transition-colors">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+              New Inquiry
+            </button>
+          </div>
+        </aside>
+
+        {/* ── Main Panel ── */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+          {/* Search bar */}
+          <div className="px-5 py-3 border-b border-[#1a1a1a] bg-[#0d0d0d] shrink-0 flex items-center gap-3">
+            <div className="relative flex-1">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#444] pointer-events-none">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Search by name, ref no. or phone…"
+                className="w-full bg-[#111] border border-[#1e1e1e] text-[#e0e0e0] text-sm rounded-lg pl-9 pr-4 py-2 focus:outline-none focus:border-[#f43f5e44] placeholder-[#383838]"
+              />
+            </div>
+            {tab === 'inquiries' && filtered.length > 0 && (
+              <span className="text-[11px] text-[#444] shrink-0">{filtered.length} of {inquiries.length}</span>
+            )}
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-5">
+            {tab === 'inquiries' ? (
+              loading ? (
+                <div className="flex justify-center py-20">
+                  <div className="w-8 h-8 border-2 border-[#f43f5e] border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : filtered.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-24 text-center">
+                  <div className="text-5xl mb-4">📋</div>
+                  <p className="text-sm text-[#555]">{inquiries.length === 0 ? 'No inquiries yet — click "New Inquiry" to get started.' : 'No inquiries match your filter.'}</p>
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {filtered.map(inq => {
+                    const sm2 = STATUS_META[inq.status] ?? STATUS_META.new;
+                    return (
+                      <div key={inq.id} onClick={() => setSelected(inq)}
+                        className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-xl p-4 cursor-pointer hover:border-[#f43f5e44] hover:bg-[#110810] transition-colors group">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div>
+                            <p className="text-[10px] font-mono text-[#f43f5e] mb-0.5">{inq.ref_no}</p>
+                            <p className="text-sm font-semibold text-[#e0e0e0] group-hover:text-white">{inq.client_name}</p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1.5 shrink-0">
+                            <Badge label={sm2.label} color={sm2.color} bg={sm2.bg} />
+                            {inq.assigned_agent && (() => {
+                              const a = agents.find(ag => ag.agent_code === inq.assigned_agent);
+                              if (!a) return null;
+                              return (
+                                <div className="flex items-center gap-1.5">
+                                  <div className="w-5 h-5 rounded-full bg-[#22c55e22] border border-[#22c55e44] flex items-center justify-center shrink-0">
+                                    <span className="font-mono text-[9px] font-bold text-[#22c55e]">{a.agent_code}</span>
+                                  </div>
+                                  <span className="text-[10px] text-[#666] truncate max-w-[72px]">{a.full_name.split(' ')[0]}</span>
                                 </div>
-                                <span className="text-[10px] text-[#666] truncate max-w-[72px]">{a.full_name.split(' ')[0]}</span>
-                              </div>
-                            );
-                          })()}
+                              );
+                            })()}
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-3 text-xs text-[#555] mb-3">
-                        {inq.listing_type && <span>{inq.listing_type}</span>}
-                        {inq.property_type && <span>· {inq.property_type}</span>}
-                        {inq.config && <span>· {inq.config}</span>}
-                      </div>
-                      {(inq.budget_min || inq.budget_max) && (
-                        <p className="text-xs text-[#4ade80] font-medium mb-2">
-                          QAR {fmt(inq.budget_min ?? 0)} – {fmt(inq.budget_max ?? 0)}
-                        </p>
-                      )}
-                      {[inq.assigned_unit, inq.assigned_unit2, inq.assigned_unit3].some(Boolean) && (
-                        <div className="mt-2 pt-2 border-t border-[#1a1a1a] space-y-1">
-                          {[inq.assigned_unit, inq.assigned_unit2, inq.assigned_unit3].map((u, i) => u ? (
-                            <div key={i} className="flex items-center gap-1.5">
-                              <svg viewBox="0 0 24 24" fill="none" stroke="#c9a84c" strokeWidth={1.5} className="w-3 h-3 shrink-0">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 22V12h6v10" />
-                              </svg>
-                              <span className="font-mono text-[9px] text-[#c9a84c]">{u.unit_code}</span>
-                              <span className="text-[10px] text-[#666] truncate">{u.unit_no} · {u.property}</span>
-                            </div>
-                          ) : null)}
+                        <div className="flex items-center gap-3 text-xs text-[#555] mb-2">
+                          {inq.listing_type  && <span>{inq.listing_type}</span>}
+                          {inq.property_type && <span>· {inq.property_type}</span>}
+                          {inq.config        && <span>· {inq.config}</span>}
                         </div>
-                      )}
-                      <div className="flex items-center justify-between mt-2">
-                        <p className="text-[10px] text-[#444]">{new Date(inq.created_at).toLocaleDateString()}</p>
-                        {inq.match_count > 0 ? (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#f43f5e22] text-[#f43f5e] border border-[#f43f5e44]">
-                            {inq.match_count} match{inq.match_count !== 1 ? 'es' : ''}
-                          </span>
-                        ) : (
-                          <span className="text-[10px] text-[#333]">No matches</span>
+                        {(inq.budget_min || inq.budget_max) && (
+                          <p className="text-xs text-[#4ade80] font-medium mb-2">
+                            QAR {fmt(inq.budget_min ?? 0)} – {fmt(inq.budget_max ?? 0)}
+                          </p>
                         )}
+                        {[inq.assigned_unit, inq.assigned_unit2, inq.assigned_unit3].some(Boolean) && (
+                          <div className="mt-2 pt-2 border-t border-[#1a1a1a] space-y-1">
+                            {[inq.assigned_unit, inq.assigned_unit2, inq.assigned_unit3].map((u, i) => u ? (
+                              <div key={i} className="flex items-center gap-1.5">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a84c" strokeWidth={1.5} className="w-3 h-3 shrink-0">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 22V12h6v10" />
+                                </svg>
+                                <span className="font-mono text-[9px] text-[#c9a84c]">{u.unit_code}</span>
+                                <span className="text-[10px] text-[#666] truncate">{u.unit_no} · {u.property}</span>
+                              </div>
+                            ) : null)}
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between mt-2">
+                          <p className="text-[10px] text-[#383838]">{new Date(inq.created_at).toLocaleDateString()}</p>
+                          {inq.match_count > 0 ? (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#f43f5e22] text-[#f43f5e] border border-[#f43f5e44]">
+                              {inq.match_count} match{inq.match_count !== 1 ? 'es' : ''}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-[#2a2a2a]">No matches</span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+              )
+            ) : (
+              <div className="max-w-2xl mx-auto h-full">
+                <NotificationsPanel />
               </div>
             )}
-          </>
-        ) : (
-          <div className="max-w-2xl mx-auto" style={{ height: 'calc(100vh - 140px)' }}>
-            <NotificationsPanel />
           </div>
-        )}
-      </main>
+        </div>
+      </div>
 
       {/* ── New Inquiry Modal ── */}
       {showForm && (
