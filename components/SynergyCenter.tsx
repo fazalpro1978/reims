@@ -11,6 +11,13 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+interface AssignedUnit {
+  id: string;
+  unit_code: string;
+  unit_no: string;
+  property: string;
+}
+
 interface Inquiry {
   id: string;
   ref_no: string;
@@ -29,6 +36,8 @@ interface Inquiry {
   furnishing?: string;
   status: 'new' | 'contacted' | 'viewing' | 'negotiating' | 'won' | 'lost';
   assigned_agent?: string;
+  assigned_unit_id?: string | null;
+  assigned_unit?: AssignedUnit | null;
   follow_up_date?: string;
   notes?: string;
   last_matched_at?: string;
@@ -250,6 +259,104 @@ function AgentSearch({
                 </div>
                 <p className="text-[10px] text-[#555]">Agent code auto-assigned from initials.</p>
               </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Unit Search (searchable relational picker for inquiries) ────────────────
+
+function UnitSearch({
+  value, onSelect,
+}: {
+  value: AssignedUnit | null;
+  onSelect: (unit: AssignedUnit | null) => void;
+}) {
+  const [open,    setOpen]    = useState(false);
+  const [q,       setQ]       = useState('');
+  const [results, setResults] = useState<AssignedUnit[]>([]);
+  const [loading, setLoading] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const term = q.trim();
+    if (!term) { setResults([]); return; }
+
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from('units')
+        .select('id, unit_code, unit_no, property')
+        .or(`unit_no.ilike.%${term}%,unit_code.ilike.%${term}%,property.ilike.%${term}%`)
+        .eq('status', 'Available')
+        .limit(10);
+      setResults((data ?? []) as AssignedUnit[]);
+      setLoading(false);
+    }, 280);
+
+    return () => clearTimeout(timer);
+  }, [q, open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <div
+        onClick={() => { setOpen(o => !o); setQ(''); setResults([]); }}
+        className="w-full bg-[#1a1a1a] border border-[#2a2a2a] text-sm rounded-lg px-3 py-2.5 cursor-pointer flex items-center justify-between hover:border-[#3a3a3a] transition-colors"
+      >
+        <span className={value ? 'text-[#e0e0e0]' : 'text-[#555]'}>
+          {value
+            ? <><span className="font-mono text-[#c9a84c] mr-2">{value.unit_code}</span>{value.unit_no} · {value.property}</>
+            : 'Search by unit no., code or property…'}
+        </span>
+        <svg className="w-4 h-4 text-[#555] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      </div>
+
+      {open && (
+        <div className="absolute z-50 w-full mt-1 bg-[#161616] border border-[#2a2a2a] rounded-xl shadow-2xl overflow-hidden">
+          <div className="p-2 border-b border-[#1e1e1e]">
+            <input
+              autoFocus
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              placeholder="Type unit no., asset code or property…"
+              className="w-full bg-[#1a1a1a] border border-[#2a2a2a] text-[#e0e0e0] text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-[#c9a84c]/60 placeholder-[#555]"
+            />
+          </div>
+          <div className="max-h-52 overflow-y-auto">
+            {loading ? (
+              <div className="flex justify-center py-4">
+                <span className="w-4 h-4 border-2 border-[#c9a84c] border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : results.length > 0 ? results.map(u => (
+              <div
+                key={u.id}
+                onClick={() => { onSelect(u); setOpen(false); setQ(''); }}
+                className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-[#1e1e1e] transition-colors"
+              >
+                <span className="font-mono text-xs text-[#c9a84c] shrink-0 w-20 truncate">{u.unit_code}</span>
+                <div className="min-w-0">
+                  <p className="text-sm text-[#e0e0e0] truncate">{u.unit_no}</p>
+                  <p className="text-[10px] text-[#555] truncate">{u.property}</p>
+                </div>
+              </div>
+            )) : q.trim() ? (
+              <p className="px-3 py-3 text-sm text-[#555] text-center">No available units found</p>
+            ) : (
+              <p className="px-3 py-3 text-sm text-[#555] text-center">Start typing to search…</p>
             )}
           </div>
         </div>
@@ -748,10 +855,11 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
   agents: AgentProfile[];
   onAgentAdded: (a: AgentProfile) => void;
 }) {
-  const [tab, setTab]     = useState<'matches' | 'details'>('matches');
-  const [status, setStatus] = useState(inquiry.status);
-  const [saving, setSaving] = useState(false);
-  const [agentCode, setAgentCode] = useState(inquiry.assigned_agent ?? '');
+  const [tab, setTab]           = useState<'matches' | 'details'>('matches');
+  const [status, setStatus]     = useState(inquiry.status);
+  const [saving, setSaving]     = useState(false);
+  const [agentCode, setAgentCode]       = useState(inquiry.assigned_agent ?? '');
+  const [assignedUnit, setAssignedUnit] = useState<AssignedUnit | null>(inquiry.assigned_unit ?? null);
 
   const patch = async (fields: Record<string, unknown>) => {
     const res  = await fetch(`/api/inquiries/${inquiry.id}`, {
@@ -774,6 +882,12 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
   const assignAgent = async (code: string) => {
     setAgentCode(code);
     await patch({ assigned_agent: code || null });
+  };
+
+  const assignUnit = async (unit: AssignedUnit | null) => {
+    setAssignedUnit(unit);
+    const result = await patch({ assigned_unit_id: unit?.id ?? null });
+    if (result.inquiry?.assigned_unit) setAssignedUnit(result.inquiry.assigned_unit);
   };
 
   const sm = STATUS_META[status] ?? STATUS_META.new;
@@ -882,6 +996,35 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
                     onSelect={assignAgent}
                     onNewAgent={a => { onAgentAdded(a); assignAgent(a.agent_code); }}
                   />
+                )}
+              </div>
+
+              {/* Unit assignment */}
+              <div className="p-3 bg-[#111] border border-[#1e1e1e] rounded-xl mb-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[#555] mb-2">Assigned Unit</p>
+                {assignedUnit ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-[#c9a84c22] border border-[#c9a84c44] flex items-center justify-center shrink-0">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#c9a84c" strokeWidth={1.5} className="w-4 h-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 22V12h6v10" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-[#e0e0e0] truncate">{assignedUnit.property} · {assignedUnit.unit_no}</p>
+                        <p className="text-[10px] font-mono text-[#c9a84c]">{assignedUnit.unit_code}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => assignUnit(null)}
+                      className="text-[10px] text-[#555] hover:text-[#f87171] transition-colors px-2 py-1 rounded shrink-0"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <UnitSearch value={assignedUnit} onSelect={assignUnit} />
                 )}
               </div>
 
@@ -1190,6 +1333,16 @@ export default function SynergyCenter({ onMenuClick }: { onMenuClick?: () => voi
                         <p className="text-xs text-[#4ade80] font-medium mb-2">
                           QAR {fmt(inq.budget_min ?? 0)} – {fmt(inq.budget_max ?? 0)}
                         </p>
+                      )}
+                      {inq.assigned_unit && (
+                        <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-[#1a1a1a]">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="#c9a84c" strokeWidth={1.5} className="w-3 h-3 shrink-0">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 22V12h6v10" />
+                          </svg>
+                          <span className="font-mono text-[9px] text-[#c9a84c]">{inq.assigned_unit.unit_code}</span>
+                          <span className="text-[10px] text-[#666] truncate">{inq.assigned_unit.unit_no} · {inq.assigned_unit.property}</span>
+                        </div>
                       )}
                       <div className="flex items-center justify-between mt-2">
                         <p className="text-[10px] text-[#444]">{new Date(inq.created_at).toLocaleDateString()}</p>

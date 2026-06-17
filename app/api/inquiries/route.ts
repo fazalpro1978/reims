@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
   let query = admin
     .from('inquiries')
-    .select('*')
+    .select('*, assigned_unit:units!assigned_unit_id(id, unit_code, unit_no, property)')
     .order('created_at', { ascending: false });
 
   if (status && status !== 'all') query = query.eq('status', status);
