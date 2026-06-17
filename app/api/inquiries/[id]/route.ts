@@ -6,7 +6,7 @@ const admin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-const UNIT_JOIN = '*, assigned_unit:units!assigned_unit_id(id, unit_code, unit_no, property)';
+const UNIT_JOIN = '*, assigned_unit:units!assigned_unit_id(id, unit_code, unit_no, property), assigned_unit2:units!assigned_unit_id_2(id, unit_code, unit_no, property), assigned_unit3:units!assigned_unit_id_3(id, unit_code, unit_no, property)';
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const { data, error } = await admin
@@ -26,7 +26,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     // Allowlist only patchable fields — never forward arbitrary body keys.
     const allowed: Record<string, unknown> = {};
     const patchable = [
-      'status', 'assigned_agent', 'assigned_unit_id',
+      'status', 'assigned_agent',
+      'assigned_unit_id', 'assigned_unit_id_2', 'assigned_unit_id_3',
       'follow_up_date', 'notes',
     ];
     for (const key of patchable) {

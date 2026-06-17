@@ -38,6 +38,10 @@ interface Inquiry {
   assigned_agent?: string;
   assigned_unit_id?: string | null;
   assigned_unit?: AssignedUnit | null;
+  assigned_unit_id_2?: string | null;
+  assigned_unit2?: AssignedUnit | null;
+  assigned_unit_id_3?: string | null;
+  assigned_unit3?: AssignedUnit | null;
   follow_up_date?: string;
   notes?: string;
   last_matched_at?: string;
@@ -858,8 +862,10 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
   const [tab, setTab]           = useState<'matches' | 'details'>('matches');
   const [status, setStatus]     = useState(inquiry.status);
   const [saving, setSaving]     = useState(false);
-  const [agentCode, setAgentCode]       = useState(inquiry.assigned_agent ?? '');
-  const [assignedUnit, setAssignedUnit] = useState<AssignedUnit | null>(inquiry.assigned_unit ?? null);
+  const [agentCode, setAgentCode]         = useState(inquiry.assigned_agent ?? '');
+  const [assignedUnit1, setAssignedUnit1] = useState<AssignedUnit | null>(inquiry.assigned_unit  ?? null);
+  const [assignedUnit2, setAssignedUnit2] = useState<AssignedUnit | null>(inquiry.assigned_unit2 ?? null);
+  const [assignedUnit3, setAssignedUnit3] = useState<AssignedUnit | null>(inquiry.assigned_unit3 ?? null);
 
   const patch = async (fields: Record<string, unknown>) => {
     const res  = await fetch(`/api/inquiries/${inquiry.id}`, {
@@ -884,10 +890,14 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
     await patch({ assigned_agent: code || null });
   };
 
-  const assignUnit = async (unit: AssignedUnit | null) => {
-    setAssignedUnit(unit);
-    const result = await patch({ assigned_unit_id: unit?.id ?? null });
-    if (result.inquiry?.assigned_unit) setAssignedUnit(result.inquiry.assigned_unit);
+  const assignUnit = async (slot: 1 | 2 | 3, unit: AssignedUnit | null) => {
+    const field      = slot === 1 ? 'assigned_unit_id' : `assigned_unit_id_${slot}`;
+    const respKey    = slot === 1 ? 'assigned_unit'    : `assigned_unit${slot}`;
+    const setFn      = slot === 1 ? setAssignedUnit1 : slot === 2 ? setAssignedUnit2 : setAssignedUnit3;
+    setFn(unit);
+    const result = await patch({ [field]: unit?.id ?? null });
+    if (result.inquiry?.[respKey]) setFn(result.inquiry[respKey]);
+    else if (!unit) setFn(null);
   };
 
   const sm = STATUS_META[status] ?? STATUS_META.new;
@@ -999,33 +1009,42 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
                 )}
               </div>
 
-              {/* Unit assignment */}
-              <div className="p-3 bg-[#111] border border-[#1e1e1e] rounded-xl mb-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-[#555] mb-2">Assigned Unit</p>
-                {assignedUnit ? (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-[#c9a84c22] border border-[#c9a84c44] flex items-center justify-center shrink-0">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="#c9a84c" strokeWidth={1.5} className="w-4 h-4">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 22V12h6v10" />
-                        </svg>
+              {/* Unit assignment — up to 3 slots, all optional */}
+              <div className="p-3 bg-[#111] border border-[#1e1e1e] rounded-xl mb-2 space-y-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[#555]">Assigned Units <span className="normal-case font-normal text-[#444]">(max 3)</span></p>
+                {([
+                  [1, assignedUnit1, setAssignedUnit1],
+                  [2, assignedUnit2, setAssignedUnit2],
+                  [3, assignedUnit3, setAssignedUnit3],
+                ] as [1|2|3, AssignedUnit|null, React.Dispatch<React.SetStateAction<AssignedUnit|null>>][]).map(([slot, unit]) => (
+                  <div key={slot}>
+                    <p className="text-[9px] text-[#444] uppercase tracking-widest mb-1.5">Unit {slot}</p>
+                    {unit ? (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-lg bg-[#c9a84c22] border border-[#c9a84c44] flex items-center justify-center shrink-0">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#c9a84c" strokeWidth={1.5} className="w-4 h-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 22V12h6v10" />
+                            </svg>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-[#e0e0e0] truncate">{unit.property} · {unit.unit_no}</p>
+                            <p className="text-[10px] font-mono text-[#c9a84c]">{unit.unit_code}</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => assignUnit(slot, null)}
+                          className="text-[10px] text-[#555] hover:text-[#f87171] transition-colors px-2 py-1 rounded shrink-0"
+                        >
+                          Remove
+                        </button>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-[#e0e0e0] truncate">{assignedUnit.property} · {assignedUnit.unit_no}</p>
-                        <p className="text-[10px] font-mono text-[#c9a84c]">{assignedUnit.unit_code}</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => assignUnit(null)}
-                      className="text-[10px] text-[#555] hover:text-[#f87171] transition-colors px-2 py-1 rounded shrink-0"
-                    >
-                      Remove
-                    </button>
+                    ) : (
+                      <UnitSearch value={null} onSelect={u => assignUnit(slot, u)} />
+                    )}
                   </div>
-                ) : (
-                  <UnitSearch value={assignedUnit} onSelect={assignUnit} />
-                )}
+                ))}
               </div>
 
               {[
@@ -1334,14 +1353,18 @@ export default function SynergyCenter({ onMenuClick }: { onMenuClick?: () => voi
                           QAR {fmt(inq.budget_min ?? 0)} – {fmt(inq.budget_max ?? 0)}
                         </p>
                       )}
-                      {inq.assigned_unit && (
-                        <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-[#1a1a1a]">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="#c9a84c" strokeWidth={1.5} className="w-3 h-3 shrink-0">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 22V12h6v10" />
-                          </svg>
-                          <span className="font-mono text-[9px] text-[#c9a84c]">{inq.assigned_unit.unit_code}</span>
-                          <span className="text-[10px] text-[#666] truncate">{inq.assigned_unit.unit_no} · {inq.assigned_unit.property}</span>
+                      {[inq.assigned_unit, inq.assigned_unit2, inq.assigned_unit3].some(Boolean) && (
+                        <div className="mt-2 pt-2 border-t border-[#1a1a1a] space-y-1">
+                          {[inq.assigned_unit, inq.assigned_unit2, inq.assigned_unit3].map((u, i) => u ? (
+                            <div key={i} className="flex items-center gap-1.5">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="#c9a84c" strokeWidth={1.5} className="w-3 h-3 shrink-0">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 22V12h6v10" />
+                              </svg>
+                              <span className="font-mono text-[9px] text-[#c9a84c]">{u.unit_code}</span>
+                              <span className="text-[10px] text-[#666] truncate">{u.unit_no} · {u.property}</span>
+                            </div>
+                          ) : null)}
                         </div>
                       )}
                       <div className="flex items-center justify-between mt-2">
