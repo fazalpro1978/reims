@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
+import TopBar from './TopBar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -671,13 +672,9 @@ export default function SynergyCenter({ onMenuClick }: { onMenuClick?: () => voi
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-[#e0e0e0]">
-      {/* ── Page header ── */}
-      <header className="sticky top-0 z-30 bg-[#0d0d0d] border-b border-[#1a1a1a] px-4 sm:px-6 py-3 flex items-center gap-4">
-        <button onClick={onMenuClick} className="flex w-8 h-8 rounded-lg bg-[#1a1a1a] hover:bg-[#242424] border border-[#2a2a2a] items-center justify-center text-[#666] hover:text-[#c9a84c] transition-colors shrink-0">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="w-4 h-4">
-            <path d="M3 6h18M3 12h16M3 18h12" />
-          </svg>
-        </button>
+      <TopBar onMenuClick={onMenuClick} />
+      {/* ── Page sub-header ── */}
+      <header className="bg-[#0d0d0d] border-b border-[#1a1a1a] px-4 sm:px-6 py-3 flex items-center gap-4">
         <div className="flex-1">
           <h1 className="text-base font-bold text-[#e0e0e0]">Synergy Center</h1>
           <p className="text-[11px] text-[#555]">Inquiry Matching & Auto-Shortlist Engine</p>
