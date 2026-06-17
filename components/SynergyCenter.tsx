@@ -71,6 +71,11 @@ interface Notification {
   created_at: string;
 }
 
+interface AgentProfile {
+  agent_code: string;
+  full_name: string;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmt = (n: number) => n.toLocaleString('en-QA');
@@ -112,6 +117,143 @@ function ScoreBar({ score }: { score: number }) {
         <div style={{ width: `${score}%`, background: color }} className="h-full rounded-full" />
       </div>
       <span style={{ color }} className="text-[10px] font-bold">{score}%</span>
+    </div>
+  );
+}
+
+// ─── Agent Search (mirrors CodeRegistry AgentSearch) ─────────────────────────
+
+function AgentSearch({
+  agents, value, onSelect, onNewAgent,
+}: {
+  agents: AgentProfile[];
+  value: string;
+  onSelect: (code: string) => void;
+  onNewAgent: (a: AgentProfile) => void;
+}) {
+  const [open,     setOpen]     = useState(false);
+  const [q,        setQ]        = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [newName,  setNewName]  = useState('');
+  const [adding,   setAdding]   = useState(false);
+  const [addErr,   setAddErr]   = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+
+  const selected = agents.find(a => a.agent_code === value);
+  const filtered = q
+    ? agents.filter(a =>
+        a.full_name.toLowerCase().includes(q.toLowerCase()) ||
+        a.agent_code.toLowerCase().includes(q.toLowerCase()))
+    : agents;
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  async function handleAdd() {
+    if (!newName.trim()) return;
+    setAdding(true); setAddErr('');
+    try {
+      const res  = await fetch('/api/code-registry/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fullName: newName.trim() }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) { setAddErr('Failed to register agent. Try again.'); return; }
+      const a: AgentProfile = { agent_code: json.agentCode, full_name: json.fullName };
+      onNewAgent(a);
+      onSelect(json.agentCode);
+      setShowForm(false); setNewName(''); setOpen(false);
+    } finally { setAdding(false); }
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <div
+        onClick={() => setOpen(o => !o)}
+        className="w-full bg-[#1a1a1a] border border-[#2a2a2a] text-sm rounded-lg px-3 py-2.5 cursor-pointer flex items-center justify-between hover:border-[#3a3a3a] transition-colors"
+      >
+        <span className={selected ? 'text-[#e0e0e0]' : 'text-[#555]'}>
+          {selected
+            ? <><span className="font-mono text-[#22c55e] mr-2">{selected.agent_code}</span>{selected.full_name}</>
+            : 'Select agent…'}
+        </span>
+        <svg className="w-4 h-4 text-[#555] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
+
+      {open && (
+        <div className="absolute z-50 w-full mt-1 bg-[#161616] border border-[#2a2a2a] rounded-xl shadow-2xl overflow-hidden">
+          <div className="p-2 border-b border-[#1e1e1e]">
+            <input
+              autoFocus
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              placeholder="Search agent name or code…"
+              className="w-full bg-[#1a1a1a] border border-[#2a2a2a] text-[#e0e0e0] text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-[#c9a84c]/60 placeholder-[#555]"
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {filtered.map(a => (
+              <div
+                key={a.agent_code}
+                onClick={() => { onSelect(a.agent_code); setOpen(false); setQ(''); }}
+                className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-[#1e1e1e] transition-colors ${value === a.agent_code ? 'bg-[#1e1e1e]' : ''}`}
+              >
+                <span className="font-mono text-xs text-[#22c55e] w-6 shrink-0">{a.agent_code}</span>
+                <p className="text-sm text-[#e0e0e0] truncate">{a.full_name}</p>
+              </div>
+            ))}
+            {filtered.length === 0 && (
+              <p className="px-3 py-3 text-sm text-[#555] text-center">No agents found</p>
+            )}
+          </div>
+          <div className="border-t border-[#1e1e1e] p-2">
+            {!showForm ? (
+              <button
+                onClick={() => { setShowForm(true); setAddErr(''); }}
+                className="w-full text-sm text-[#c9a84c] hover:text-[#dfc070] py-2 flex items-center justify-center gap-2 transition-colors"
+              >
+                <span className="text-lg leading-none">+</span> Register New Agent
+              </button>
+            ) : (
+              <div className="space-y-2 p-1">
+                <input
+                  autoFocus
+                  value={newName}
+                  onChange={e => { setNewName(e.target.value); setAddErr(''); }}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') { setShowForm(false); setNewName(''); } }}
+                  placeholder="Full name (e.g. Mohammed Al-Rashid)…"
+                  className="w-full bg-[#1a1a1a] border border-[#2a2a2a] text-[#e0e0e0] text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-[#c9a84c]/60 placeholder-[#555]"
+                />
+                {addErr && <p className="text-[11px] text-[#ef4444]">{addErr}</p>}
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleAdd}
+                    disabled={adding || !newName.trim()}
+                    className="flex-1 bg-[#c9a84c] hover:bg-[#dfc070] disabled:opacity-40 text-[#0f0f0f] text-sm font-bold py-2 rounded-lg transition-colors"
+                  >
+                    {adding ? 'Registering…' : 'Register'}
+                  </button>
+                  <button
+                    onClick={() => { setShowForm(false); setNewName(''); setAddErr(''); }}
+                    className="px-3 text-[#888] hover:text-[#e0e0e0] text-sm transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <p className="text-[10px] text-[#555]">Agent code auto-assigned from initials.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -604,16 +746,17 @@ function MatchingGrid({ inquiryId, clientEmail }: {
 
 // ─── Inquiry Detail Drawer ────────────────────────────────────────────────────
 
-function InquiryDrawer({ inquiry, onClose, onUpdate }: {
+function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
   inquiry: Inquiry;
   onClose: () => void;
   onUpdate: (updated: Inquiry) => void;
+  agents: AgentProfile[];
+  onAgentAdded: (a: AgentProfile) => void;
 }) {
-  const [tab, setTab]           = useState<'matches' | 'details'>('matches');
-  const [status, setStatus]     = useState(inquiry.status);
-  const [agentInput, setAgentInput] = useState(inquiry.assigned_agent ?? '');
-  const [agentSaving, setAgentSaving] = useState(false);
-  const [saving, setSaving]     = useState(false);
+  const [tab, setTab]     = useState<'matches' | 'details'>('matches');
+  const [status, setStatus] = useState(inquiry.status);
+  const [saving, setSaving] = useState(false);
+  const [agentCode, setAgentCode] = useState(inquiry.assigned_agent ?? '');
 
   const patch = async (fields: Record<string, unknown>) => {
     const res  = await fetch(`/api/inquiries/${inquiry.id}`, {
@@ -633,10 +776,9 @@ function InquiryDrawer({ inquiry, onClose, onUpdate }: {
     setSaving(false);
   };
 
-  const assignAgent = async () => {
-    setAgentSaving(true);
-    await patch({ assigned_agent: agentInput.trim() || null });
-    setAgentSaving(false);
+  const assignAgent = async (code: string) => {
+    setAgentCode(code);
+    await patch({ assigned_agent: code || null });
   };
 
   const sm = STATUS_META[status] ?? STATUS_META.new;
@@ -715,21 +857,37 @@ function InquiryDrawer({ inquiry, onClose, onUpdate }: {
           ) : (
             <div className="space-y-3 text-sm overflow-y-auto h-full">
               {/* Agent assignment — post-matching routing control */}
-              <div className="p-3 bg-[#111] border border-[#1e1e1e] rounded-lg mb-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-[#555] mb-2">Assign Agent</p>
-                <div className="flex gap-2">
-                  <input
-                    value={agentInput}
-                    onChange={e => setAgentInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && assignAgent()}
-                    placeholder="Agent name…"
-                    className="flex-1 bg-[#0a0a0a] border border-[#2a2a2a] text-[#e0e0e0] text-xs rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#f43f5e] placeholder-[#444]"
+              <div className="p-3 bg-[#111] border border-[#1e1e1e] rounded-xl mb-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[#555] mb-2">Assigned Consultant</p>
+                {agentCode && agents.find(a => a.agent_code === agentCode) ? (() => {
+                  const a = agents.find(a => a.agent_code === agentCode)!;
+                  return (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-[#22c55e22] border border-[#22c55e44] flex items-center justify-center shrink-0">
+                          <span className="font-mono text-xs font-bold text-[#22c55e]">{a.agent_code}</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-[#e0e0e0]">{a.full_name}</p>
+                          <p className="text-[10px] text-[#555]">Agent · {a.agent_code}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => assignAgent('')}
+                        className="text-[10px] text-[#555] hover:text-[#f87171] transition-colors px-2 py-1 rounded"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  );
+                })() : (
+                  <AgentSearch
+                    agents={agents}
+                    value={agentCode}
+                    onSelect={assignAgent}
+                    onNewAgent={a => { onAgentAdded(a); assignAgent(a.agent_code); }}
                   />
-                  <button onClick={assignAgent} disabled={agentSaving}
-                    className="px-3 py-2 bg-[#f43f5e] text-white text-xs font-semibold rounded-lg hover:bg-[#e11d48] disabled:opacity-40 transition-colors">
-                    {agentSaving ? '…' : 'Save'}
-                  </button>
-                </div>
+                )}
               </div>
 
               {[
@@ -847,6 +1005,7 @@ const PIPELINE_STATUSES = ['all', ...STATUSES] as const;
 export default function SynergyCenter({ onMenuClick }: { onMenuClick?: () => void }) {
   const [tab, setTab]                   = useState<'inquiries' | 'notifications'>('inquiries');
   const [inquiries, setInquiries]       = useState<Inquiry[]>([]);
+  const [agents, setAgents]             = useState<AgentProfile[]>([]);
   const [loading, setLoading]           = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [search, setSearch]             = useState('');
@@ -866,13 +1025,21 @@ export default function SynergyCenter({ onMenuClick }: { onMenuClick?: () => voi
     }
   };
 
+  const loadAgents = async () => {
+    try {
+      const res  = await fetch('/api/code-registry/options');
+      const data = await res.json();
+      setAgents(data.agents ?? []);
+    } catch { /* non-critical */ }
+  };
+
   const loadUnread = async () => {
     const res  = await fetch('/api/notifications?unread=true');
     const data = await res.json();
     setUnreadCount(data.unreadCount ?? 0);
   };
 
-  useEffect(() => { load(); loadUnread(); }, []);
+  useEffect(() => { load(); loadAgents(); loadUnread(); }, []);
 
   const openForm = () => { setFormError(null); setShowForm(true); };
 
@@ -1015,6 +1182,17 @@ export default function SynergyCenter({ onMenuClick }: { onMenuClick?: () => voi
                           QAR {fmt(inq.budget_min ?? 0)} – {fmt(inq.budget_max ?? 0)}
                         </p>
                       )}
+                      {inq.assigned_agent && agents.find(a => a.agent_code === inq.assigned_agent) && (() => {
+                        const a = agents.find(ag => ag.agent_code === inq.assigned_agent)!;
+                        return (
+                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-[#1a1a1a]">
+                            <div className="w-5 h-5 rounded-full bg-[#22c55e22] border border-[#22c55e44] flex items-center justify-center shrink-0">
+                              <span className="font-mono text-[9px] font-bold text-[#22c55e]">{a.agent_code}</span>
+                            </div>
+                            <span className="text-[10px] text-[#666] truncate">{a.full_name}</span>
+                          </div>
+                        );
+                      })()}
                       <div className="flex items-center justify-between mt-2">
                         <p className="text-[10px] text-[#444]">{new Date(inq.created_at).toLocaleDateString()}</p>
                         {inq.match_count > 0 ? (
@@ -1067,6 +1245,8 @@ export default function SynergyCenter({ onMenuClick }: { onMenuClick?: () => voi
             setSelected(updated);
             setInquiries(prev => prev.map(i => i.id === updated.id ? updated : i));
           }}
+          agents={agents}
+          onAgentAdded={a => setAgents(prev => [...prev, a].sort((x, y) => x.agent_code.localeCompare(y.agent_code)))}
         />
       )}
     </div>
