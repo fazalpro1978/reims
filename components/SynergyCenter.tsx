@@ -639,13 +639,28 @@ function MatchingGrid({ inquiryId, clientEmail }: {
                     <p className="text-sm font-semibold text-[#c9a84c] mt-1">QAR {fmt(snap.rent)}<span className="text-xs font-normal text-[#555]">/mo</span></p>
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
-                    <button onClick={() => toggleShortlist(m)}
-                      title={m.is_shortlisted ? 'Remove from shortlist' : 'Add to shortlist'}
-                      className={`p-1.5 rounded-lg transition-colors ${m.is_shortlisted ? 'text-[#f43f5e] bg-[#f43f5e15]' : 'text-[#444] hover:text-[#f43f5e] hover:bg-[#f43f5e10]'}`}>
-                      <svg viewBox="0 0 24 24" fill={m.is_shortlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} className="w-4 h-4">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                      </svg>
-                    </button>
+                    <div className="flex items-center gap-1">
+                      {showActions && (
+                        <button
+                          onClick={() => handleViewDetails(m.unit_id)}
+                          disabled={isFetching}
+                          title="View Details"
+                          className="p-1.5 rounded-lg text-[#555] hover:text-[#c9a84c] hover:bg-[#c9a84c10] disabled:opacity-40 transition-colors"
+                        >
+                          {isFetching
+                            ? <span className="w-3.5 h-3.5 border border-[#555] border-t-transparent rounded-full animate-spin block" />
+                            : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                          }
+                        </button>
+                      )}
+                      <button onClick={() => toggleShortlist(m)}
+                        title={m.is_shortlisted ? 'Remove from shortlist' : 'Add to shortlist'}
+                        className={`p-1.5 rounded-lg transition-colors ${m.is_shortlisted ? 'text-[#f43f5e] bg-[#f43f5e15]' : 'text-[#444] hover:text-[#f43f5e] hover:bg-[#f43f5e10]'}`}>
+                        <svg viewBox="0 0 24 24" fill={m.is_shortlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                        </svg>
+                      </button>
+                    </div>
                     <ScoreBar score={score} />
                   </div>
                 </div>
@@ -663,29 +678,10 @@ function MatchingGrid({ inquiryId, clientEmail }: {
                   {m.match_reasons.bathrooms === true && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#e879f922] text-[#e879f9]">Bath ✓</span>}
                 </div>
 
-                {/* ── Score-gated action row ────────────────────────────── */}
-                {showActions && (
+                {/* ── Premium action row — score > 80 only ─────────────── */}
+                {showPremium && (
                   <div className="flex items-center gap-1.5 mt-2.5 pt-2.5 border-t border-[#1a1a1a]">
-                    {/* View Details — score > 50 */}
-                    <button
-                      onClick={() => handleViewDetails(m.unit_id)}
-                      disabled={isFetching}
-                      title="Open in Units Inventory — View Details"
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] text-[#aaa] text-[11px] font-medium rounded-lg hover:border-[#c9a84c] hover:text-[#c9a84c] disabled:opacity-40 transition-colors"
-                    >
-                      {isFetching ? (
-                        <span className="w-3 h-3 border border-[#aaa] border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3 h-3">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                      )}
-                      View Details
-                    </button>
-
-                    {/* Premium suite — score > 80 */}
-                    {showPremium && (
-                      <>
+                    <>
                         {/* PDF Report */}
                         <button
                           onClick={() => handlePdf(m.unit_id)}
@@ -723,8 +719,7 @@ function MatchingGrid({ inquiryId, clientEmail }: {
                           </svg>
                           Email
                         </button>
-                      </>
-                    )}
+                    </>
                   </div>
                 )}
                 {/* ── end action row ────────────────────────────────────── */}
@@ -1170,7 +1165,21 @@ export default function SynergyCenter({ onMenuClick }: { onMenuClick?: () => voi
                           <p className="text-[10px] font-mono text-[#f43f5e] mb-0.5">{inq.ref_no}</p>
                           <p className="text-sm font-semibold text-[#e0e0e0] group-hover:text-white">{inq.client_name}</p>
                         </div>
-                        <Badge label={sm2.label} color={sm2.color} bg={sm2.bg} />
+                        <div className="flex flex-col items-end gap-1.5 shrink-0">
+                          <Badge label={sm2.label} color={sm2.color} bg={sm2.bg} />
+                          {inq.assigned_agent && (() => {
+                            const a = agents.find(ag => ag.agent_code === inq.assigned_agent);
+                            if (!a) return null;
+                            return (
+                              <div className="flex items-center gap-1.5">
+                                <div className="w-5 h-5 rounded-full bg-[#22c55e22] border border-[#22c55e44] flex items-center justify-center shrink-0">
+                                  <span className="font-mono text-[9px] font-bold text-[#22c55e]">{a.agent_code}</span>
+                                </div>
+                                <span className="text-[10px] text-[#666] truncate max-w-[72px]">{a.full_name.split(' ')[0]}</span>
+                              </div>
+                            );
+                          })()}
+                        </div>
                       </div>
                       <div className="flex items-center gap-3 text-xs text-[#555] mb-3">
                         {inq.listing_type && <span>{inq.listing_type}</span>}
@@ -1182,17 +1191,6 @@ export default function SynergyCenter({ onMenuClick }: { onMenuClick?: () => voi
                           QAR {fmt(inq.budget_min ?? 0)} – {fmt(inq.budget_max ?? 0)}
                         </p>
                       )}
-                      {inq.assigned_agent && agents.find(a => a.agent_code === inq.assigned_agent) && (() => {
-                        const a = agents.find(ag => ag.agent_code === inq.assigned_agent)!;
-                        return (
-                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-[#1a1a1a]">
-                            <div className="w-5 h-5 rounded-full bg-[#22c55e22] border border-[#22c55e44] flex items-center justify-center shrink-0">
-                              <span className="font-mono text-[9px] font-bold text-[#22c55e]">{a.agent_code}</span>
-                            </div>
-                            <span className="text-[10px] text-[#666] truncate">{a.full_name}</span>
-                          </div>
-                        );
-                      })()}
                       <div className="flex items-center justify-between mt-2">
                         <p className="text-[10px] text-[#444]">{new Date(inq.created_at).toLocaleDateString()}</p>
                         {inq.match_count > 0 ? (
