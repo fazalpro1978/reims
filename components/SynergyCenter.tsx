@@ -110,6 +110,18 @@ function ScoreBar({ score }: { score: number }) {
 
 // ─── Inquiry Form ─────────────────────────────────────────────────────────────
 
+function FieldWrapper({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
+  return (
+    <div>
+      <label className="block text-xs text-[#888] mb-1">{label}{required && <span className="text-rose-400 ml-0.5">*</span>}</label>
+      {children}
+    </div>
+  );
+}
+
+const INP_CLS = "w-full bg-[#111] border border-[#2a2a2a] text-[#e0e0e0] text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#f43f5e] placeholder-[#444]";
+const SEL_CLS = `${INP_CLS} cursor-pointer`;
+
 const EMPTY_FORM = {
   client_name: '', client_phone: '', client_email: '', client_nationality: '',
   source: '', listing_type: 'Rent', property_type: '', config: '',
@@ -154,97 +166,87 @@ function InquiryForm({ onSave, onCancel, initial }: {
     setSaving(false);
   };
 
-  const F = ({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) => (
-    <div>
-      <label className="block text-xs text-[#888] mb-1">{label}{required && <span className="text-rose-400 ml-0.5">*</span>}</label>
-      {children}
-    </div>
-  );
-
-  const inp = "w-full bg-[#111] border border-[#2a2a2a] text-[#e0e0e0] text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#f43f5e] placeholder-[#444]";
-  const sel = `${inp} cursor-pointer`;
-
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="grid grid-cols-2 gap-4">
-        <F label="Client Name" required>
-          <input required value={form.client_name} onChange={e => set('client_name', e.target.value)} className={inp} placeholder="Full name" />
-        </F>
-        <F label="Phone">
-          <input value={form.client_phone} onChange={e => set('client_phone', e.target.value)} className={inp} placeholder="+974 xxxx xxxx" />
-        </F>
-        <F label="Email">
-          <input type="email" value={form.client_email} onChange={e => set('client_email', e.target.value)} className={inp} placeholder="email@example.com" />
-        </F>
-        <F label="Nationality">
-          <input value={form.client_nationality} onChange={e => set('client_nationality', e.target.value)} className={inp} placeholder="e.g. Qatari" />
-        </F>
+        <FieldWrapper label="Client Name" required>
+          <input required value={form.client_name} onChange={e => set('client_name', e.target.value)} className={INP_CLS} placeholder="Full name" />
+        </FieldWrapper>
+        <FieldWrapper label="Phone">
+          <input value={form.client_phone} onChange={e => set('client_phone', e.target.value)} className={INP_CLS} placeholder="+974 xxxx xxxx" />
+        </FieldWrapper>
+        <FieldWrapper label="Email">
+          <input type="email" value={form.client_email} onChange={e => set('client_email', e.target.value)} className={INP_CLS} placeholder="email@example.com" />
+        </FieldWrapper>
+        <FieldWrapper label="Nationality">
+          <input value={form.client_nationality} onChange={e => set('client_nationality', e.target.value)} className={INP_CLS} placeholder="e.g. Qatari" />
+        </FieldWrapper>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <F label="Source">
-          <select value={form.source} onChange={e => set('source', e.target.value)} className={sel}>
+        <FieldWrapper label="Source">
+          <select value={form.source} onChange={e => set('source', e.target.value)} className={SEL_CLS}>
             <option value="">Select source</option>
             {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
-        </F>
-        <F label="Listing Type">
-          <select value={form.listing_type} onChange={e => set('listing_type', e.target.value)} className={sel}>
+        </FieldWrapper>
+        <FieldWrapper label="Listing Type">
+          <select value={form.listing_type} onChange={e => set('listing_type', e.target.value)} className={SEL_CLS}>
             <option value="Rent">Rent</option>
             <option value="Sale">Sale</option>
           </select>
-        </F>
+        </FieldWrapper>
       </div>
 
       <div className="border-t border-[#1e1e1e] pt-4">
         <p className="text-xs font-semibold text-[#666] uppercase tracking-wider mb-3">Requirements</p>
         <div className="grid grid-cols-2 gap-4">
-          <F label="Property Type">
-            <select value={form.property_type} onChange={e => set('property_type', e.target.value)} className={sel}>
+          <FieldWrapper label="Property Type">
+            <select value={form.property_type} onChange={e => set('property_type', e.target.value)} className={SEL_CLS}>
               <option value="">Any</option>
               {PROPERTY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
-          </F>
-          <F label="Configuration">
-            <input value={form.config} onChange={e => set('config', e.target.value)} className={inp} placeholder="e.g. 2 BHK, Studio" />
-          </F>
-          <F label="Min Bathrooms">
-            <input type="number" min={0} value={form.bathrooms_min} onChange={e => set('bathrooms_min', e.target.value)} className={inp} placeholder="e.g. 2" />
-          </F>
-          <F label="Furnishing">
-            <select value={form.furnishing} onChange={e => set('furnishing', e.target.value)} className={sel}>
+          </FieldWrapper>
+          <FieldWrapper label="Configuration">
+            <input value={form.config} onChange={e => set('config', e.target.value)} className={INP_CLS} placeholder="e.g. 2 BHK, Studio" />
+          </FieldWrapper>
+          <FieldWrapper label="Min Bathrooms">
+            <input type="number" min={0} value={form.bathrooms_min} onChange={e => set('bathrooms_min', e.target.value)} className={INP_CLS} placeholder="e.g. 2" />
+          </FieldWrapper>
+          <FieldWrapper label="Furnishing">
+            <select value={form.furnishing} onChange={e => set('furnishing', e.target.value)} className={SEL_CLS}>
               <option value="">Any</option>
               {FURNISHING_OPTS.map(f => <option key={f} value={f}>{f}</option>)}
             </select>
-          </F>
-          <F label="Budget Min (QAR)">
-            <input type="number" min={0} value={form.budget_min} onChange={e => set('budget_min', e.target.value)} className={inp} placeholder="e.g. 5000" />
-          </F>
-          <F label="Budget Max (QAR)">
-            <input type="number" min={0} value={form.budget_max} onChange={e => set('budget_max', e.target.value)} className={inp} placeholder="e.g. 8000" />
-          </F>
+          </FieldWrapper>
+          <FieldWrapper label="Budget Min (QAR)">
+            <input type="number" min={0} value={form.budget_min} onChange={e => set('budget_min', e.target.value)} className={INP_CLS} placeholder="e.g. 5000" />
+          </FieldWrapper>
+          <FieldWrapper label="Budget Max (QAR)">
+            <input type="number" min={0} value={form.budget_max} onChange={e => set('budget_max', e.target.value)} className={INP_CLS} placeholder="e.g. 8000" />
+          </FieldWrapper>
         </div>
         <div className="mt-4">
-          <F label="Preferred Zones (comma-separated)">
-            <input value={form.preferred_zones} onChange={e => set('preferred_zones', e.target.value)} className={inp} placeholder="e.g. The Pearl, West Bay, Lusail" />
-          </F>
+          <FieldWrapper label="Preferred Zones (comma-separated)">
+            <input value={form.preferred_zones} onChange={e => set('preferred_zones', e.target.value)} className={INP_CLS} placeholder="e.g. The Pearl, West Bay, Lusail" />
+          </FieldWrapper>
         </div>
       </div>
 
       <div className="border-t border-[#1e1e1e] pt-4">
         <p className="text-xs font-semibold text-[#666] uppercase tracking-wider mb-3">Assignment</p>
         <div className="grid grid-cols-2 gap-4">
-          <F label="Assigned Agent">
-            <input value={form.assigned_agent} onChange={e => set('assigned_agent', e.target.value)} className={inp} placeholder="Agent name" />
-          </F>
-          <F label="Follow-up Date">
-            <input type="date" value={form.follow_up_date} onChange={e => set('follow_up_date', e.target.value)} className={inp} />
-          </F>
+          <FieldWrapper label="Assigned Agent">
+            <input value={form.assigned_agent} onChange={e => set('assigned_agent', e.target.value)} className={INP_CLS} placeholder="Agent name" />
+          </FieldWrapper>
+          <FieldWrapper label="Follow-up Date">
+            <input type="date" value={form.follow_up_date} onChange={e => set('follow_up_date', e.target.value)} className={INP_CLS} />
+          </FieldWrapper>
         </div>
         <div className="mt-4">
-          <F label="Notes">
-            <textarea rows={3} value={form.notes} onChange={e => set('notes', e.target.value)} className={`${inp} resize-none`} placeholder="Additional notes..." />
-          </F>
+          <FieldWrapper label="Notes">
+            <textarea rows={3} value={form.notes} onChange={e => set('notes', e.target.value)} className={`${INP_CLS} resize-none`} placeholder="Additional notes..." />
+          </FieldWrapper>
         </div>
       </div>
 
@@ -260,7 +262,7 @@ function InquiryForm({ onSave, onCancel, initial }: {
 
 // ─── Matching Units Grid ───────────────────────────────────────────────────────
 
-function MatchingGrid({ inquiryId, onClose }: { inquiryId: string; onClose: () => void }) {
+function MatchingGrid({ inquiryId }: { inquiryId: string }) {
   const [matches, setMatches]   = useState<InquiryMatch[]>([]);
   const [loading, setLoading]   = useState(true);
   const [running, setRunning]   = useState(false);
@@ -495,7 +497,7 @@ function InquiryDrawer({ inquiry, onClose, onUpdate }: {
         {/* Tab content */}
         <div className="flex-1 overflow-hidden p-5">
           {tab === 'matches' ? (
-            <MatchingGrid inquiryId={inquiry.id} onClose={onClose} />
+            <MatchingGrid inquiryId={inquiry.id} />
           ) : (
             <div className="space-y-3 text-sm overflow-y-auto h-full">
               {[
@@ -671,9 +673,9 @@ export default function SynergyCenter({ onMenuClick }: { onMenuClick?: () => voi
     <div className="min-h-screen bg-[#0a0a0a] text-[#e0e0e0]">
       {/* ── Page header ── */}
       <header className="sticky top-0 z-30 bg-[#0d0d0d] border-b border-[#1a1a1a] px-4 sm:px-6 py-3 flex items-center gap-4">
-        <button onClick={onMenuClick} className="lg:hidden p-2 rounded-lg text-[#888] hover:text-[#c9a84c] hover:bg-[#1a1a1a] transition-colors">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" className="w-5 h-5">
-            <path d="M3 6h18M3 12h18M3 18h18" />
+        <button onClick={onMenuClick} className="flex w-8 h-8 rounded-lg bg-[#1a1a1a] hover:bg-[#242424] border border-[#2a2a2a] items-center justify-center text-[#666] hover:text-[#c9a84c] transition-colors shrink-0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="w-4 h-4">
+            <path d="M3 6h18M3 12h16M3 18h12" />
           </svg>
         </button>
         <div className="flex-1">
