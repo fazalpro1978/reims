@@ -49,6 +49,9 @@ export async function POST(req: NextRequest) {
       preferred_zones:    Array.isArray(body.preferred_zones) ? body.preferred_zones : [],
       furnishing:         body.furnishing         || null,
       follow_up_date:     body.follow_up_date     || null,
+      move_in_date:       body.move_in_date       || null,
+      bills_included:     body.bills_included     || null,
+      size:               body.size != null ? Number(body.size) : null,
       notes:              body.notes              || null,
     };
 

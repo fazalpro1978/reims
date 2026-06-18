@@ -28,7 +28,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const patchable = [
       'status', 'assigned_agent',
       'assigned_unit_id', 'assigned_unit_id_2', 'assigned_unit_id_3',
-      'follow_up_date', 'notes',
+      'follow_up_date', 'move_in_date', 'bills_included', 'size', 'notes',
     ];
     for (const key of patchable) {
       if (key in body) allowed[key] = body[key] ?? null;

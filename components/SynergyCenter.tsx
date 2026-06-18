@@ -42,6 +42,9 @@ interface Inquiry {
   assigned_unit2?: AssignedUnit | null;
   assigned_unit_id_3?: string | null;
   assigned_unit3?: AssignedUnit | null;
+  move_in_date?: string | null;
+  bills_included?: string | null;
+  size?: number | null;
   follow_up_date?: string;
   notes?: string;
   last_matched_at?: string;
@@ -433,8 +436,9 @@ const SEL_CLS = `${INP_CLS} cursor-pointer`;
 const EMPTY_FORM = {
   client_name: '', client_phone: '', client_email: '', client_nationality: '',
   source: '', listing_type: 'Rent', property_type: '', config: '',
-  bathrooms_min: '', budget_min: '', budget_max: '',
-  preferred_zones: '', furnishing: '', follow_up_date: '', notes: '',
+  bathrooms_min: '', budget_min: '', budget_max: '', size: '',
+  preferred_zones: '', furnishing: '',
+  follow_up_date: '', move_in_date: '', bills_included: '', notes: '',
 };
 
 function InquiryForm({ onSave, onCancel, initial, formError }: {
@@ -468,6 +472,9 @@ function InquiryForm({ onSave, onCancel, initial, formError }: {
         : [],
       furnishing:         form.furnishing          || null,
       follow_up_date:     form.follow_up_date      || null,
+      move_in_date:       form.move_in_date        || null,
+      bills_included:     form.bills_included      || null,
+      size:               form.size ? Number(form.size) : null,
       notes:              form.notes               || null,
       // assigned_agent is not collected here; set by admin after matching
     };
@@ -503,6 +510,7 @@ function InquiryForm({ onSave, onCancel, initial, formError }: {
           <select value={form.listing_type} onChange={e => set('listing_type', e.target.value)} className={SEL_CLS}>
             <option value="Rent">Rent</option>
             <option value="Sale">Sale</option>
+            <option value="Buy">Buy</option>
           </select>
         </FieldWrapper>
       </div>
@@ -534,6 +542,17 @@ function InquiryForm({ onSave, onCancel, initial, formError }: {
           <FieldWrapper label="Budget Max (QAR)">
             <input type="number" min={0} value={form.budget_max} onChange={e => set('budget_max', e.target.value)} className={INP_CLS} placeholder="e.g. 8000" />
           </FieldWrapper>
+          <FieldWrapper label="Size (sqm)">
+            <input type="number" min={0} value={form.size} onChange={e => set('size', e.target.value)} className={INP_CLS} placeholder="e.g. 120" />
+          </FieldWrapper>
+          <FieldWrapper label="Bills">
+            <select value={form.bills_included} onChange={e => set('bills_included', e.target.value)} className={SEL_CLS}>
+              <option value="">Any</option>
+              <option value="Including">Including</option>
+              <option value="Excluding">Excluding</option>
+              <option value="Negotiable">Negotiable</option>
+            </select>
+          </FieldWrapper>
         </div>
         <div className="mt-4">
           <FieldWrapper label="Preferred Zones (comma-separated)">
@@ -547,6 +566,9 @@ function InquiryForm({ onSave, onCancel, initial, formError }: {
         <div className="grid grid-cols-2 gap-4">
           <FieldWrapper label="Follow-up Date">
             <input type="date" value={form.follow_up_date} onChange={e => set('follow_up_date', e.target.value)} className={INP_CLS} />
+          </FieldWrapper>
+          <FieldWrapper label="Move-in Date">
+            <input type="date" value={form.move_in_date} onChange={e => set('move_in_date', e.target.value)} className={INP_CLS} />
           </FieldWrapper>
         </div>
         <div className="mt-4">
@@ -1052,6 +1074,9 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
                 ['Nationality',  inquiry.client_nationality],
                 ['Furnishing',   inquiry.furnishing],
                 ['Bathrooms min',inquiry.bathrooms_min],
+                ['Size',         inquiry.size ? `${inquiry.size} sqm` : null],
+                ['Bills',        inquiry.bills_included],
+                ['Move-in',      inquiry.move_in_date],
                 ['Follow-up',    inquiry.follow_up_date],
                 ['Last Matched', inquiry.last_matched_at ? new Date(inquiry.last_matched_at).toLocaleString() : null],
                 ['Created',      new Date(inquiry.created_at).toLocaleString()],
