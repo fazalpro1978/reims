@@ -1073,9 +1073,10 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
   agents: AgentProfile[];
   onAgentAdded: (a: AgentProfile) => void;
 }) {
-  const [tab, setTab]           = useState<'matches' | 'details'>('matches');
-  const [status, setStatus]     = useState(inquiry.status);
-  const [saving, setSaving]     = useState(false);
+  const [tab, setTab]               = useState<'matches' | 'details'>('matches');
+  const [status,        setStatus]  = useState(inquiry.status);
+  const [pendingStatus, setPending] = useState(inquiry.status);
+  const [saving, setSaving]         = useState(false);
   const [agentCode, setAgentCode]         = useState(inquiry.assigned_agent ?? '');
   const [assignedUnit1, setAssignedUnit1] = useState<AssignedUnit | null>(inquiry.assigned_unit  ?? null);
   const [assignedUnit2, setAssignedUnit2] = useState<AssignedUnit | null>(inquiry.assigned_unit2 ?? null);
@@ -1092,10 +1093,10 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
     return data;
   };
 
-  const updateStatus = async (s: string) => {
-    setStatus(s as Inquiry['status']);
+  const commitStatus = async () => {
+    setStatus(pendingStatus);
     setSaving(true);
-    await patch({ status: s });
+    await patch({ status: pendingStatus });
     setSaving(false);
   };
 
@@ -1157,13 +1158,13 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
         </div>
 
         {/* Pipeline status row */}
-        <div className="px-5 py-3 border-b border-[#1a1a1a] shrink-0">
+        <div className="px-5 py-3 border-b border-[#1a1a1a] shrink-0 space-y-2.5">
           <div className="flex gap-1.5 flex-wrap">
             {STATUSES.map(s => {
-              const m = STATUS_META[s];
-              const active = s === status;
+              const m      = STATUS_META[s];
+              const active = s === pendingStatus;
               return (
-                <button key={s} onClick={() => updateStatus(s)} disabled={saving}
+                <button key={s} onClick={() => setPending(s as Inquiry['status'])} disabled={saving}
                   style={active ? { background: m.bg, borderColor: m.color, color: m.color } : {}}
                   className={`text-xs px-3 py-1 rounded-full border transition-colors ${active ? 'font-semibold' : 'border-[#222] text-[#555] hover:border-[#444] hover:text-[#888]'}`}>
                   {m.label}
@@ -1171,6 +1172,24 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
               );
             })}
           </div>
+          {pendingStatus !== status && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={commitStatus}
+                disabled={saving}
+                className="px-4 py-1.5 bg-[#f43f5e] text-white text-xs font-semibold rounded-lg hover:bg-[#e11d48] disabled:opacity-40 transition-colors"
+              >
+                {saving ? 'Updating…' : `Update → ${STATUS_META[pendingStatus]?.label}`}
+              </button>
+              <button
+                onClick={() => setPending(status)}
+                disabled={saving}
+                className="text-xs text-[#555] hover:text-[#888] px-2 py-1.5 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Persistent consultant reassignment strip */}
