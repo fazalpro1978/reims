@@ -34,7 +34,8 @@ interface Inquiry {
   budget_max?: number;
   preferred_zones?: string[];
   furnishing?: string;
-  status: 'new' | 'contacted' | 'viewing' | 'negotiating' | 'won' | 'lost';
+  status: 'new' | 'contacted' | 'viewing' | 'negotiating' | 'won' | 'lost' | 'cancelled' | 'closed';
+  status_changed_at?: string | null;
   assigned_agent?: string;
   assigned_unit_id?: string | null;
   assigned_unit?: AssignedUnit | null;
@@ -103,6 +104,8 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string }> 
   negotiating:  { label: 'Negotiating', color: '#fb923c', bg: '#1a0f00' },
   won:          { label: 'Won',          color: '#4ade80', bg: '#0a1a0a' },
   lost:         { label: 'Lost',         color: '#f87171', bg: '#1a0a0a' },
+  cancelled:    { label: 'Cancelled',    color: '#6b7280', bg: '#111827' },
+  closed:       { label: 'Closed',       color: '#a78bfa', bg: '#1e1b4b' },
 };
 
 const TIER_META = {
@@ -112,7 +115,7 @@ const TIER_META = {
 };
 
 const SOURCES = ['Walk-in','WhatsApp','Website','Referral','Bayut','Property Finder','Phone','Other'];
-const STATUSES = ['new','contacted','viewing','negotiating','won','lost'];
+const STATUSES = ['new','contacted','viewing','negotiating','won','lost','cancelled','closed'];
 const PROPERTY_TYPES = ['Apartment','Villa','Townhouse','Penthouse','Studio','Duplex','Office'];
 const FURNISHING_OPTS = ['Fully Furnished','Semi-Furnished','Unfurnished'];
 
@@ -135,6 +138,27 @@ function ScoreBar({ score }: { score: number }) {
       <span style={{ color }} className="text-[10px] font-bold">{score}%</span>
     </div>
   );
+}
+
+function ElapsedCounter({ since, status }: { since: string; status: string }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+  const ms   = now - new Date(since).getTime();
+  const days = Math.floor(ms / 86_400_000);
+  const hrs  = Math.floor((ms % 86_400_000) / 3_600_000);
+  const mins = Math.floor((ms % 3_600_000)  / 60_000);
+  const terminal = ['won', 'lost', 'cancelled', 'closed'].includes(status);
+  const color = terminal      ? '#2a2a2a'
+    : days >= 7               ? '#f87171'
+    : days >= 3               ? '#fbbf24'
+    : '#444';
+  const label = days > 0 ? `${days}d ${hrs}h in stage`
+    : hrs  > 0 ? `${hrs}h ${mins}m in stage`
+    : `${mins}m in stage`;
+  return <span style={{ color }} className="text-[9px] font-mono tabular-nums">{label}</span>;
 }
 
 // ─── Agent Search (mirrors CodeRegistry AgentSearch) ─────────────────────────
@@ -419,6 +443,164 @@ function mapDbRowToUnit(row: any): UnitListing {
   };
 }
 
+// ─── AI Extract Panel ─────────────────────────────────────────────────────────
+
+function AIExtractPanel({ onExtract }: { onExtract: (data: Record<string, string>) => void }) {
+  const [mode,         setMode]         = useState<'text' | 'image'>('text');
+  const [text,         setText]         = useState('');
+  const [imageFile,    setImageFile]    = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [loading,      setLoading]      = useState(false);
+  const [error,        setError]        = useState<string | null>(null);
+  const [fieldCount,   setFieldCount]   = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file?.type.startsWith('image/')) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+      setFieldCount(null);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+      setFieldCount(null);
+    }
+  };
+
+  const handleExtract = async () => {
+    setLoading(true);
+    setError(null);
+    setFieldCount(null);
+    try {
+      let res: Response;
+      if (mode === 'text') {
+        res = await fetch('/api/inquiries/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+      } else {
+        if (!imageFile) { setError('Please select an image first.'); setLoading(false); return; }
+        const form = new FormData();
+        form.append('image', imageFile);
+        res = await fetch('/api/inquiries/extract', { method: 'POST', body: form });
+      }
+      const data = await res.json();
+      if (!res.ok || data.error) { setError(data.error ?? 'Extraction failed'); return; }
+      const count = Object.keys(data.extracted ?? {}).length;
+      setFieldCount(count);
+      onExtract(data.extracted ?? {});
+    } catch {
+      setError('Network error — check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const canExtract = mode === 'text' ? text.trim().length > 0 : imageFile !== null;
+
+  return (
+    <div className="mb-5 border border-[#1e3a2a] bg-[#080f0a] rounded-xl overflow-hidden">
+      {/* Panel header */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#1e3a2a]">
+        <div className="flex items-center gap-2">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth={2} className="w-3.5 h-3.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          <span className="text-xs font-bold text-[#4ade80]">AI Extract</span>
+          <span className="text-[9px] text-[#2a5a3a] bg-[#122018] border border-[#1e3a2a] px-1.5 py-0.5 rounded-full font-semibold uppercase tracking-wide">Beta</span>
+        </div>
+        <div className="flex bg-[#111] border border-[#222] rounded-lg overflow-hidden text-[11px]">
+          {(['text', 'image'] as const).map(m => (
+            <button key={m} onClick={() => setMode(m)}
+              className={`px-3 py-1.5 font-semibold capitalize transition-colors ${mode === m ? 'bg-[#4ade80] text-[#0a0a0a]' : 'text-[#555] hover:text-[#aaa]'}`}>
+              {m}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Panel body */}
+      <div className="p-4 space-y-3">
+        {mode === 'text' ? (
+          <textarea
+            value={text}
+            onChange={e => setText(e.target.value)}
+            placeholder="Paste WhatsApp conversation or client message here…"
+            rows={4}
+            className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-[#e0e0e0] text-sm rounded-lg px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-[#4ade8066] placeholder-[#383838] resize-none"
+          />
+        ) : (
+          <div>
+            <div
+              onDragOver={e => e.preventDefault()}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-[#2a2a2a] rounded-xl p-6 text-center cursor-pointer hover:border-[#4ade8044] hover:bg-[#0d1a0f] transition-colors"
+            >
+              {imagePreview ? (
+                <img src={imagePreview} alt="Preview" className="max-h-28 mx-auto rounded-lg object-contain" />
+              ) : (
+                <>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#3a5a48" strokeWidth={1.5} className="w-8 h-8 mx-auto mb-2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 16M14 8h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p className="text-xs text-[#555]">Drag & drop screenshot or click to browse</p>
+                  <p className="text-[10px] text-[#333] mt-0.5">PNG · JPG · WEBP</p>
+                </>
+              )}
+            </div>
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
+            {imageFile && (
+              <button onClick={() => { setImageFile(null); setImagePreview(null); setFieldCount(null); }}
+                className="mt-1.5 text-[10px] text-[#555] hover:text-[#f87171] transition-colors">
+                Remove image
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            {error    && <p className="text-xs text-[#f87171] truncate">{error}</p>}
+            {!error && fieldCount !== null && (
+              <p className="text-xs text-[#4ade80]">
+                {fieldCount} field{fieldCount !== 1 ? 's' : ''} extracted — review below before saving
+              </p>
+            )}
+          </div>
+          <button
+            onClick={handleExtract}
+            disabled={loading || !canExtract}
+            className="flex items-center gap-1.5 px-4 py-2 bg-[#4ade80] text-[#0a0a0a] text-xs font-bold rounded-lg hover:bg-[#22c55e] disabled:opacity-40 transition-colors shrink-0"
+          >
+            {loading ? (
+              <>
+                <span className="w-3 h-3 border-2 border-[#0a0a0a] border-t-transparent rounded-full animate-spin" />
+                Extracting…
+              </>
+            ) : (
+              <>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-3 h-3">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Extract & Fill
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Inquiry Form ─────────────────────────────────────────────────────────────
 
 function FieldWrapper({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
@@ -441,14 +623,24 @@ const EMPTY_FORM = {
   follow_up_date: '', move_in_date: '', bills_included: '', notes: '',
 };
 
-function InquiryForm({ onSave, onCancel, initial, formError }: {
+function InquiryForm({ onSave, onCancel, initial, formError, mergeFields, mergeRevision }: {
   onSave: (data: Record<string, unknown>) => Promise<void>;
   onCancel: () => void;
   initial?: Partial<typeof EMPTY_FORM>;
   formError?: string | null;
+  mergeFields?: Record<string, string>;
+  mergeRevision?: number;
 }) {
   const [form, setForm] = useState({ ...EMPTY_FORM, ...initial });
   const [saving, setSaving] = useState(false);
+  const prevRevision = useRef<number | undefined>(mergeRevision);
+
+  useEffect(() => {
+    if (mergeRevision !== undefined && mergeRevision !== prevRevision.current && mergeFields) {
+      prevRevision.current = mergeRevision;
+      setForm(p => ({ ...p, ...mergeFields }));
+    }
+  }, [mergeRevision, mergeFields]);
 
   const set = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
 
@@ -981,6 +1173,37 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
           </div>
         </div>
 
+        {/* Persistent consultant reassignment strip */}
+        <div className="px-5 py-2.5 border-b border-[#1a1a1a] shrink-0 flex items-center gap-3">
+          <span className="text-[10px] text-[#555] uppercase tracking-wider shrink-0 w-[72px]">Consultant</span>
+          {agentCode && agents.find(a => a.agent_code === agentCode) ? (() => {
+            const a = agents.find(a => a.agent_code === agentCode)!;
+            return (
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="w-6 h-6 rounded-full bg-[#22c55e22] border border-[#22c55e44] flex items-center justify-center shrink-0">
+                  <span className="font-mono text-[9px] font-bold text-[#22c55e]">{a.agent_code}</span>
+                </div>
+                <span className="text-xs text-[#ccc] truncate flex-1">{a.full_name}</span>
+                <button
+                  onClick={() => assignAgent('')}
+                  className="text-[10px] text-[#555] hover:text-[#f43f5e] transition-colors px-2 py-1 shrink-0"
+                >
+                  Reassign
+                </button>
+              </div>
+            );
+          })() : (
+            <div className="flex-1">
+              <AgentSearch
+                agents={agents}
+                value={agentCode}
+                onSelect={assignAgent}
+                onNewAgent={a => { onAgentAdded(a); assignAgent(a.agent_code); }}
+              />
+            </div>
+          )}
+        </div>
+
         {/* Tab bar */}
         <div className="flex border-b border-[#1a1a1a] shrink-0">
           {(['matches', 'details'] as const).map(t => (
@@ -997,40 +1220,6 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
             <MatchingGrid inquiryId={inquiry.id} clientEmail={inquiry.client_email ?? undefined} />
           ) : (
             <div className="space-y-3 text-sm overflow-y-auto h-full">
-              {/* Agent assignment — post-matching routing control */}
-              <div className="p-3 bg-[#111] border border-[#1e1e1e] rounded-xl mb-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-[#555] mb-2">Assigned Consultant</p>
-                {agentCode && agents.find(a => a.agent_code === agentCode) ? (() => {
-                  const a = agents.find(a => a.agent_code === agentCode)!;
-                  return (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-[#22c55e22] border border-[#22c55e44] flex items-center justify-center shrink-0">
-                          <span className="font-mono text-xs font-bold text-[#22c55e]">{a.agent_code}</span>
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-[#e0e0e0]">{a.full_name}</p>
-                          <p className="text-[10px] text-[#555]">Agent · {a.agent_code}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => assignAgent('')}
-                        className="text-[10px] text-[#555] hover:text-[#f87171] transition-colors px-2 py-1 rounded"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  );
-                })() : (
-                  <AgentSearch
-                    agents={agents}
-                    value={agentCode}
-                    onSelect={assignAgent}
-                    onNewAgent={a => { onAgentAdded(a); assignAgent(a.agent_code); }}
-                  />
-                )}
-              </div>
-
               {/* Unit assignment — up to 3 slots, all optional */}
               <div className="p-3 bg-[#111] border border-[#1e1e1e] rounded-xl mb-2 space-y-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-[#555]">Assigned Units <span className="normal-case font-normal text-[#444]">(max 3)</span></p>
@@ -1193,6 +1382,8 @@ export default function SynergyCenter({ onMenuClick }: { onMenuClick?: () => voi
   const [search, setSearch]             = useState('');
   const [showForm, setShowForm]         = useState(false);
   const [formError, setFormError]       = useState<string | null>(null);
+  const [extractedFields, setExtractedFields] = useState<Record<string, string>>({});
+  const [extractRevision, setExtractRevision] = useState(0);
   const [selected, setSelected]         = useState<Inquiry | null>(null);
   const [unreadCount, setUnreadCount]   = useState(0);
 
@@ -1223,7 +1414,7 @@ export default function SynergyCenter({ onMenuClick }: { onMenuClick?: () => voi
 
   useEffect(() => { load(); loadAgents(); loadUnread(); }, []);
 
-  const openForm = () => { setFormError(null); setShowForm(true); };
+  const openForm = () => { setFormError(null); setExtractedFields({}); setExtractRevision(0); setShowForm(true); };
 
   const createInquiry = async (payload: Record<string, unknown>) => {
     setFormError(null);
@@ -1417,7 +1608,10 @@ export default function SynergyCenter({ onMenuClick }: { onMenuClick?: () => voi
                       </div>
                     )}
                     <div className="flex items-center justify-between mt-2">
-                      <p className="text-[10px] text-[#383838]">{new Date(inq.created_at).toLocaleDateString()}</p>
+                      <div className="flex flex-col gap-0.5">
+                        <p className="text-[10px] text-[#383838]">{new Date(inq.created_at).toLocaleDateString()}</p>
+                        <ElapsedCounter since={inq.status_changed_at ?? inq.created_at} status={inq.status} />
+                      </div>
                       {inq.match_count > 0 ? (
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#f43f5e22] text-[#f43f5e] border border-[#f43f5e44]">
                           {inq.match_count} match{inq.match_count !== 1 ? 'es' : ''}
@@ -1465,7 +1659,16 @@ export default function SynergyCenter({ onMenuClick }: { onMenuClick?: () => voi
               </button>
             </div>
             <div className="px-6 py-5">
-              <InquiryForm onSave={createInquiry} onCancel={() => setShowForm(false)} formError={formError} />
+              <AIExtractPanel
+                onExtract={data => { setExtractedFields(data); setExtractRevision(r => r + 1); }}
+              />
+              <InquiryForm
+                onSave={createInquiry}
+                onCancel={() => setShowForm(false)}
+                formError={formError}
+                mergeFields={extractedFields}
+                mergeRevision={extractRevision}
+              />
             </div>
           </div>
         </div>
