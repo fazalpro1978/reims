@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { Resend } from 'resend';
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -42,6 +43,79 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Send assignment email if assigned_agent changed to a non-null value
+    const newAgent = allowed['assigned_agent'];
+    if (newAgent && typeof newAgent === 'string' && process.env.RESEND_API_KEY) {
+      const { data: agent } = await admin
+        .from('cr_agents')
+        .select('full_name, email')
+        .eq('agent_code', newAgent)
+        .single();
+
+      if (agent?.email) {
+        const inq = data as Record<string, unknown>;
+        const fmt = (n: number) => n.toLocaleString('en-QA');
+        const budgetLine = (inq.budget_min || inq.budget_max)
+          ? `QAR ${fmt(Number(inq.budget_min ?? 0))} – ${fmt(Number(inq.budget_max ?? 0))}/mo`
+          : 'Not specified';
+
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        await resend.emails.send({
+          from: process.env.RESEND_FROM ?? 'onboarding@resend.dev',
+          to: agent.email,
+          subject: `Inquiry assigned to you — ${inq.ref_no}`,
+          html: `
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#0a0a0a;font-family:system-ui,sans-serif;color:#e0e0e0;">
+  <div style="max-width:520px;margin:32px auto;background:#111;border:1px solid #222;border-radius:16px;overflow:hidden;">
+    <div style="background:#f43f5e;padding:20px 24px;">
+      <p style="margin:0;font-size:11px;font-family:monospace;color:#fff;opacity:0.8;">${inq.ref_no}</p>
+      <h1 style="margin:4px 0 0;font-size:18px;color:#fff;">Inquiry Assigned to You</h1>
+    </div>
+    <div style="padding:24px;">
+      <p style="margin:0 0 4px;font-size:13px;color:#888;">Client</p>
+      <p style="margin:0 0 20px;font-size:16px;font-weight:600;color:#fff;">${inq.client_name}</p>
+
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="padding:8px 0;border-bottom:1px solid #1e1e1e;font-size:12px;color:#666;width:40%;">Phone</td>
+          <td style="padding:8px 0;border-bottom:1px solid #1e1e1e;font-size:12px;color:#ccc;">${inq.client_phone ?? '—'}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;border-bottom:1px solid #1e1e1e;font-size:12px;color:#666;">Email</td>
+          <td style="padding:8px 0;border-bottom:1px solid #1e1e1e;font-size:12px;color:#ccc;">${inq.client_email ?? '—'}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;border-bottom:1px solid #1e1e1e;font-size:12px;color:#666;">Listing Type</td>
+          <td style="padding:8px 0;border-bottom:1px solid #1e1e1e;font-size:12px;color:#c9a84c;">${inq.listing_type ?? '—'}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;border-bottom:1px solid #1e1e1e;font-size:12px;color:#666;">Property</td>
+          <td style="padding:8px 0;border-bottom:1px solid #1e1e1e;font-size:12px;color:#ccc;">${inq.property_type ?? '—'} · ${inq.config ?? '—'}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;border-bottom:1px solid #1e1e1e;font-size:12px;color:#666;">Budget</td>
+          <td style="padding:8px 0;border-bottom:1px solid #1e1e1e;font-size:12px;color:#4ade80;font-weight:600;">${budgetLine}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;font-size:12px;color:#666;">Zones</td>
+          <td style="padding:8px 0;font-size:12px;color:#38bdf8;">${Array.isArray(inq.preferred_zones) ? (inq.preferred_zones as string[]).join(', ') : (inq.preferred_zones ?? '—')}</td>
+        </tr>
+      </table>
+
+      ${inq.notes ? `<div style="margin-top:16px;padding:12px;background:#0d0d0d;border:1px solid #1e1e1e;border-radius:8px;font-size:12px;color:#888;">${inq.notes}</div>` : ''}
+
+      <p style="margin:24px 0 0;font-size:11px;color:#444;text-align:center;">REIMS · Prive Real Estate Management System</p>
+    </div>
+  </div>
+</body>
+</html>`,
+        }).catch(() => { /* non-critical — don't fail the PATCH if email errors */ });
+      }
+    }
+
     return NextResponse.json({ inquiry: data });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Update failed' }, { status: 500 });

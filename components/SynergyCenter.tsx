@@ -175,6 +175,7 @@ function AgentSearch({
   const [q,        setQ]        = useState('');
   const [showForm, setShowForm] = useState(false);
   const [newName,  setNewName]  = useState('');
+  const [newEmail, setNewEmail] = useState('');
   const [adding,   setAdding]   = useState(false);
   const [addErr,   setAddErr]   = useState('');
   const ref = useRef<HTMLDivElement>(null);
@@ -201,14 +202,14 @@ function AgentSearch({
       const res  = await fetch('/api/code-registry/agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fullName: newName.trim() }),
+        body: JSON.stringify({ fullName: newName.trim(), email: newEmail.trim() || undefined }),
       });
       const json = await res.json();
       if (!res.ok || json.error) { setAddErr('Failed to register agent. Try again.'); return; }
       const a: AgentProfile = { agent_code: json.agentCode, full_name: json.fullName };
       onNewAgent(a);
       onSelect(json.agentCode);
-      setShowForm(false); setNewName(''); setOpen(false);
+      setShowForm(false); setNewName(''); setNewEmail(''); setOpen(false);
     } finally { setAdding(false); }
   }
 
@@ -268,8 +269,15 @@ function AgentSearch({
                   autoFocus
                   value={newName}
                   onChange={e => { setNewName(e.target.value); setAddErr(''); }}
-                  onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') { setShowForm(false); setNewName(''); } }}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') { setShowForm(false); setNewName(''); setNewEmail(''); } }}
                   placeholder="Full name (e.g. Mohammed Al-Rashid)…"
+                  className="w-full bg-[#1a1a1a] border border-[#2a2a2a] text-[#e0e0e0] text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-[#c9a84c]/60 placeholder-[#555]"
+                />
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={e => setNewEmail(e.target.value)}
+                  placeholder="Email for assignment notifications (optional)…"
                   className="w-full bg-[#1a1a1a] border border-[#2a2a2a] text-[#e0e0e0] text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-[#c9a84c]/60 placeholder-[#555]"
                 />
                 {addErr && <p className="text-[11px] text-[#ef4444]">{addErr}</p>}
@@ -282,7 +290,7 @@ function AgentSearch({
                     {adding ? 'Registering…' : 'Register'}
                   </button>
                   <button
-                    onClick={() => { setShowForm(false); setNewName(''); setAddErr(''); }}
+                    onClick={() => { setShowForm(false); setNewName(''); setNewEmail(''); setAddErr(''); }}
                     className="px-3 text-[#888] hover:text-[#e0e0e0] text-sm transition-colors"
                   >
                     Cancel

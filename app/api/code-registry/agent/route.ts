@@ -45,7 +45,7 @@ async function generateAgentCode(fullName: string): Promise<string> {
 }
 
 export async function POST(req: NextRequest) {
-  const { fullName } = await req.json();
+  const { fullName, email } = await req.json();
   if (!fullName?.trim()) {
     return NextResponse.json({ error: 'Agent full name required' }, { status: 400 });
   }
@@ -57,15 +57,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Could not generate unique agent code' }, { status: 500 });
   }
 
+  const payload: Record<string, string> = { agent_code: agentCode, full_name: fullName.trim() };
+  if (email?.trim()) payload.email = email.trim().toLowerCase();
+
   const res = await fetch(`${SB_URL}/rest/v1/cr_agents`, {
     method: 'POST',
     headers: H(),
-    body: JSON.stringify({ agent_code: agentCode, full_name: fullName.trim() }),
+    body: JSON.stringify(payload),
   });
 
   const json = await res.json();
   if (!res.ok) return NextResponse.json({ error: json }, { status: 500 });
 
   const row = Array.isArray(json) ? json[0] : json;
-  return NextResponse.json({ agentCode: row.agent_code, fullName: row.full_name });
+  return NextResponse.json({ agentCode: row.agent_code, fullName: row.full_name, email: row.email ?? null });
 }
