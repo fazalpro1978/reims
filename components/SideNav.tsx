@@ -164,7 +164,7 @@ const NAV_SECTIONS = [
       { id: 'data-ingest',   label: 'Data Ingestion',   href: '/units-import',  icon: 'ingest',   soon: false },
       { id: 'synergy',       label: 'Synergy Center',   href: '/synergy',       icon: 'synergy', soon: false },
       { id: 'inventory',     label: 'Units Inventory',  href: '/',              icon: 'grid',    soon: false },
-      { id: 'properties',  label: 'Properties',        href: '/properties', icon: 'building', soon: true  },
+      { id: 'properties',  label: 'Properties',        href: '/properties', icon: 'building', soon: false },
       { id: 'tenants',     label: 'Tenants',            href: '/tenants',    icon: 'users',    soon: true  },
     ],
   },
