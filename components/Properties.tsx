@@ -266,13 +266,14 @@ function PropertyForm({
       : EMPTY_FORM
   );
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const set = (k: keyof FormState, v: string) => setForm(f => ({ ...f, [k]: v }));
 
   const handleSubmit = async () => {
-    setSaving(true);
+    setSaving(true); setSaveError('');
     try { await onSave(form, importedImages); onClose(); }
-    catch { /* keep modal open on error */ }
+    catch (err) { setSaveError(err instanceof Error ? err.message : 'Save failed'); }
     finally { setSaving(false); }
   };
 
@@ -425,17 +426,24 @@ function PropertyForm({
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '12px 20px', borderTop: '1px solid #1e1e1e', display: 'flex', gap: 10, flexShrink: 0 }}>
-          <button onClick={onClose}
-            style={{ flex: 1, padding: '9px 0', background: '#1a1a1a', border: '1px solid #2a2a2a',
-              borderRadius: 8, color: '#888', fontSize: 13, cursor: 'pointer' }}>
-            Cancel
-          </button>
-          <button onClick={handleSubmit} disabled={saving}
-            style={{ flex: 2, padding: '9px 0', background: saving ? '#3d2e00' : '#c9a84c', border: 'none',
-              borderRadius: 8, color: '#111', fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer' }}>
-            {saving ? 'Saving…' : (initial ? 'Save Changes' : 'Add Listing')}
-          </button>
+        <div style={{ padding: '12px 20px', borderTop: '1px solid #1e1e1e', flexShrink: 0 }}>
+          {saveError && (
+            <p style={{ color: '#f87171', fontSize: 12, marginBottom: 8, padding: '6px 10px', background: '#1a0808', borderRadius: 6 }}>
+              {saveError}
+            </p>
+          )}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={onClose}
+              style={{ flex: 1, padding: '9px 0', background: '#1a1a1a', border: '1px solid #2a2a2a',
+                borderRadius: 8, color: '#888', fontSize: 13, cursor: 'pointer' }}>
+              Cancel
+            </button>
+            <button onClick={handleSubmit} disabled={saving}
+              style={{ flex: 2, padding: '9px 0', background: saving ? '#3d2e00' : '#c9a84c', border: 'none',
+                borderRadius: 8, color: '#111', fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer' }}>
+              {saving ? 'Saving…' : (initial ? 'Save Changes' : 'Add Listing')}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -657,13 +665,25 @@ export default function Properties({ onMenuClick }: { onMenuClick?: () => void }
   };
 
   const createProperty = async (form: FormState, images?: string[]) => {
+    const str = (v: string) => v.trim() || null;
     const body: Record<string, unknown> = {
-      ...form,
-      bedrooms:  form.bedrooms  ? Number(form.bedrooms)  : null,
-      bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
-      size_sqm:  form.size_sqm  ? Number(form.size_sqm)  : null,
-      price:     form.price     ? Number(form.price)     : null,
-      images:    images ?? [],
+      title:         str(form.title),
+      listing_type:  form.listing_type,
+      property_type: str(form.property_type),
+      bedrooms:      form.bedrooms  ? Number(form.bedrooms)  : null,
+      bathrooms:     form.bathrooms ? Number(form.bathrooms) : null,
+      size_sqm:      form.size_sqm  ? Number(form.size_sqm)  : null,
+      floor:         str(form.floor),
+      furnished:     str(form.furnished),
+      price:         form.price     ? Number(form.price)     : null,
+      location:      str(form.location),
+      zone:          str(form.zone),
+      compound:      str(form.compound),
+      description:   str(form.description),
+      source:        form.source,
+      source_url:    str(form.source_url),
+      status:        form.status,
+      images:        images ?? [],
     };
     const res = await fetch('/api/properties', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
@@ -672,12 +692,23 @@ export default function Properties({ onMenuClick }: { onMenuClick?: () => void }
 
   const updateProperty = async (form: FormState) => {
     if (!editing) return;
+    const str = (v: string) => v.trim() || null;
     const body: Record<string, unknown> = {
-      ...form,
-      bedrooms:  form.bedrooms  ? Number(form.bedrooms)  : null,
-      bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
-      size_sqm:  form.size_sqm  ? Number(form.size_sqm)  : null,
-      price:     form.price     ? Number(form.price)     : null,
+      title:         str(form.title),
+      listing_type:  form.listing_type,
+      property_type: str(form.property_type),
+      bedrooms:      form.bedrooms  ? Number(form.bedrooms)  : null,
+      bathrooms:     form.bathrooms ? Number(form.bathrooms) : null,
+      size_sqm:      form.size_sqm  ? Number(form.size_sqm)  : null,
+      floor:         str(form.floor),
+      furnished:     str(form.furnished),
+      price:         form.price     ? Number(form.price)     : null,
+      location:      str(form.location),
+      zone:          str(form.zone),
+      compound:      str(form.compound),
+      description:   str(form.description),
+      source_url:    str(form.source_url),
+      status:        form.status,
     };
     const res = await fetch(`/api/properties/${editing.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
