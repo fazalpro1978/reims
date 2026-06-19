@@ -153,9 +153,22 @@ export async function POST() {
       };
     });
 
+    // Fetch existing source_refs to skip duplicates
+    const { data: existing } = await admin
+      .from('properties')
+      .select('source_ref')
+      .eq('source', 'propertyfinder');
+
+    const existingRefs = new Set((existing ?? []).map((r: { source_ref: string | null }) => r.source_ref).filter(Boolean));
+    const newRows = rows.filter(r => r.source_ref && !existingRefs.has(r.source_ref));
+
+    if (newRows.length === 0) {
+      return NextResponse.json({ synced: 0, total_found: urls.length, message: 'All listings already synced.' });
+    }
+
     const { data, error } = await admin
       .from('properties')
-      .upsert(rows, { onConflict: 'source,source_ref', ignoreDuplicates: false })
+      .insert(newRows)
       .select('id');
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
