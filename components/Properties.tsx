@@ -166,86 +166,68 @@ function IcExternal() {
   );
 }
 
-// ── AI Extract Panel ─────────────────────────────────────────────────────────
+// ── URL Import Panel (no AI credits needed) ──────────────────────────────────
 
-function AIExtractPanel({ onExtracted }: { onExtracted: (fields: Partial<FormState>) => void }) {
-  const [text, setText]         = useState('');
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState('');
-  const [image, setImage]       = useState<File | null>(null);
-  const fileRef                 = useRef<HTMLInputElement>(null);
+function URLImportPanel({ onImported }: { onImported: (fields: Partial<FormState> & { images?: string[] }) => void }) {
+  const [url, setUrl]         = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState('');
+  const [ok, setOk]           = useState('');
 
-  const extract = async () => {
-    if (!text.trim() && !image) return;
-    setLoading(true); setError('');
+  const importUrl = async () => {
+    if (!url.trim()) return;
+    setLoading(true); setError(''); setOk('');
     try {
-      let res: Response;
-      if (image) {
-        const fd = new FormData();
-        fd.append('image', image);
-        if (text.trim()) fd.append('text', text.trim());
-        res = await fetch('/api/properties/extract', { method: 'POST', body: fd });
-      } else {
-        res = await fetch('/api/properties/extract', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text }),
-        });
-      }
+      const res  = await fetch('/api/properties/fetch-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url.trim() }),
+      });
       const json = await res.json();
-      if (!res.ok) { setError(json.error ?? 'Extract failed'); return; }
-      const e = json.extracted ?? {};
-      const mapped: Partial<FormState> = {};
-      if (e.title)        mapped.title        = String(e.title);
-      if (e.listing_type) mapped.listing_type = e.listing_type;
-      if (e.property_type) mapped.property_type = String(e.property_type);
-      if (e.bedrooms != null) mapped.bedrooms  = String(e.bedrooms);
-      if (e.bathrooms != null) mapped.bathrooms = String(e.bathrooms);
-      if (e.size_sqm != null) mapped.size_sqm  = String(e.size_sqm);
-      if (e.floor)        mapped.floor        = String(e.floor);
-      if (e.furnished)    mapped.furnished    = e.furnished;
-      if (e.price != null) mapped.price       = String(e.price);
-      if (e.location)     mapped.location     = String(e.location);
-      if (e.zone)         mapped.zone         = String(e.zone);
-      if (e.compound)     mapped.compound     = String(e.compound);
-      if (e.description)  mapped.description  = String(e.description);
-      onExtracted(mapped);
-      setText(''); setImage(null);
+      if (!res.ok) { setError(json.error ?? 'Import failed'); return; }
+
+      const mapped: Partial<FormState> & { images?: string[] } = {
+        source:     'propertyfinder',
+        source_url: url.trim(),
+      };
+      if (json.title)         mapped.title         = String(json.title);
+      if (json.listing_type)  mapped.listing_type  = json.listing_type;
+      if (json.property_type) mapped.property_type = String(json.property_type);
+      if (json.bedrooms != null) mapped.bedrooms   = String(json.bedrooms);
+      if (json.price    != null) mapped.price      = String(json.price);
+      if (json.location)      mapped.location      = String(json.location);
+      if (json.description)   mapped.description   = String(json.description);
+      if (json.image)         mapped.images        = [json.image];
+
+      onImported(mapped);
+      setOk('Fields filled from URL');
+      setUrl('');
     } catch { setError('Network error'); }
     finally { setLoading(false); }
   };
 
   return (
-    <div style={{ background: '#051a0f', border: '1px solid #14532d', borderRadius: 12, padding: 16, marginBottom: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <IcSpark />
-        <span style={{ color: '#4ade80', fontSize: 13, fontWeight: 600 }}>AI Extract from Social</span>
-        <span style={{ marginLeft: 'auto', fontSize: 11, color: '#166534' }}>Instagram · TikTok · WhatsApp</span>
+    <div style={{ background: '#0d1117', border: '1px solid #2a3a4a', borderRadius: 12, padding: 14, marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <IcExternal />
+        <span style={{ color: '#38bdf8', fontSize: 13, fontWeight: 600 }}>Import from URL</span>
+        <span style={{ marginLeft: 'auto', fontSize: 11, color: '#1e4a6a' }}>PropertyFinder · Bayut · Any listing</span>
       </div>
-      <textarea
-        value={text}
-        onChange={e => setText(e.target.value)}
-        placeholder="Paste Instagram/TikTok caption or listing text…"
-        rows={3}
-        style={{ width: '100%', background: '#0a2918', border: '1px solid #166534', borderRadius: 8,
-          color: '#e0e0e0', fontSize: 13, padding: '8px 10px', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
-      />
-      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
-          onChange={e => setImage(e.target.files?.[0] ?? null)} />
-        <button onClick={() => fileRef.current?.click()}
-          style={{ flex: 1, padding: '7px 0', background: '#0a2918', border: '1px solid #166534',
-            borderRadius: 8, color: '#4ade80', fontSize: 12, cursor: 'pointer' }}>
-          {image ? `Image: ${image.name.slice(0, 20)}…` : '+ Image'}
-        </button>
-        <button onClick={extract} disabled={loading || (!text.trim() && !image)}
-          style={{ flex: 2, padding: '7px 0', background: loading ? '#052e16' : '#15803d', border: 'none',
-            borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600, cursor: loading ? 'default' : 'pointer',
-            opacity: loading ? 0.7 : 1 }}>
-          {loading ? 'Extracting…' : 'Extract & Fill'}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input value={url} onChange={e => setUrl(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && importUrl()}
+          placeholder="Paste PropertyFinder listing URL…"
+          style={{ flex: 1, background: '#0a1520', border: '1px solid #1e3a4a', borderRadius: 8,
+            color: '#e0e0e0', fontSize: 13, padding: '7px 10px', fontFamily: 'inherit' }} />
+        <button onClick={importUrl} disabled={loading || !url.trim()}
+          style={{ padding: '7px 16px', background: loading ? '#0a1520' : '#0369a1', border: 'none',
+            borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600,
+            cursor: loading || !url.trim() ? 'default' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+          {loading ? 'Fetching…' : 'Import'}
         </button>
       </div>
       {error && <p style={{ color: '#f87171', fontSize: 12, marginTop: 8 }}>{error}</p>}
+      {ok    && <p style={{ color: '#4ade80', fontSize: 12, marginTop: 8 }}>{ok}</p>}
     </div>
   );
 }
@@ -256,9 +238,11 @@ function PropertyForm({
   initial, onSave, onClose,
 }: {
   initial?: Property;
-  onSave: (form: FormState) => Promise<void>;
+  onSave: (form: FormState, images?: string[]) => Promise<void>;
   onClose: () => void;
 }) {
+  const [importedImages, setImportedImages] = useState<string[]>([]);
+
   const [form, setForm]     = useState<FormState>(
     initial
       ? {
@@ -287,7 +271,7 @@ function PropertyForm({
 
   const handleSubmit = async () => {
     setSaving(true);
-    try { await onSave(form); onClose(); }
+    try { await onSave(form, importedImages); onClose(); }
     catch { /* keep modal open on error */ }
     finally { setSaving(false); }
   };
@@ -322,7 +306,10 @@ function PropertyForm({
         {/* Body */}
         <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
           {!initial && (
-            <AIExtractPanel onExtracted={fields => setForm(f => ({ ...f, ...fields }))} />
+            <URLImportPanel onImported={({ images, ...fields }) => {
+              setForm(f => ({ ...f, ...fields }));
+              if (images) setImportedImages(images);
+            }} />
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -468,10 +455,15 @@ function PropertyCard({ p, onClick }: { p: Property; onClick: () => void }) {
       onMouseEnter={e => (e.currentTarget.style.borderColor = '#2a2a2a')}
       onMouseLeave={e => (e.currentTarget.style.borderColor = '#1e1e1e')}>
 
-      {/* Image area */}
+      {/* Image area — thumbnail links to source listing */}
       <div style={{ position: 'relative', height: 140, background: '#0d0d0d', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {img
-          ? <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ? (p.source_url
+              ? <a href={p.source_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                  style={{ display: 'block', width: '100%', height: '100%' }}>
+                  <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </a>
+              : <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />)
           : <IcBuilding />
         }
         {/* Source badge */}
@@ -664,13 +656,14 @@ export default function Properties({ onMenuClick }: { onMenuClick?: () => void }
     finally { setSyncing(false); }
   };
 
-  const createProperty = async (form: FormState) => {
+  const createProperty = async (form: FormState, images?: string[]) => {
     const body: Record<string, unknown> = {
       ...form,
       bedrooms:  form.bedrooms  ? Number(form.bedrooms)  : null,
       bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
       size_sqm:  form.size_sqm  ? Number(form.size_sqm)  : null,
       price:     form.price     ? Number(form.price)     : null,
+      images:    images ?? [],
     };
     const res = await fetch('/api/properties', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
@@ -808,7 +801,7 @@ export default function Properties({ onMenuClick }: { onMenuClick?: () => void }
         <PropertyForm onSave={createProperty} onClose={() => setShowAdd(false)} />
       )}
       {editing && (
-        <PropertyForm initial={editing} onSave={updateProperty} onClose={() => setEditing(null)} />
+        <PropertyForm initial={editing} onSave={(form) => updateProperty(form)} onClose={() => setEditing(null)} />
       )}
       {drawer && !editing && (
         <PropertyDrawer
