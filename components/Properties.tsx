@@ -498,7 +498,7 @@ function PropertyCard({ p, onClick }: { p: Property; onClick: () => void }) {
         </p>
         <p style={{ color: '#e0e0e0', fontSize: 13, fontWeight: 600, margin: '0 0 6px',
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {p.title ?? [p.property_type, p.bedrooms != null ? `${p.bedrooms}BR` : 'Studio'].filter(Boolean).join(' · ') || 'Untitled'}
+          {p.title || [p.property_type, p.bedrooms != null ? `${p.bedrooms}BR` : 'Studio'].filter(Boolean).join(' · ') || 'Untitled'}
         </p>
         <p style={{ color: '#888', fontSize: 12, margin: '0 0 8px',
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -544,7 +544,7 @@ function PropertyDrawer({ p, onClose, onEdit, onDelete }: {
           <div>
             <p style={{ fontFamily: 'monospace', fontSize: 11, color: '#555', marginBottom: 2 }}>{p.ref_no}</p>
             <h3 style={{ color: '#e0e0e0', fontSize: 15, fontWeight: 700, margin: 0 }}>
-              {p.title ?? [p.property_type, p.bedrooms != null ? `${p.bedrooms}BR` : 'Studio'].filter(Boolean).join(' ') || 'Untitled'}
+              {p.title || [p.property_type, p.bedrooms != null ? `${p.bedrooms}BR` : 'Studio'].filter(Boolean).join(' ') || 'Untitled'}
             </h3>
             <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
               <span style={{ fontSize: 10, fontWeight: 700, color: src.color, background: src.bg,
