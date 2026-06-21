@@ -63,6 +63,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           : 'Not specified';
 
         const logoBuf = fs.readFileSync(path.join(process.cwd(), 'public/brand/logo-email.png'));
+        const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://reims-git-main-fazalpro-s-projects.vercel.app').replace(/\/$/, '');
+        const inquiryLink = `${appUrl}/synergy?inquiry=${encodeURIComponent(String(inq.ref_no))}`;
 
         const resend = new Resend(process.env.RESEND_API_KEY);
         await resend.emails.send({
@@ -86,7 +88,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
         <img src="cid:logo-prive" alt="Privé Group Real Estate" style="height:38px;width:auto;" />
       </div>
-      <p style="margin:0;font-size:11px;font-family:monospace;color:#fff;opacity:0.7;">${inq.ref_no}</p>
+      <a href="${inquiryLink}" style="display:inline-block;margin:0;font-size:11px;font-family:monospace;color:#fff;opacity:0.7;text-decoration:underline;">${inq.ref_no}</a>
       <h1 style="margin:4px 0 0;font-size:18px;font-weight:700;color:#fff;line-height:1.3;">A new task is assigned to you — Please action</h1>
     </div>
 

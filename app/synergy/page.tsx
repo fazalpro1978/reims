@@ -1,8 +1,20 @@
 'use client';
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 import SynergyCenter from '@/components/SynergyCenter';
 import { useNav } from '@/components/AppShell';
 
-export default function SynergyPage() {
+function SynergyInner() {
   const { openNav } = useNav();
-  return <SynergyCenter onMenuClick={openNav} />;
+  const params = useSearchParams();
+  const initialRef = params.get('inquiry') ?? undefined;
+  return <SynergyCenter onMenuClick={openNav} initialRef={initialRef} />;
+}
+
+export default function SynergyPage() {
+  return (
+    <Suspense>
+      <SynergyInner />
+    </Suspense>
+  );
 }

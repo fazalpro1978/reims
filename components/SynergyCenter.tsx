@@ -1400,7 +1400,7 @@ function NotificationsPanel() {
 
 const PIPELINE_STATUSES = ['all', ...STATUSES] as const;
 
-export default function SynergyCenter({ onMenuClick }: { onMenuClick?: () => void }) {
+export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick?: () => void; initialRef?: string }) {
   const [tab, setTab]                   = useState<'inquiries' | 'notifications'>('inquiries');
   const [inquiries, setInquiries]       = useState<Inquiry[]>([]);
   const [agents, setAgents]             = useState<AgentProfile[]>([]);
@@ -1440,6 +1440,14 @@ export default function SynergyCenter({ onMenuClick }: { onMenuClick?: () => voi
   };
 
   useEffect(() => { load(); loadAgents(); loadUnread(); }, []);
+
+  // Auto-open inquiry when arriving via deep link
+  useEffect(() => {
+    if (initialRef && inquiries.length > 0 && !selected) {
+      const match = inquiries.find(i => i.ref_no === initialRef);
+      if (match) setSelected(match);
+    }
+  }, [initialRef, inquiries]);
 
   const openForm = () => { setFormError(null); setExtractedFields({}); setExtractRevision(0); setShowForm(true); };
 
