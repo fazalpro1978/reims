@@ -79,60 +79,82 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           }],
           html: `
 <!DOCTYPE html>
-<html>
-<body style="margin:0;padding:0;background:#0a0a0a;font-family:system-ui,sans-serif;color:#e0e0e0;">
-  <div style="max-width:520px;margin:32px auto;background:#111;border:1px solid #222;border-radius:16px;overflow:hidden;">
+<html lang="en">
+<body style="margin:0;padding:0;background:#f0ece4;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0ece4;">
+  <tr>
+    <td align="center" style="padding:32px 16px;">
+      <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
 
-    <!-- Header banner with logo -->
-    <div style="background:#f43f5e;padding:20px 24px;">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-        <img src="cid:logo-prive" alt="Privé Group Real Estate" style="height:38px;width:auto;" />
-      </div>
-      <a href="${inquiryLink}" style="display:inline-block;margin:0;font-size:11px;font-family:monospace;color:#fff;opacity:0.7;text-decoration:underline;">${inq.ref_no}</a>
-      <h1 style="margin:4px 0 0;font-size:18px;font-weight:700;color:#fff;line-height:1.3;">A new task is assigned to you — Please action</h1>
-    </div>
+        <!-- Gold header -->
+        <tr>
+          <td style="background:#c9a84c;padding:28px 28px 24px;">
+            <img src="cid:logo-prive" alt="Prive Group Real Estate" style="height:52px;width:auto;display:block;margin-bottom:18px;" />
+            <a href="${inquiryLink}" style="display:inline-block;font-size:11px;font-family:monospace;color:#fff;letter-spacing:1px;text-decoration:underline;margin-bottom:8px;">${inq.ref_no}</a>
+            <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;line-height:1.3;">A new task is assigned to you &mdash; Please action</h1>
+          </td>
+        </tr>
 
-    <!-- Body -->
-    <div style="padding:24px;">
-      <p style="margin:0 0 4px;font-size:13px;color:#888;">Client</p>
-      <p style="margin:0 0 20px;font-size:16px;font-weight:600;color:#fff;">${inq.client_name}</p>
+        <!-- Client name -->
+        <tr>
+          <td style="padding:24px 28px 0;">
+            <p style="margin:0 0 2px;font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Client</p>
+            <p style="margin:0;font-size:18px;font-weight:700;color:#111;">${inq.client_name}</p>
+          </td>
+        </tr>
 
-      <table style="width:100%;border-collapse:collapse;">
+        <!-- Details table -->
         <tr>
-          <td style="padding:8px 0;border-bottom:1px solid #1e1e1e;font-size:12px;color:#666;width:40%;">Phone</td>
-          <td style="padding:8px 0;border-bottom:1px solid #1e1e1e;font-size:12px;color:#ccc;">${inq.client_phone ?? '—'}</td>
+          <td style="padding:20px 28px 0;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:12px;color:#999;width:38%;">Phone</td>
+                <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#222;">${inq.client_phone ?? '—'}</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:12px;color:#999;">Email</td>
+                <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#222;">${inq.client_email ?? '—'}</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:12px;color:#999;">Listing Type</td>
+                <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#c9a84c;font-weight:600;">${inq.listing_type ?? '—'}</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:12px;color:#999;">Property</td>
+                <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#222;">${inq.property_type ?? '—'} &middot; ${inq.config ?? '—'}</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:12px;color:#999;">Budget</td>
+                <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#2a7a3b;font-weight:700;">${budgetLine}</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 0;font-size:12px;color:#999;">Zones</td>
+                <td style="padding:10px 0;font-size:13px;color:#1a6a9a;">${Array.isArray(inq.preferred_zones) ? (inq.preferred_zones as string[]).join(', ') : (inq.preferred_zones ?? '—')}</td>
+              </tr>
+            </table>
+          </td>
         </tr>
+
+        ${inq.notes ? `
+        <!-- Notes -->
         <tr>
-          <td style="padding:8px 0;border-bottom:1px solid #1e1e1e;font-size:12px;color:#666;">Email</td>
-          <td style="padding:8px 0;border-bottom:1px solid #1e1e1e;font-size:12px;color:#ccc;">${inq.client_email ?? '—'}</td>
-        </tr>
+          <td style="padding:16px 28px 0;">
+            <div style="padding:14px 16px;background:#faf8f4;border-left:3px solid #c9a84c;border-radius:4px;font-size:12px;color:#555;line-height:1.6;">${inq.notes}</div>
+          </td>
+        </tr>` : ''}
+
+        <!-- Footer -->
         <tr>
-          <td style="padding:8px 0;border-bottom:1px solid #1e1e1e;font-size:12px;color:#666;">Listing Type</td>
-          <td style="padding:8px 0;border-bottom:1px solid #1e1e1e;font-size:12px;color:#c9a84c;">${inq.listing_type ?? '—'}</td>
+          <td style="padding:24px 28px 28px;text-align:center;border-top:1px solid #f0f0f0;margin-top:24px;">
+            <p style="margin:0 0 4px;font-size:11px;color:#bbb;">REIMS &middot; Vanguard Real Estate Operations System</p>
+            <p style="margin:0;font-size:10px;color:#ccc;font-style:italic;">Generated By: GRID-X Bot (Coming Soon&hellip;)</p>
+          </td>
         </tr>
-        <tr>
-          <td style="padding:8px 0;border-bottom:1px solid #1e1e1e;font-size:12px;color:#666;">Property</td>
-          <td style="padding:8px 0;border-bottom:1px solid #1e1e1e;font-size:12px;color:#ccc;">${inq.property_type ?? '—'} · ${inq.config ?? '—'}</td>
-        </tr>
-        <tr>
-          <td style="padding:8px 0;border-bottom:1px solid #1e1e1e;font-size:12px;color:#666;">Budget</td>
-          <td style="padding:8px 0;border-bottom:1px solid #1e1e1e;font-size:12px;color:#4ade80;font-weight:600;">${budgetLine}</td>
-        </tr>
-        <tr>
-          <td style="padding:8px 0;font-size:12px;color:#666;">Zones</td>
-          <td style="padding:8px 0;font-size:12px;color:#38bdf8;">${Array.isArray(inq.preferred_zones) ? (inq.preferred_zones as string[]).join(', ') : (inq.preferred_zones ?? '—')}</td>
-        </tr>
+
       </table>
-
-      ${inq.notes ? `<div style="margin-top:16px;padding:12px;background:#0d0d0d;border:1px solid #1e1e1e;border-radius:8px;font-size:12px;color:#888;">${inq.notes}</div>` : ''}
-
-      <!-- Footer -->
-      <div style="margin-top:24px;padding-top:16px;border-top:1px solid #1e1e1e;text-align:center;">
-        <p style="margin:0 0 4px;font-size:11px;color:#444;">REIMS · Vanguard Real Estate Operations System</p>
-        <p style="margin:0;font-size:10px;color:#333;font-style:italic;">Generated By: GRID-X Bot <span style="color:#555;">(Coming Soon…)</span></p>
-      </div>
-    </div>
-  </div>
+    </td>
+  </tr>
+</table>
 </body>
 </html>`,
         }).catch(() => { /* non-critical — don't fail the PATCH if email errors */ });
