@@ -171,7 +171,7 @@ const NAV_SECTIONS = [
   {
     label: 'Operations',
     items: [
-      { id: 'contracts',   label: 'Contracts & Legal', href: '/contracts',  icon: 'document', soon: true },
+      { id: 'contracts',   label: 'Contracts & Legal', href: '/contracts',  icon: 'document', soon: false },
       { id: 'financials',  label: 'Financials',        href: '/financials', icon: 'chart',    soon: true },
       { id: 'reports',     label: 'Reports',           href: '/reports',    icon: 'report',   soon: true },
     ],
