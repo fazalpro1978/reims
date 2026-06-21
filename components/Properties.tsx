@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import TopBar from './TopBar';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -138,14 +139,6 @@ function IcBuilding() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 opacity-20">
       <path d="M6 22V4a2 2 0 012-2h8a2 2 0 012 2v18H6zM2 22h20M10 6h.01M10 10h.01M10 14h.01M14 6h.01M14 10h.01M14 14h.01" />
-    </svg>
-  );
-}
-
-function IcSpark() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-      <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
     </svg>
   );
 }
@@ -740,92 +733,85 @@ export default function Properties({ onMenuClick }: { onMenuClick?: () => void }
   });
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#e0e0e0', fontFamily: 'system-ui, sans-serif' }}>
-      {/* Top bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px',
-        borderBottom: '1px solid #1a1a1a', background: '#0f0f0f', position: 'sticky', top: 0, zIndex: 30 }}>
-        {onMenuClick && (
-          <button onClick={onMenuClick} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', padding: 4 }}>
-            <IcMenu />
-          </button>
-        )}
-        <div>
-          <h1 style={{ fontSize: 16, fontWeight: 700, color: '#c9a84c', margin: 0 }}>Properties</h1>
-          <p style={{ fontSize: 11, color: '#555', margin: 0 }}>
-            {loading ? 'Loading…' : `${filtered.length} listings`}
-            {lastSync && ` · PF synced ${timeAgo(lastSync)}`}
-          </p>
-        </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-          {syncMsg && <p style={{ fontSize: 12, color: '#4ade80', margin: 0 }}>{syncMsg}</p>}
-          <button onClick={syncPF} disabled={syncing}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px',
-              background: '#0a1a0f', border: '1px solid #166534', borderRadius: 8,
-              color: '#4ade80', fontSize: 13, fontWeight: 600, cursor: syncing ? 'default' : 'pointer' }}>
-            <IcRefresh spin={syncing} /> {syncing ? 'Syncing…' : 'Sync PF'}
-          </button>
-          <button onClick={() => setShowAdd(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px',
-              background: '#c9a84c', border: 'none', borderRadius: 8,
-              color: '#111', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-            <IcPlus /> Add Listing
-          </button>
-        </div>
-      </div>
+    <>
+      {/* ── Standard global top bar — identical to all other workspace pages ── */}
+      <TopBar onMenuClick={onMenuClick} />
 
-      {/* Filters */}
-      <div style={{ padding: '12px 20px', borderBottom: '1px solid #111', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        {/* Search */}
-        <div style={{ position: 'relative', marginRight: 8 }}>
-          <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: '#555' }}>
-            <IcSearch />
-          </span>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search listings…"
-            style={{ paddingLeft: 32, paddingRight: 10, paddingTop: 6, paddingBottom: 6,
-              background: '#111', border: '1px solid #222', borderRadius: 8, color: '#e0e0e0', fontSize: 13 }} />
-        </div>
-        {/* Source */}
-        <div style={{ display: 'flex', gap: 4 }}>
-          {sources.map(s => (
-            <button key={s} onClick={() => setSourceF(s)} style={chipStyle(sourceF === s)}>
-              {s === 'all' ? 'All Sources' : SOURCE_META[s as Property['source']].label}
-            </button>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {types.map(t => (
-            <button key={t} onClick={() => setTypeF(t)} style={chipStyle(typeF === t)}>
-              {t === 'all' ? 'All Types' : t.charAt(0).toUpperCase() + t.slice(1)}
-            </button>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {statuses.map(s => (
-            <button key={s} onClick={() => setStatusF(s)} style={chipStyle(statusF === s)}>
-              {s === 'all' ? 'All Status' : s.charAt(0).toUpperCase() + s.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* ── Page content — max-w-screen-2xl mirrors Units Inventory ── */}
+      <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
-      {/* Grid */}
-      <div style={{ padding: 20 }}>
+        {/* Page header */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-[#c9a84c]">Properties</h1>
+            <p className="text-xs text-[#555] mt-0.5">
+              {loading ? 'Loading…' : `${filtered.length} listing${filtered.length !== 1 ? 's' : ''}`}
+              {lastSync && ` · PF synced ${timeAgo(lastSync)}`}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {syncMsg && <span className="text-xs text-[#4ade80]">{syncMsg}</span>}
+            <button onClick={syncPF} disabled={syncing}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold border border-[#166534] bg-[#0a1a0f] text-[#4ade80] disabled:opacity-60 hover:bg-[#0f2a1a] transition-colors">
+              <IcRefresh spin={syncing} /> {syncing ? 'Syncing…' : 'Sync PF'}
+            </button>
+            <button onClick={() => setShowAdd(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold bg-[#c9a84c] text-[#111] hover:bg-[#dfc070] transition-colors">
+              <IcPlus /> Add Listing
+            </button>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-wrap gap-2 items-center pb-2 border-b border-[#1a1a1a]">
+          <div className="relative mr-2">
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#555]"><IcSearch /></span>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search listings…"
+              className="pl-8 pr-3 py-1.5 bg-[#111] border border-[#222] rounded-lg text-sm text-[#e0e0e0] placeholder:text-[#444] focus:outline-none focus:ring-2 focus:ring-[#c9a84c]/40 focus:border-[#c9a84c]" />
+          </div>
+          <div className="flex gap-1">
+            {sources.map(s => (
+              <button key={s} onClick={() => setSourceF(s)} style={chipStyle(sourceF === s)}>
+                {s === 'all' ? 'All Sources' : SOURCE_META[s as Property['source']].label}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-1">
+            {types.map(t => (
+              <button key={t} onClick={() => setTypeF(t)} style={chipStyle(typeF === t)}>
+                {t === 'all' ? 'All Types' : t.charAt(0).toUpperCase() + t.slice(1)}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-1">
+            {statuses.map(s => (
+              <button key={s} onClick={() => setStatusF(s)} style={chipStyle(statusF === s)}>
+                {s === 'all' ? 'All Status' : s.charAt(0).toUpperCase() + s.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Grid */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 80, color: '#555' }}>Loading properties…</div>
+          <div className="text-center py-20 text-[#555]">Loading properties…</div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 80 }}>
+          <div className="text-center py-20">
             <IcBuilding />
-            <p style={{ color: '#555', marginTop: 12 }}>No listings yet.</p>
-            <p style={{ color: '#444', fontSize: 13 }}>Click <strong style={{ color: '#4ade80' }}>Sync PF</strong> to import from PropertyFinder, or <strong style={{ color: '#c9a84c' }}>Add Listing</strong> to add manually.</p>
+            <p className="text-[#555] mt-3">No listings yet.</p>
+            <p className="text-[#444] text-sm mt-1">
+              Click <strong className="text-[#4ade80]">Sync PF</strong> to import from PropertyFinder,
+              or <strong className="text-[#c9a84c]">Add Listing</strong> to add manually.
+            </p>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
             {filtered.map(p => (
               <PropertyCard key={p.id} p={p} onClick={() => setDrawer(p)} />
             ))}
           </div>
         )}
-      </div>
+      </main>
 
       {/* Modals */}
       {showAdd && (
@@ -842,6 +828,6 @@ export default function Properties({ onMenuClick }: { onMenuClick?: () => void }
           onDelete={() => deleteProperty(drawer.id)}
         />
       )}
-    </div>
+    </>
   );
 }
