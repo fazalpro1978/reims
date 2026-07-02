@@ -30,12 +30,40 @@ const UNITS_COLUMNS = new Set([
   'updated_at',
 ]);
 
+// Map dInges canonical values → REIMS DB enum values
+const FURNISHING_MAP: Record<string, string> = {
+  'Furnished':      'Fully Furnished',  // dInges normalises to 'Furnished'; DB enum is 'Fully Furnished'
+  'Semi-Furnished': 'Semi-Furnished',
+  'Unfurnished':    'Unfurnished',
+};
+
+const STATUS_MAP: Record<string, string> = {
+  'Available':       'Available',
+  'Not Available':   'Leased',          // closest REIMS enum value
+  'Reserved':        'Reserved',
+  'Under Preparation': 'Under_Maintenance',
+};
+
+function normaliseEnums(row: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...row };
+  if (typeof out.furnishing === 'string') {
+    out.furnishing = FURNISHING_MAP[out.furnishing] ?? out.furnishing;
+  }
+  if (typeof out.status === 'string') {
+    // Handle 'Awaiting Activation on dd/mm/yy' and any other freeform values
+    out.status = STATUS_MAP[out.status] ?? (
+      String(out.status).startsWith('Awaiting') ? 'Reserved' : 'Available'
+    );
+  }
+  return out;
+}
+
 function toUnitRow(raw: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(raw)) {
     if (UNITS_COLUMNS.has(k)) out[k] = v;
   }
-  return out;
+  return normaliseEnums(out);
 }
 
 export async function POST(req: NextRequest) {
