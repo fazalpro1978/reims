@@ -138,23 +138,26 @@ export async function POST(req: NextRequest) {
 
     // ── 2. Acknowledge back to dInges ───────────────────────────────────────
     // Only acknowledge if at least one record was successfully written to the DB.
-    // If all inserts/updates failed, leave records in the vetted queue so they
-    // can be retried after the underlying issue is fixed.
     let acknowledged = 0;
-    if (INGEST_KEY && inserted + updated > 0) {
+    if (inserted + updated === 0) {
+      errors.push('No records were written to the database — acknowledgement skipped. Fix the errors above and retry from REIMS.');
+    } else {
       const ids = records.map((r) => r.id);
       try {
         const ackRes = await fetch(`${INGEST_URL}/api/export/acknowledge`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-api-key': INGEST_KEY },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ids }),
         });
-        if (ackRes.ok) acknowledged = ids.length;
-      } catch {
-        errors.push('Acknowledgement to dInges failed — records were imported but remain in the vetted queue.');
+        if (ackRes.ok) {
+          acknowledged = ids.length;
+        } else {
+          const body = await ackRes.text().catch(() => '');
+          errors.push(`Acknowledgement to dInges failed (HTTP ${ackRes.status}): ${body.slice(0, 300) || 'no response body'}`);
+        }
+      } catch (err) {
+        errors.push(`Acknowledgement to dInges failed (network error): ${err instanceof Error ? err.message : String(err)}`);
       }
-    } else if (inserted + updated === 0) {
-      errors.push('No records were written to the database — acknowledgement skipped. Fix the errors above and retry from REIMS.');
     }
 
     return NextResponse.json({ inserted, updated, acknowledged, errors });

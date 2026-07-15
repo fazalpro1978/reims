@@ -140,24 +140,30 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                   </div>
                 </div>
 
-                {/* Record table */}
-                <div className="rounded-xl border border-[#1e1e1e] overflow-hidden">
-                  <table className="w-full text-xs table-fixed">
+                {/* Record table — all 15 columns fitted to viewport width */}
+                <div className="rounded-xl border border-[#1e1e1e] w-full">
+                  <table className="table-fixed w-full text-[11px]">
                     <colgroup>
-                      <col style={{ width: '9%' }} />
-                      <col style={{ width: '18%' }} />
-                      <col style={{ width: '7%' }} />
-                      <col style={{ width: '9%' }} />
-                      <col style={{ width: '13%' }} />
-                      <col style={{ width: '10%' }} />
-                      <col style={{ width: '10%' }} />
-                      <col style={{ width: '12%' }} />
-                      <col style={{ width: '12%' }} />
+                      <col style={{ width: '5%'  }} />{/* Match */}
+                      <col style={{ width: '9%'  }} />{/* Realtor */}
+                      <col style={{ width: '11%' }} />{/* Property */}
+                      <col style={{ width: '5%'  }} />{/* Unit */}
+                      <col style={{ width: '4%'  }} />{/* Zone # */}
+                      <col style={{ width: '9%'  }} />{/* Zone */}
+                      <col style={{ width: '6%'  }} />{/* Type */}
+                      <col style={{ width: '5%'  }} />{/* Config */}
+                      <col style={{ width: '4%'  }} />{/* Bath */}
+                      <col style={{ width: '5%'  }} />{/* Kitchen */}
+                      <col style={{ width: '5%'  }} />{/* Parking */}
+                      <col style={{ width: '7%'  }} />{/* Furnishing */}
+                      <col style={{ width: '8%'  }} />{/* Rent/mo */}
+                      <col style={{ width: '5%'  }} />{/* Status */}
+                      <col style={{ width: '12%' }} />{/* Source File */}
                     </colgroup>
                     <thead>
                       <tr className="border-b border-[#1e1e1e] bg-[#0d0d0d]">
-                        {['Match', 'Property', 'Unit', 'Type', 'Config', 'Furnishing', 'Rent/mo', 'Status', 'Source File'].map((h) => (
-                          <th key={h} className="px-3 py-2.5 text-left text-[10px] font-bold text-[#555] uppercase tracking-widest truncate">{h}</th>
+                        {['Match', 'Realtor', 'Property', 'Unit', 'Zone #', 'Zone', 'Type', 'Config', 'Bath', 'Kitchen', 'Parking', 'Furnishing', 'Rent/mo', 'Status', 'Source File'].map((h) => (
+                          <th key={h} className="px-2 py-2 text-left text-[9px] font-bold text-[#555] uppercase tracking-wider truncate">{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -166,17 +172,23 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                         const p = r.payload;
                         return (
                           <tr key={r.id} className="border-b border-[#1a1a1a] hover:bg-[#141414] transition-colors">
-                            <td className="px-3 py-2.5"><MatchBadge type={r.match_type} /></td>
-                            <td className="px-3 py-2.5 text-white font-medium truncate" title={fmt(p.property)}>{fmt(p.property)}</td>
-                            <td className="px-3 py-2.5 text-[#888] font-mono truncate">{fmt(p.unit_no)}</td>
-                            <td className="px-3 py-2.5 text-[#888] truncate">{fmt(p.type)}</td>
-                            <td className="px-3 py-2.5 text-[#888] truncate">{fmt(p.config)}</td>
-                            <td className="px-3 py-2.5 text-[#888] truncate">{fmt(p.furnishing)}</td>
-                            <td className="px-3 py-2.5 text-white font-semibold truncate">
+                            <td className="px-2 py-2"><MatchBadge type={r.match_type} /></td>
+                            <td className="px-2 py-2 text-[#888] truncate" title={fmt(p.realtor_name)}>{fmt(p.realtor_name)}</td>
+                            <td className="px-2 py-2 text-white font-medium truncate" title={fmt(p.property)}>{fmt(p.property)}</td>
+                            <td className="px-2 py-2 text-[#888] font-mono truncate">{fmt(p.unit_no)}</td>
+                            <td className="px-2 py-2 text-[#c9a84c] font-mono">{fmt(p.zone_code)}</td>
+                            <td className="px-2 py-2 text-[#888] truncate" title={fmt(p.zone)}>{fmt(p.zone)}</td>
+                            <td className="px-2 py-2 text-[#888] truncate">{fmt(p.type)}</td>
+                            <td className="px-2 py-2 text-[#888]">{fmt(p.config)}</td>
+                            <td className="px-2 py-2 text-[#888]">{fmt(p.bathrooms)}</td>
+                            <td className="px-2 py-2 text-[#888]">{fmt(p.kitchen)}</td>
+                            <td className="px-2 py-2 text-[#888]">{p.parking === true ? 'Yes' : p.parking === false ? 'No' : fmt(p.parking)}</td>
+                            <td className="px-2 py-2 text-[#888] truncate">{fmt(p.furnishing)}</td>
+                            <td className="px-2 py-2 text-white font-semibold truncate">
                               {p.rent ? `QAR ${Number(p.rent).toLocaleString()}` : '—'}
                             </td>
-                            <td className="px-3 py-2.5 text-[#888] truncate">{fmt(p.status)}</td>
-                            <td className="px-3 py-2.5 text-[#555] truncate" title={r.source_file ?? ''}>{r.source_file ?? '—'}</td>
+                            <td className="px-2 py-2 text-[#888] truncate">{fmt(p.status)}</td>
+                            <td className="px-2 py-2 text-[#555] truncate" title={r.source_file ?? ''}>{r.source_file ?? '—'}</td>
                           </tr>
                         );
                       })}
