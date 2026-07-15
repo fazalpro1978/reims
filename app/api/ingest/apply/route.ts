@@ -55,6 +55,10 @@ function normaliseEnums(row: Record<string, unknown>): Record<string, unknown> {
       String(out.status).startsWith('Awaiting') ? 'Reserved' : 'Available'
     );
   }
+  // Convert 'Yes'/'No' string from Validation table to boolean for the DB column
+  if (typeof out.parking === 'string') {
+    out.parking = ['yes', 'true', '1', 'y'].includes(String(out.parking).toLowerCase());
+  }
   return out;
 }
 
