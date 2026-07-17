@@ -32,6 +32,9 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
   const [records, setRecords] = useState<VettedRecord[]>([]);
   const [result, setResult] = useState<ApplyResult | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [clearing, setClearing] = useState(false);
+  const [clearResult, setClearResult] = useState<{ cleared: number } | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   async function checkQueue() {
     setPhase('checking');
@@ -66,7 +69,23 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
     }
   }
 
-  function reset() { setPhase('idle'); setRecords([]); setResult(null); setErrorMsg(''); }
+  function reset() { setPhase('idle'); setRecords([]); setResult(null); setErrorMsg(''); setClearResult(null); setConfirmClear(false); }
+
+  async function clearQueue() {
+    setClearing(true);
+    setConfirmClear(false);
+    try {
+      const res = await fetch('/api/ingest/clear', { method: 'POST', cache: 'no-store' });
+      const data: { cleared?: number; error?: string } = await res.json();
+      if (!res.ok || data.error) { setErrorMsg(data.error ?? 'Clear failed'); setPhase('error'); return; }
+      setClearResult({ cleared: data.cleared ?? 0 });
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Network error');
+      setPhase('error');
+    } finally {
+      setClearing(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
@@ -113,11 +132,53 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
         {phase === 'preview' && (
           <>
             {records.length === 0 ? (
-              <div className="rounded-xl border border-[#1e1e1e] bg-[#111] p-10 flex flex-col items-center gap-3 text-center">
+              <div className="rounded-xl border border-[#1e1e1e] bg-[#111] p-10 flex flex-col items-center gap-4 text-center">
                 <p className="text-2xl">✓</p>
                 <p className="text-sm font-semibold text-[#22c55e]">Queue is clear</p>
                 <p className="text-xs text-[#555]">No approved records are waiting to be synced.</p>
-                <button onClick={reset} className="mt-2 text-xs text-[#c9a84c] underline">Check again</button>
+
+                {/* Clear result */}
+                {clearResult !== null && (
+                  <p className="text-xs text-[#888]">
+                    {clearResult.cleared === 0
+                      ? 'Nothing to clear — queue was already empty in Axiom.'
+                      : `${clearResult.cleared} stuck record${clearResult.cleared !== 1 ? 's' : ''} force-acknowledged and removed from Axiom.`}
+                  </p>
+                )}
+
+                <div className="flex flex-col items-center gap-2 mt-1">
+                  <button onClick={reset} className="text-xs text-[#c9a84c] underline">Check again</button>
+
+                  {/* Confirm flow for destructive clear */}
+                  {!confirmClear ? (
+                    <button
+                      onClick={() => setConfirmClear(true)}
+                      className="text-xs text-[#555] hover:text-[#888] underline transition-colors"
+                    >
+                      Records exist but aren't showing? Force clear queue →
+                    </button>
+                  ) : (
+                    <div className="mt-1 rounded-lg border border-[#ef4444]/30 bg-[#ef4444]/5 px-5 py-3 flex flex-col items-center gap-2">
+                      <p className="text-xs text-[#ef4444] font-semibold">Force-acknowledge all pending records in Axiom?</p>
+                      <p className="text-[11px] text-[#666]">This removes all unsynced records from the Axiom queue without importing them into REIMS. Use only if records are stuck.</p>
+                      <div className="flex gap-2 mt-1">
+                        <button
+                          onClick={() => setConfirmClear(false)}
+                          className="px-3 py-1 text-xs border border-[#2a2a2a] text-[#888] rounded-lg hover:bg-[#1a1a1a] transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={clearQueue}
+                          disabled={clearing}
+                          className="px-4 py-1 text-xs bg-[#ef4444] hover:bg-[#dc2626] text-white font-bold rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          {clearing ? 'Clearing…' : 'Yes, Force Clear'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="space-y-4">
