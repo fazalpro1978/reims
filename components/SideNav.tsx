@@ -161,7 +161,7 @@ const NAV_SECTIONS = [
     label: 'Portfolio',
     items: [
       { id: 'code-registry', label: 'Code Registry',    href: '/code-registry', icon: 'hash',   soon: false },
-      { id: 'ingest-queue',  label: 'dInges Queue',     href: '/ingest-queue',  icon: 'ingest',   soon: false },
+      { id: 'ingest-queue',  label: 'Axiom Queue',      href: '/ingest-queue',  icon: 'ingest',   soon: false },
       { id: 'synergy',       label: 'Synergy Center',   href: '/synergy',       icon: 'synergy', soon: false },
       { id: 'inventory',     label: 'Units Inventory',  href: '/',              icon: 'grid',    soon: false },
       { id: 'properties',  label: 'Properties',        href: '/properties', icon: 'building', soon: false },
