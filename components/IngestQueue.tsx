@@ -75,7 +75,7 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
       <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-lg font-bold text-white">dInges Queue</h1>
+          <h1 className="text-lg font-bold text-white">Axiom Queue</h1>
           <p className="text-xs text-[#555] mt-0.5">Pull approved records from the Ingestion Service and sync them into REIMS.</p>
         </div>
 
@@ -90,13 +90,13 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
             </div>
             <div>
               <p className="text-sm font-semibold text-white">Check for Approved Records</p>
-              <p className="text-xs text-[#555] mt-1">Queries the dInges vetted queue for records approved and waiting to be synced into REIMS.</p>
+              <p className="text-xs text-[#555] mt-1">Queries the Axiom vetted queue for records approved and waiting to be synced into REIMS.</p>
             </div>
             <button
               onClick={checkQueue}
               className="px-6 py-2 bg-[#c9a84c] hover:bg-[#dfc070] text-[#0f0f0f] text-sm font-bold rounded-lg transition-colors"
             >
-              Check dInges Queue
+              Check Axiom Queue
             </button>
           </div>
         )}
@@ -105,7 +105,7 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
         {phase === 'checking' && (
           <div className="rounded-xl border border-[#1e1e1e] bg-[#111] p-12 flex flex-col items-center gap-3">
             <div className="w-8 h-8 border-2 border-[#c9a84c] border-t-transparent rounded-full animate-spin" />
-            <p className="text-xs text-[#888]">Querying dInges vetted queue…</p>
+            <p className="text-xs text-[#888]">Querying Axiom vetted queue…</p>
           </div>
         )}
 
@@ -197,7 +197,7 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                 </div>
 
                 <p className="text-[11px] text-[#444]">
-                  Clicking <span className="text-[#c9a84c]">Import All</span> will upsert these records into REIMS and acknowledge receipt to dInges — they will be removed from the vetted queue.
+                  Clicking <span className="text-[#c9a84c]">Import All</span> will upsert these records into REIMS and acknowledge receipt to Axiom — they will be removed from the vetted queue.
                 </p>
               </div>
             )}
