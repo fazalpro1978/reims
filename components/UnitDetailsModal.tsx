@@ -179,13 +179,13 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
   const [amenities, setAmenities] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState('');
-  const [realtors, setRealtors] = useState<{ id: string; name: string; moci: string }[]>([]);
+  const [realtors, setRealtors] = useState<{ id: string; name: string; moci: string; classification?: string }[]>([]);
   const [zones, setZones] = useState<{ zone_code: number; district_name: string; municipality?: string }[]>([]);
 
   // Add realtor inline form
   const [addingRealtor, setAddingRealtor] = useState(false);
   const [newRealtorName, setNewRealtorName] = useState('');
-  const [newRealtorMoci, setNewRealtorMoci] = useState('');
+  const [newRealtorClass, setNewRealtorClass] = useState('');
   const [realtorSaving, setRealtorSaving] = useState(false);
   const [realtorError, setRealtorError] = useState('');
 
@@ -200,7 +200,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
 
   useEffect(() => {
     fetch('/api/realtors').then(r => r.json()).then(d => {
-      if (d.realtors) setRealtors(d.realtors.map((r: { id: string; name: string; moci_id: string | null }) => ({ id: r.id, name: r.name, moci: r.moci_id ?? '' })));
+      if (d.realtors) setRealtors(d.realtors.map((r: { id: string; name: string; moci_id: string | null; classification?: string }) => ({ id: r.id, name: r.name, moci: r.moci_id ?? '', classification: r.classification ?? '' })));
     });
     fetch('/api/zones').then(r => r.json()).then(d => {
       if (d.zones) setZones(d.zones);
@@ -208,7 +208,8 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
   }, []);
 
   async function saveNewRealtor() {
-    if (!newRealtorName.trim()) return;
+    if (!newRealtorName.trim()) { setRealtorError('Company name is required.'); return; }
+    if (!newRealtorClass) { setRealtorError('Classification is required.'); return; }
     if (realtors.some(r => r.name.toLowerCase() === newRealtorName.trim().toLowerCase())) {
       setRealtorError(`"${newRealtorName.trim()}" already exists. Select it from the dropdown.`);
       return;
@@ -219,17 +220,16 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
       const res = await fetch('/api/realtors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newRealtorName.trim(), moci_id: newRealtorMoci.trim() || null }),
+        body: JSON.stringify({ name: newRealtorName.trim(), classification: newRealtorClass }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save realtor');
       const r = data.realtor;
-      setRealtors(prev => [...prev, { id: r.id, name: r.name, moci: r.moci_id ?? '' }].sort((a, b) => a.name.localeCompare(b.name)));
+      setRealtors(prev => [...prev, { id: r.id, name: r.name, moci: r.moci_id ?? '', classification: r.classification ?? '' }].sort((a, b) => a.name.localeCompare(b.name)));
       setRealtorName(r.name);
-      setRealtorMoci(r.moci_id ?? '');
       setAddingRealtor(false);
       setNewRealtorName('');
-      setNewRealtorMoci('');
+      setNewRealtorClass('');
     } catch (err) {
       setRealtorError(err instanceof Error ? err.message : 'Failed to save realtor');
     } finally {
@@ -429,32 +429,49 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
                   + Add new realtor
                 </button>
               ) : (
-                <div className="mt-2 border border-[#333333] rounded-lg p-3 space-y-2 bg-[#0d0d0d]">
-                  <input
-                    type="text"
-                    value={newRealtorName}
-                    onChange={e => setNewRealtorName(e.target.value)}
-                    placeholder="Realtor name"
-                    className={inp}
-                  />
-                  <input
-                    type="text"
-                    value={newRealtorMoci}
-                    onChange={e => setNewRealtorMoci(e.target.value)}
-                    placeholder="MOCI ID (optional)"
-                    className={`${inp} font-mono text-[#c9a84c]`}
-                  />
+                <div className="mt-2 border border-[#c9a84c]/20 rounded-lg p-3 space-y-2.5 bg-[#0d0d0d]">
+                  <p className="text-[10px] font-bold text-[#c9a84c] uppercase tracking-widest">Add New Realtor</p>
+
+                  {/* Company Name */}
+                  <div>
+                    <p className="text-[10px] text-[#666] uppercase tracking-widest mb-1">Company Name *</p>
+                    <input
+                      autoFocus
+                      type="text"
+                      value={newRealtorName}
+                      onChange={e => { setNewRealtorName(e.target.value); setRealtorError(''); }}
+                      onKeyDown={e => { if (e.key === 'Enter') saveNewRealtor(); if (e.key === 'Escape') setAddingRealtor(false); }}
+                      placeholder="e.g. Privé Real Estate"
+                      className={inp}
+                    />
+                  </div>
+
+                  {/* Classification */}
+                  <div>
+                    <p className="text-[10px] text-[#666] uppercase tracking-widest mb-1">Classification *</p>
+                    <select
+                      value={newRealtorClass}
+                      onChange={e => { setNewRealtorClass(e.target.value); setRealtorError(''); }}
+                      className={inp}
+                    >
+                      <option value="">Select classification…</option>
+                      {['Semi-Government & Master Developer','Elite Private Developer & Conglomerate','Top International & Local Brokerage','Institutional Property Manager','Independent'].map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+
                   {realtorError && <p className="text-xs text-red-400">{realtorError}</p>}
                   <div className="flex gap-2">
                     <button
                       onClick={saveNewRealtor}
-                      disabled={realtorSaving || !newRealtorName.trim()}
+                      disabled={realtorSaving || !newRealtorName.trim() || !newRealtorClass}
                       className="text-xs px-3 py-1.5 bg-[#c9a84c] hover:bg-[#dfc070] disabled:opacity-40 text-[#0f0f0f] font-bold rounded-lg transition-colors"
                     >
                       {realtorSaving ? 'Saving…' : 'Save'}
                     </button>
                     <button
-                      onClick={() => { setAddingRealtor(false); setNewRealtorName(''); setNewRealtorMoci(''); setRealtorError(''); }}
+                      onClick={() => { setAddingRealtor(false); setNewRealtorName(''); setNewRealtorClass(''); setRealtorError(''); }}
                       className="text-xs px-3 py-1.5 border border-[#333333] text-[#888888] rounded-lg hover:bg-[#1a1a1a] transition-colors"
                     >
                       Cancel

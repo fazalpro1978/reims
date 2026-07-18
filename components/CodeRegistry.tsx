@@ -2119,11 +2119,160 @@ function SearchTab({ options }: { options: Options }) {
   );
 }
 
+// ── Realtor Registry Tab ──────────────────────────────────────────────────────
+
+type RealtorRow = { id: string; name: string; classification: string | null; moci_id: string | null };
+
+function RealtorRegistryTab() {
+  const [realtors, setRealtors]     = useState<RealtorRow[]>([]);
+  const [loading,  setLoading]      = useState(true);
+  const [adding,   setAdding]       = useState(false);
+  const [newName,  setNewName]      = useState('');
+  const [newClass, setNewClass]     = useState('');
+  const [saving,   setSaving]       = useState(false);
+  const [err,      setErr]          = useState('');
+  const [toast,    setToast]        = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/realtors')
+      .then(r => r.json())
+      .then(d => setRealtors(d.realtors ?? []))
+      .catch(() => setErr('Failed to load realtors.'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function saveRealtor() {
+    if (!newName.trim()) { setErr('Company name is required.'); return; }
+    if (!newClass) { setErr('Classification is required.'); return; }
+    if (realtors.some(r => r.name.toLowerCase() === newName.trim().toLowerCase())) {
+      setErr(`"${newName.trim()}" already exists.`);
+      return;
+    }
+    setSaving(true); setErr('');
+    try {
+      const res = await fetch('/api/realtors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName.trim(), classification: newClass }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(typeof json.error === 'string' ? json.error : 'Failed to save');
+      const r: RealtorRow = json.realtor;
+      setRealtors(prev => [...prev, r].sort((a, b) => a.name.localeCompare(b.name)));
+      setAdding(false);
+      setNewName(''); setNewClass('');
+      setToast({ msg: `Realtor "${r.name}" registered`, type: 'success' });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const clsColor: Record<string, string> = {
+    'Semi-Government & Master Developer':      '#3b82f6',
+    'Elite Private Developer & Conglomerate':  '#a855f7',
+    'Top International & Local Brokerage':     '#f97316',
+    'Institutional Property Manager':          '#14b8a6',
+    'Independent':                             '#888888',
+  };
+
+  return (
+    <div className="space-y-5">
+      {toast && <Toast message={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
+
+      {/* Header strip */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-bold text-[#e0e0e0]">Realtor Registry</h2>
+          <p className="text-[11px] text-[#555] mt-0.5">Shared brokerage registry — used across Units Inventory, Axiom Pipeline, and Smart Code generation</p>
+        </div>
+        <button
+          onClick={() => { setAdding(a => !a); setErr(''); setNewName(''); setNewClass(''); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#c9a84c] hover:bg-[#dfc070] text-[#0f0f0f] text-xs font-bold rounded-lg transition-colors"
+        >
+          <span className="text-base leading-none">+</span> Add Realtor
+        </button>
+      </div>
+
+      {/* Inline add form */}
+      {adding && (
+        <div className="rounded-xl border border-[#c9a84c]/20 bg-[#c9a84c]/5 p-5 space-y-4">
+          <p className="text-[10px] font-bold text-[#c9a84c] uppercase tracking-widest">Register New Realtor</p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <FieldLabel>Company Name *</FieldLabel>
+              <Input
+                value={newName}
+                onChange={setNewName}
+                placeholder="e.g. Privé Real Estate"
+              />
+            </div>
+            <div>
+              <FieldLabel>Classification *</FieldLabel>
+              <Select value={newClass} onChange={setNewClass}>
+                <option value="">Select classification…</option>
+                {CLASSIFICATIONS.map(c => <option key={c} value={c}>{c}</option>)}
+              </Select>
+            </div>
+          </div>
+
+          {err && <p className="text-[11px] text-[#ef4444]">{err}</p>}
+
+          <div className="flex gap-2">
+            <button
+              onClick={saveRealtor}
+              disabled={saving || !newName.trim() || !newClass}
+              className="flex-1 bg-[#c9a84c] hover:bg-[#dfc070] disabled:opacity-40 text-[#0f0f0f] text-sm font-bold py-2 rounded-lg transition-colors"
+            >
+              {saving ? 'Registering…' : 'Register Realtor'}
+            </button>
+            <button
+              onClick={() => { setAdding(false); setErr(''); }}
+              className="px-4 text-[#888] hover:text-[#e0e0e0] text-sm border border-[#2a2a2a] rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Realtor list */}
+      <div className="rounded-xl border border-[#1e1e1e] overflow-hidden">
+        <div className="bg-[#0d0d0d] border-b border-[#1e1e1e] px-4 py-2.5 grid grid-cols-12 gap-2">
+          <span className="col-span-5 text-[9px] font-bold text-[#555] uppercase tracking-wider">Company Name</span>
+          <span className="col-span-5 text-[9px] font-bold text-[#555] uppercase tracking-wider">Classification</span>
+          <span className="col-span-2 text-[9px] font-bold text-[#555] uppercase tracking-wider">MOCI ID</span>
+        </div>
+        {loading && (
+          <div className="px-4 py-8 text-center text-xs text-[#555]">Loading…</div>
+        )}
+        {!loading && realtors.length === 0 && (
+          <div className="px-4 py-8 text-center text-xs text-[#555]">No realtors registered yet. Add the first one above.</div>
+        )}
+        {realtors.map(r => (
+          <div key={r.id} className="px-4 py-2.5 grid grid-cols-12 gap-2 border-b border-[#1a1a1a] hover:bg-[#111] transition-colors">
+            <span className="col-span-5 text-sm font-medium text-[#e0e0e0] truncate">{r.name}</span>
+            <span className="col-span-5 text-xs truncate" style={{ color: clsColor[r.classification ?? ''] ?? '#888' }}>
+              {r.classification ?? <span className="text-[#333]">—</span>}
+            </span>
+            <span className="col-span-2 text-[11px] font-mono text-[#c9a84c] truncate">{r.moci_id ?? '—'}</span>
+          </div>
+        ))}
+      </div>
+      {realtors.length > 0 && (
+        <p className="text-[10px] text-[#444] text-right">{realtors.length} realtor{realtors.length !== 1 ? 's' : ''} registered</p>
+      )}
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function CodeRegistry({ onMenuClick }: { onMenuClick?: () => void }) {
   const [options,    setOptions]    = useState<Options | null>(null);
-  const [activeTab,  setActiveTab]  = useState<'register' | 'search'>('register');
+  const [activeTab,  setActiveTab]  = useState<'register' | 'search' | 'realtors'>('register');
   const [loadError,  setLoadError]  = useState(false);
 
   useEffect(() => {
@@ -2179,7 +2328,7 @@ export default function CodeRegistry({ onMenuClick }: { onMenuClick?: () => void
             <p className="text-[11px] text-[#555] mt-0.5">14-Digit Smart Serial Code Generator by VANGUARD REOS</p>
           </div>
           <div className="flex items-center gap-1 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg p-1">
-            {(['register', 'search'] as const).map(tab => (
+            {(['register', 'search', 'realtors'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -2189,7 +2338,7 @@ export default function CodeRegistry({ onMenuClick }: { onMenuClick?: () => void
                     : 'text-[#888] hover:text-[#e0e0e0]'
                 }`}
               >
-                {tab === 'register' ? 'Register' : 'Search Registry'}
+                {tab === 'register' ? 'Register' : tab === 'search' ? 'Search Registry' : 'Realtors'}
               </button>
             ))}
           </div>
@@ -2200,7 +2349,9 @@ export default function CodeRegistry({ onMenuClick }: { onMenuClick?: () => void
       <div className="max-w-5xl mx-auto px-5 py-6">
         {activeTab === 'register'
           ? <RegisterTab options={options} onEntityAdded={handleEntityAdded} onConfigAdded={handleConfigAdded} onAgentAdded={handleAgentAdded} onZoneAdded={handleZoneAdded} />
-          : <SearchTab options={options} />
+          : activeTab === 'search'
+          ? <SearchTab options={options} />
+          : <RealtorRegistryTab />
         }
       </div>
     </div>
