@@ -180,7 +180,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState('');
   const [realtors, setRealtors] = useState<{ id: string; name: string; moci: string }[]>([]);
-  const [zones, setZones] = useState<{ zone_code: number; district_name: string }[]>([]);
+  const [zones, setZones] = useState<{ zone_code: number; district_name: string; municipality?: string }[]>([]);
 
   // Add realtor inline form
   const [addingRealtor, setAddingRealtor] = useState(false);
@@ -193,6 +193,8 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
   const [addingZone, setAddingZone] = useState(false);
   const [newZoneCode, setNewZoneCode] = useState('');
   const [newZoneName, setNewZoneName] = useState('');
+  const [newZoneMunicipality, setNewZoneMunicipality] = useState('');
+  const [newZoneCustomMuni, setNewZoneCustomMuni] = useState('');
   const [zoneSaving, setZoneSaving] = useState(false);
   const [zoneError, setZoneError] = useState('');
 
@@ -237,12 +239,21 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
 
   async function saveNewZone() {
     const code = Number(newZoneCode);
-    if (!Number.isInteger(code) || code <= 0 || !newZoneName.trim()) {
-      setZoneError('Zone code (positive number) and zone name are required.');
+    const effectiveMuni = newZoneMunicipality === '__new__' ? newZoneCustomMuni.trim() : newZoneMunicipality;
+    if (!Number.isInteger(code) || code <= 0) {
+      setZoneError('Zone Number must be a positive integer.');
+      return;
+    }
+    if (!newZoneName.trim()) {
+      setZoneError('District / area name is required.');
+      return;
+    }
+    if (!effectiveMuni) {
+      setZoneError('Municipality is required.');
       return;
     }
     if (zones.some(z => z.zone_code === code)) {
-      setZoneError(`Zone code ${code} already exists in the registry.`);
+      setZoneError(`Zone code ${code} is already registered. Choose a different number.`);
       return;
     }
     if (zones.some(z => z.district_name.toLowerCase() === newZoneName.trim().toLowerCase())) {
@@ -255,17 +266,19 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
       const res = await fetch('/api/zones', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ zone_code: code, district_name: newZoneName.trim() }),
+        body: JSON.stringify({ zone_code: code, district_name: newZoneName.trim(), municipality: effectiveMuni }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save zone');
-      const z = data.zone as { zone_code: number; district_name: string };
-      setZones(prev => [...prev, z].sort((a, b) => a.district_name.localeCompare(b.district_name)));
+      const z = data.zone as { zone_code: number; district_name: string; municipality?: string };
+      setZones(prev => [...prev, z].sort((a, b) => a.zone_code - b.zone_code));
       setZone(z.district_name);
       setZoneCode(z.zone_code);
       setAddingZone(false);
       setNewZoneCode('');
       setNewZoneName('');
+      setNewZoneMunicipality('');
+      setNewZoneCustomMuni('');
     } catch (err) {
       setZoneError(err instanceof Error ? err.message : 'Failed to save zone');
     } finally {
@@ -526,26 +539,66 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
                   + Add new zone
                 </button>
               ) : (
-                <div className="mt-2 border border-[#333333] rounded-lg p-3 space-y-2 bg-[#0d0d0d]">
-                  <p className="text-[11px] text-[#666666]">
-                    Zone codes are authority-assigned. Enter both the official code and name.
-                  </p>
-                  <div className="flex gap-2">
+                <div className="mt-2 border border-[#c9a84c]/20 rounded-lg p-3 space-y-2.5 bg-[#0d0d0d]">
+                  <p className="text-[10px] font-bold text-[#c9a84c] uppercase tracking-widest">Register New Zone</p>
+
+                  {/* Municipality */}
+                  <div>
+                    <p className="text-[10px] text-[#666] uppercase tracking-widest mb-1">Municipality *</p>
+                    <select
+                      value={newZoneMunicipality}
+                      onChange={e => { setNewZoneMunicipality(e.target.value); setZoneError(''); }}
+                      className={inp}
+                    >
+                      <option value="">Select…</option>
+                      {Array.from(new Set(zones.map(z => z.municipality).filter(Boolean))).sort().map(m => (
+                        <option key={m as string} value={m as string}>{m as string}</option>
+                      ))}
+                      {['Al Daayen Municipality','Al Khor and Al Thakhira Municipality','Al Rayyan Municipality','Al Shamal Municipality','Al Wakrah Municipality','Doha Municipality','Umm Slal Municipality','Al Shahaniya Municipality']
+                        .filter(m => !zones.some(z => z.municipality === m))
+                        .map(m => <option key={m} value={m}>{m}</option>)}
+                      <option value="__new__">+ Type new municipality…</option>
+                    </select>
+                    {newZoneMunicipality === '__new__' && (
+                      <input
+                        autoFocus
+                        value={newZoneCustomMuni}
+                        onChange={e => { setNewZoneCustomMuni(e.target.value); setZoneError(''); }}
+                        placeholder="Municipality name…"
+                        className={`${inp} mt-1`}
+                      />
+                    )}
+                  </div>
+
+                  {/* Zone Number */}
+                  <div>
+                    <p className="text-[10px] text-[#666] uppercase tracking-widest mb-1">Zone Number *</p>
                     <input
                       type="number"
+                      min={1}
                       value={newZoneCode}
-                      onChange={e => setNewZoneCode(e.target.value)}
-                      placeholder="Zone code"
-                      className={`${inp} w-32`}
+                      onChange={e => { setNewZoneCode(e.target.value); setZoneError(''); }}
+                      placeholder="e.g. 61"
+                      className={inp}
                     />
+                    <p className="text-[10px] text-[#555] mt-0.5">Administrator-assigned. Must be unique.</p>
+                  </div>
+
+                  {/* District Name */}
+                  <div>
+                    <p className="text-[10px] text-[#666] uppercase tracking-widest mb-1">District / Zone Name *</p>
                     <input
                       type="text"
                       value={newZoneName}
-                      onChange={e => setNewZoneName(e.target.value)}
-                      placeholder="District / area name"
+                      onChange={e => { setNewZoneName(e.target.value); setZoneError(''); }}
+                      placeholder="e.g. West Bay, The Pearl…"
                       className={inp}
                     />
+                    {newZoneCode && newZoneName && Number.isInteger(Number(newZoneCode)) && Number(newZoneCode) > 0 && (
+                      <p className="text-[10px] text-[#c9a84c] mt-0.5 font-mono">Zone {newZoneCode} — {newZoneName.trim()}</p>
+                    )}
                   </div>
+
                   {zoneError && <p className="text-xs text-red-400">{zoneError}</p>}
                   <div className="flex gap-2">
                     <button
@@ -556,7 +609,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
                       {zoneSaving ? 'Saving…' : 'Save'}
                     </button>
                     <button
-                      onClick={() => { setAddingZone(false); setNewZoneCode(''); setNewZoneName(''); setZoneError(''); }}
+                      onClick={() => { setAddingZone(false); setNewZoneCode(''); setNewZoneName(''); setNewZoneMunicipality(''); setNewZoneCustomMuni(''); setZoneError(''); }}
                       className="text-xs px-3 py-1.5 border border-[#333333] text-[#888888] rounded-lg hover:bg-[#1a1a1a] transition-colors"
                     >
                       Cancel
