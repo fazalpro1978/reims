@@ -196,8 +196,8 @@ const NAV_SECTIONS = [
     label: 'Portfolio',
     items: [
       { id: 'code-registry', label: 'Code Registry',       href: '/code-registry', icon: 'hash',      soon: false },
-      { id: 'realtors',      label: 'Realtor Information', href: '/code-registry?tab=realtors', icon: 'briefcase', soon: false },
-      { id: 'zones',         label: 'Zone / District',     href: '/code-registry?tab=zones',    icon: 'mappin',    soon: false },
+      { id: 'realtors',      label: 'Realtor Information', href: '/realtors', icon: 'briefcase', soon: false },
+      { id: 'zones',         label: 'Zone / District',     href: '/zones',    icon: 'mappin',    soon: false },
       { id: 'ingest-queue',  label: 'Axiom Queue',         href: '/ingest-queue',  icon: 'ingest',    soon: false },
       { id: 'synergy',       label: 'Synergy Center',      href: '/synergy',       icon: 'synergy',   soon: false },
       { id: 'inventory',     label: 'Units Inventory',     href: '/',              icon: 'grid',      soon: false },
