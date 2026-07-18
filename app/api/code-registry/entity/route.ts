@@ -60,6 +60,23 @@ export async function POST(req: NextRequest) {
   const json = await res.json();
   if (!res.ok) return NextResponse.json({ error: json }, { status: 500 });
 
+  // Dual-write: sync new entity into public.realtors for platform-wide realtor registry
+  const existing = await fetch(
+    `${SB_URL}/rest/v1/realtors?select=id&name=ilike.${encodeURIComponent(companyName.trim())}`,
+    { headers: H() },
+  );
+  const existingJson = await existing.json();
+  if (!Array.isArray(existingJson) || existingJson.length === 0) {
+    await fetch(`${SB_URL}/rest/v1/realtors`, {
+      method: 'POST',
+      headers: H(),
+      body: JSON.stringify({
+        name: companyName.trim(),
+        classification: classification || 'Independent',
+      }),
+    });
+  }
+
   const row = Array.isArray(json) ? json[0] : json;
   return NextResponse.json({ entityCode: row.entity_code, companyName: row.company_name });
 }
