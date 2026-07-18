@@ -11,29 +11,44 @@ const H = () => ({
 });
 
 export async function POST(req: NextRequest) {
-  const { districtName, municipality } = await req.json();
+  const { zoneCode, districtName, municipality } = await req.json();
 
-  if (!districtName?.trim() || !municipality?.trim()) {
+  const code = Number(zoneCode);
+  if (!Number.isInteger(code) || code <= 0) {
     return NextResponse.json(
-      { error: 'districtName and municipality are required' },
+      { error: 'zoneCode must be a positive integer — zone numbers are user-assigned, not auto-generated.' },
       { status: 400 },
     );
   }
+  if (!districtName?.trim()) {
+    return NextResponse.json({ error: 'districtName is required' }, { status: 400 });
+  }
+  if (!municipality?.trim()) {
+    return NextResponse.json({ error: 'municipality is required' }, { status: 400 });
+  }
 
-  // Get the next available zone_code (max + 1)
-  const countRes = await fetch(
-    `${SB_URL}/rest/v1/cr_zone_codes?select=zone_code&order=zone_code.desc&limit=1`,
+  // Reject if zone_code already exists
+  const checkRes = await fetch(
+    `${SB_URL}/rest/v1/cr_zone_codes?zone_code=eq.${code}&select=zone_code&limit=1`,
     { headers: H() },
   );
-  const rows = await countRes.json();
-  const nextCode = Array.isArray(rows) && rows.length > 0 ? rows[0].zone_code + 1 : 1;
+  const existing = await checkRes.json();
+  if (Array.isArray(existing) && existing.length > 0) {
+    return NextResponse.json(
+      { error: `Zone code ${code} is already registered. Choose a different number.` },
+      { status: 409 },
+    );
+  }
+
+  // Strip any "Zone N -" or "Zone N—" prefix the user may have typed into the name
+  const cleanName = districtName.trim().replace(/^zone\s*\d+\s*[-–—]\s*/i, '').trim();
 
   const res = await fetch(`${SB_URL}/rest/v1/cr_zone_codes`, {
     method: 'POST',
     headers: H(),
     body: JSON.stringify({
-      zone_code:     nextCode,
-      district_name: districtName.trim(),
+      zone_code:     code,
+      district_name: cleanName,
       municipality:  municipality.trim(),
     }),
   });

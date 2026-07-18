@@ -424,15 +424,18 @@ function ZoneInlineAdd({
 }) {
   const [municipality,  setMunicipality]  = useState('');
   const [customMuni,    setCustomMuni]    = useState('');
+  const [zoneNumber,    setZoneNumber]    = useState('');
   const [districtName,  setDistrictName]  = useState('');
   const [saving,        setSaving]        = useState(false);
   const [err,           setErr]           = useState('');
 
   const effectiveMuni = municipality === '__new__' ? customMuni.trim() : municipality;
+  const zoneNum = Number(zoneNumber);
+  const canSave = !!(districtName.trim() && effectiveMuni && Number.isInteger(zoneNum) && zoneNum > 0);
 
   async function handleSave() {
-    if (!districtName.trim() || !effectiveMuni) {
-      setErr('Both municipality and district name are required.');
+    if (!canSave) {
+      setErr('Municipality, Zone Number, and District Name are all required. Zone Number must be a positive integer.');
       return;
     }
     setSaving(true); setErr('');
@@ -440,10 +443,13 @@ function ZoneInlineAdd({
       const res = await fetch('/api/code-registry/zone', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ districtName: districtName.trim(), municipality: effectiveMuni }),
+        body: JSON.stringify({ zoneCode: zoneNum, districtName: districtName.trim(), municipality: effectiveMuni }),
       });
       const json = await res.json();
-      if (!res.ok || json.error) { setErr('Failed to register zone. Try again.'); return; }
+      if (!res.ok || json.error) {
+        setErr(typeof json.error === 'string' ? json.error : 'Failed to register zone. Try again.');
+        return;
+      }
       onSave({ zone_code: json.zoneCode, district_name: json.districtName, municipality: json.municipality });
     } finally { setSaving(false); }
   }
@@ -452,8 +458,9 @@ function ZoneInlineAdd({
     <div className="mt-3 rounded-xl border border-[#c9a84c]/20 bg-[#c9a84c]/5 p-4 space-y-3">
       <p className="text-[10px] font-bold text-[#c9a84c] uppercase tracking-widest">Register New Zone</p>
 
+      {/* Municipality */}
       <div>
-        <label className="block text-[10px] font-semibold text-[#888] uppercase tracking-widest mb-1">Municipality</label>
+        <label className="block text-[10px] font-semibold text-[#888] uppercase tracking-widest mb-1">Municipality *</label>
         <select
           value={municipality}
           onChange={e => { setMunicipality(e.target.value); setErr(''); }}
@@ -474,8 +481,23 @@ function ZoneInlineAdd({
         )}
       </div>
 
+      {/* Zone Number — user-assigned, no auto-increment */}
       <div>
-        <label className="block text-[10px] font-semibold text-[#888] uppercase tracking-widest mb-1">District / Zone Name</label>
+        <label className="block text-[10px] font-semibold text-[#888] uppercase tracking-widest mb-1">Zone Number *</label>
+        <input
+          type="number"
+          min={1}
+          value={zoneNumber}
+          onChange={e => { setZoneNumber(e.target.value); setErr(''); }}
+          placeholder="e.g. 61"
+          className="w-full bg-[#1a1a1a] border border-[#2a2a2a] text-[#e0e0e0] text-sm rounded-lg px-3 py-2.5 focus:outline-none focus:border-[#c9a84c]/60 placeholder-[#555]"
+        />
+        <p className="text-[10px] text-[#555] mt-1">Must be unique. Zone codes are assigned by the administrator — not auto-generated.</p>
+      </div>
+
+      {/* District / Zone Name */}
+      <div>
+        <label className="block text-[10px] font-semibold text-[#888] uppercase tracking-widest mb-1">District / Zone Name *</label>
         <input
           value={districtName}
           onChange={e => { setDistrictName(e.target.value); setErr(''); }}
@@ -483,6 +505,11 @@ function ZoneInlineAdd({
           placeholder="e.g. West Bay, The Pearl…"
           className="w-full bg-[#1a1a1a] border border-[#2a2a2a] text-[#e0e0e0] text-sm rounded-lg px-3 py-2.5 focus:outline-none focus:border-[#c9a84c]/60 placeholder-[#555]"
         />
+        {zoneNumber && districtName && Number.isInteger(zoneNum) && zoneNum > 0 && (
+          <p className="text-[10px] text-[#888] mt-1">
+            Will display as: <span className="text-[#c9a84c] font-mono">Zone {zoneNum} — {districtName.trim()}</span>
+          </p>
+        )}
       </div>
 
       {err && <p className="text-[11px] text-[#ef4444]">{err}</p>}
@@ -490,7 +517,7 @@ function ZoneInlineAdd({
       <div className="flex gap-2">
         <button
           onClick={handleSave}
-          disabled={saving || !districtName.trim() || !effectiveMuni}
+          disabled={saving || !canSave}
           className="flex-1 bg-[#c9a84c] hover:bg-[#dfc070] disabled:opacity-40 text-[#0f0f0f] text-sm font-bold py-2 rounded-lg transition-colors"
         >
           {saving ? 'Registering…' : 'Register Zone'}
@@ -502,7 +529,6 @@ function ZoneInlineAdd({
           Cancel
         </button>
       </div>
-      <p className="text-[10px] text-[#555]">Zone code auto-assigned as next available number.</p>
     </div>
   );
 }

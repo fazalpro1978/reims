@@ -114,57 +114,6 @@ function getDefaultRegStatus(unit: UnitListing): PropertyRegStatus {
 
 // ── Static lookup data ─────────────────────────────────────────────────────
 
-const REALTORS: { name: string; moci: string }[] = [
-  { name: '25 Spaces Real Estate',        moci: 'MOCI-BRK-25S-0167' },
-  { name: 'ABH Real Estate',              moci: 'MOCI-BRK-ABH-0234' },
-  { name: 'Al Asmakh Real Estate',        moci: 'MOCI-BRK-ASM-0023' },
-  { name: 'Alfardan Properties',          moci: 'MOCI-REG-ALP-0045' },
-  { name: 'Al Jazi Real Estate',          moci: 'MOCI-IPM-AJZ-0089' },
-  { name: 'Al Mana Real Estate',          moci: 'MOCI-REG-ALM-0034' },
-  { name: 'Betterhomes Qatar',            moci: 'MOCI-BRK-BHQ-0067' },
-  { name: 'Capital One Real Estate',      moci: 'MOCI-BRK-CAO-0156' },
-  { name: 'Capstone Property',            moci: 'MOCI-BRK-CAP-0145' },
-  { name: 'Coreo Real Estate',            moci: 'MOCI-BRK-CRE-0134' },
-  { name: 'Corporate Real Estate Qatar',  moci: 'MOCI-BRK-CRQ-0212' },
-  { name: 'Danat Qatar',                  moci: 'MOCI-IPM-DAN-0078' },
-  { name: 'Direct Real Estate',           moci: 'MOCI-BRK-DRE-0178' },
-  { name: 'FGREALTY Qatar',               moci: 'MOCI-BRK-FGR-0056' },
-  { name: 'JMJ Group Holding',            moci: 'MOCI-REG-JMJ-0067' },
-  { name: 'Maroon Homes',                 moci: 'MOCI-BRK-MRH-0245' },
-  { name: 'Msheireb Properties',          moci: 'MOCI-REG-MSH-0001' },
-  { name: 'NelsonPark Property',          moci: 'MOCI-BRK-NPP-0112' },
-  { name: 'Premium Property Qatar',       moci: 'MOCI-BRK-PPQ-0201' },
-  { name: 'The Loft Bureau Real Estate',  moci: 'MOCI-BRK-LFT-0078' },
-  { name: 'The Pearl Gates',              moci: 'MOCI-BRK-TPG-0089' },
-  { name: 'Unicorn Real Estate',          moci: 'MOCI-BRK-UNI-0189' },
-];
-
-const ZONE_OPTIONS: { zone: string; code: number }[] = [
-  { zone: 'Abu Hamour',                            code: 51 },
-  { zone: 'Ain Khaled',                            code: 56 },
-  { zone: 'Al Dafna',                              code: 60 },
-  { zone: 'Al Dafna / Al Qassar',                  code: 61 },
-  { zone: 'Al Hilal',                              code: 42 },
-  { zone: 'Al Khor',                               code: 74 },
-  { zone: 'Al Sadd',                               code: 38 },
-  { zone: 'Al Wakrah',                             code: 90 },
-  { zone: 'Al Wukair',                             code: 91 },
-  { zone: 'Duhail',                                code: 30 },
-  { zone: 'Fereej Al Amir',                        code: 55 },
-  { zone: 'Hazm Al Markhiya',                      code: 67 },
-  { zone: 'Jelaiah / Al Tarfa',                    code: 68 },
-  { zone: 'Lusail',                                code: 69 },
-  { zone: 'Madinat Khalifa North / Dahl Al Hamam', code: 32 },
-  { zone: 'Madinat Khalifa South',                 code: 34 },
-  { zone: 'Muaither',                              code: 52 },
-  { zone: 'Musheireb',                             code: 4  },
-  { zone: 'Old Airport',                           code: 45 },
-  { zone: 'Onaiza',                                code: 63 },
-  { zone: 'The Pearl Qatar / Legtaifiya',          code: 66 },
-  { zone: 'Umm Salal Mohammed',                    code: 71 },
-  { zone: 'Al Waab',                               code: 53 },
-];
-
 const UNIT_CONFIGS = UNIT_CONFIGS_FULL;
 
 function isValidUrl(url: string): boolean {
@@ -230,6 +179,99 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
   const [amenities, setAmenities] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState('');
+  const [realtors, setRealtors] = useState<{ id: string; name: string; moci: string }[]>([]);
+  const [zones, setZones] = useState<{ zone_code: number; district_name: string }[]>([]);
+
+  // Add realtor inline form
+  const [addingRealtor, setAddingRealtor] = useState(false);
+  const [newRealtorName, setNewRealtorName] = useState('');
+  const [newRealtorMoci, setNewRealtorMoci] = useState('');
+  const [realtorSaving, setRealtorSaving] = useState(false);
+  const [realtorError, setRealtorError] = useState('');
+
+  // Add zone inline form
+  const [addingZone, setAddingZone] = useState(false);
+  const [newZoneCode, setNewZoneCode] = useState('');
+  const [newZoneName, setNewZoneName] = useState('');
+  const [zoneSaving, setZoneSaving] = useState(false);
+  const [zoneError, setZoneError] = useState('');
+
+  useEffect(() => {
+    fetch('/api/realtors').then(r => r.json()).then(d => {
+      if (d.realtors) setRealtors(d.realtors.map((r: { id: string; name: string; moci_id: string | null }) => ({ id: r.id, name: r.name, moci: r.moci_id ?? '' })));
+    });
+    fetch('/api/zones').then(r => r.json()).then(d => {
+      if (d.zones) setZones(d.zones);
+    });
+  }, []);
+
+  async function saveNewRealtor() {
+    if (!newRealtorName.trim()) return;
+    if (realtors.some(r => r.name.toLowerCase() === newRealtorName.trim().toLowerCase())) {
+      setRealtorError(`"${newRealtorName.trim()}" already exists. Select it from the dropdown.`);
+      return;
+    }
+    setRealtorSaving(true);
+    setRealtorError('');
+    try {
+      const res = await fetch('/api/realtors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newRealtorName.trim(), moci_id: newRealtorMoci.trim() || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save realtor');
+      const r = data.realtor;
+      setRealtors(prev => [...prev, { id: r.id, name: r.name, moci: r.moci_id ?? '' }].sort((a, b) => a.name.localeCompare(b.name)));
+      setRealtorName(r.name);
+      setRealtorMoci(r.moci_id ?? '');
+      setAddingRealtor(false);
+      setNewRealtorName('');
+      setNewRealtorMoci('');
+    } catch (err) {
+      setRealtorError(err instanceof Error ? err.message : 'Failed to save realtor');
+    } finally {
+      setRealtorSaving(false);
+    }
+  }
+
+  async function saveNewZone() {
+    const code = Number(newZoneCode);
+    if (!Number.isInteger(code) || code <= 0 || !newZoneName.trim()) {
+      setZoneError('Zone code (positive number) and zone name are required.');
+      return;
+    }
+    if (zones.some(z => z.zone_code === code)) {
+      setZoneError(`Zone code ${code} already exists in the registry.`);
+      return;
+    }
+    if (zones.some(z => z.district_name.toLowerCase() === newZoneName.trim().toLowerCase())) {
+      setZoneError(`Zone name "${newZoneName.trim()}" already exists in the registry.`);
+      return;
+    }
+    setZoneSaving(true);
+    setZoneError('');
+    try {
+      const res = await fetch('/api/zones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ zone_code: code, district_name: newZoneName.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save zone');
+      const z = data.zone as { zone_code: number; district_name: string };
+      setZones(prev => [...prev, z].sort((a, b) => a.district_name.localeCompare(b.district_name)));
+      setZone(z.district_name);
+      setZoneCode(z.zone_code);
+      setAddingZone(false);
+      setNewZoneCode('');
+      setNewZoneName('');
+    } catch (err) {
+      setZoneError(err instanceof Error ? err.message : 'Failed to save zone');
+    } finally {
+      setZoneSaving(false);
+    }
+  }
 
   useEffect(() => {
     if (!unitUuid) return;
@@ -262,14 +304,14 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
 
   const handleRealtorChange = (name: string) => {
     setRealtorName(name);
-    const r = REALTORS.find(r => r.name === name);
+    const r = realtors.find(r => r.name === name);
     if (r) setRealtorMoci(r.moci);
   };
 
-  const handleZoneChange = (zoneName: string) => {
-    setZone(zoneName);
-    const z = ZONE_OPTIONS.find(z => z.zone === zoneName);
-    if (z) setZoneCode(z.code);
+  const handleZoneChange = (districtName: string) => {
+    setZone(districtName);
+    const z = zones.find(z => z.district_name === districtName);
+    if (z) setZoneCode(z.zone_code);
   };
 
   const handleSave = async () => {
@@ -361,9 +403,53 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
         <FieldRow
           label="Realtor"
           value={
-            <select value={realtorName} onChange={e => handleRealtorChange(e.target.value)} className={sel}>
-              {REALTORS.map(r => <option key={r.moci} value={r.name}>{r.name}</option>)}
-            </select>
+            <div>
+              <select value={realtorName} onChange={e => handleRealtorChange(e.target.value)} className={sel}>
+                <option value="">— Select realtor —</option>
+                {realtors.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+              </select>
+              {!addingRealtor ? (
+                <button
+                  onClick={() => setAddingRealtor(true)}
+                  className="mt-1.5 text-xs text-[#c9a84c] underline underline-offset-2 hover:text-[#dfc070] transition-colors"
+                >
+                  + Add new realtor
+                </button>
+              ) : (
+                <div className="mt-2 border border-[#333333] rounded-lg p-3 space-y-2 bg-[#0d0d0d]">
+                  <input
+                    type="text"
+                    value={newRealtorName}
+                    onChange={e => setNewRealtorName(e.target.value)}
+                    placeholder="Realtor name"
+                    className={inp}
+                  />
+                  <input
+                    type="text"
+                    value={newRealtorMoci}
+                    onChange={e => setNewRealtorMoci(e.target.value)}
+                    placeholder="MOCI ID (optional)"
+                    className={`${inp} font-mono text-[#c9a84c]`}
+                  />
+                  {realtorError && <p className="text-xs text-red-400">{realtorError}</p>}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={saveNewRealtor}
+                      disabled={realtorSaving || !newRealtorName.trim()}
+                      className="text-xs px-3 py-1.5 bg-[#c9a84c] hover:bg-[#dfc070] disabled:opacity-40 text-[#0f0f0f] font-bold rounded-lg transition-colors"
+                    >
+                      {realtorSaving ? 'Saving…' : 'Save'}
+                    </button>
+                    <button
+                      onClick={() => { setAddingRealtor(false); setNewRealtorName(''); setNewRealtorMoci(''); setRealtorError(''); }}
+                      className="text-xs px-3 py-1.5 border border-[#333333] text-[#888888] rounded-lg hover:bg-[#1a1a1a] transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           }
         />
 
@@ -423,13 +509,62 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
           }
         />
 
-        {/* District / Area — zone dropdown, auto-updates zone code */}
+        {/* District / Area — zone dropdown from shared registry, auto-updates zone code */}
         <FieldRow
           label="District / Area"
           value={
-            <select value={zone} onChange={e => handleZoneChange(e.target.value)} className={sel}>
-              {ZONE_OPTIONS.map(z => <option key={z.code} value={z.zone}>{z.zone}</option>)}
-            </select>
+            <div>
+              <select value={zone} onChange={e => handleZoneChange(e.target.value)} className={sel}>
+                <option value="">— Select district —</option>
+                {zones.map(z => <option key={z.zone_code} value={z.district_name}>Zone {z.zone_code} — {z.district_name}</option>)}
+              </select>
+              {!addingZone ? (
+                <button
+                  onClick={() => setAddingZone(true)}
+                  className="mt-1.5 text-xs text-[#c9a84c] underline underline-offset-2 hover:text-[#dfc070] transition-colors"
+                >
+                  + Add new zone
+                </button>
+              ) : (
+                <div className="mt-2 border border-[#333333] rounded-lg p-3 space-y-2 bg-[#0d0d0d]">
+                  <p className="text-[11px] text-[#666666]">
+                    Zone codes are authority-assigned. Enter both the official code and name.
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={newZoneCode}
+                      onChange={e => setNewZoneCode(e.target.value)}
+                      placeholder="Zone code"
+                      className={`${inp} w-32`}
+                    />
+                    <input
+                      type="text"
+                      value={newZoneName}
+                      onChange={e => setNewZoneName(e.target.value)}
+                      placeholder="District / area name"
+                      className={inp}
+                    />
+                  </div>
+                  {zoneError && <p className="text-xs text-red-400">{zoneError}</p>}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={saveNewZone}
+                      disabled={zoneSaving || !newZoneCode.trim() || !newZoneName.trim()}
+                      className="text-xs px-3 py-1.5 bg-[#c9a84c] hover:bg-[#dfc070] disabled:opacity-40 text-[#0f0f0f] font-bold rounded-lg transition-colors"
+                    >
+                      {zoneSaving ? 'Saving…' : 'Save'}
+                    </button>
+                    <button
+                      onClick={() => { setAddingZone(false); setNewZoneCode(''); setNewZoneName(''); setZoneError(''); }}
+                      className="text-xs px-3 py-1.5 border border-[#333333] text-[#888888] rounded-lg hover:bg-[#1a1a1a] transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           }
         />
 
@@ -438,7 +573,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
           label="Zone Code"
           value={
             <span className="font-mono text-sm bg-[#111111] text-[#c9a84c] px-2.5 py-0.5 rounded">
-              Zone {zoneCode}
+              {zoneCode ? `Zone ${zoneCode}` : '—'}
             </span>
           }
         />
