@@ -124,21 +124,63 @@ body {
     font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.6);
     text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap;
   }
-  .rpt-toolbar-greeting {
-    display: flex; align-items: center; gap: 6px; flex: 1;
-  }
-  .rpt-toolbar-greeting label {
-    font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.5);
-    text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap;
-  }
-  .rpt-toolbar-greeting input {
-    flex: 1; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18);
-    border-radius: 4px; color: #fff; font-size: 11px; padding: 5px 10px;
-    outline: none;
-  }
-  .rpt-toolbar-greeting input::placeholder { color: rgba(255,255,255,0.35); }
-  .rpt-toolbar-greeting input:focus { border-color: #c9a84c; background: rgba(255,255,255,0.12); }
   .rpt-toolbar-btns { display: flex; gap: 8px; }
+
+  .rpt-btn-edit {
+    background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.75);
+    border: 1px solid rgba(255,255,255,0.18);
+    padding: 7px 14px; font-size: 11px; font-weight: 600;
+    border-radius: 5px; cursor: pointer;
+  }
+  .rpt-btn-edit:hover { background: rgba(201,168,76,0.15); border-color: rgba(201,168,76,0.4); color: #c9a84c; }
+  .rpt-btn-edit.open  { background: rgba(201,168,76,0.18); border-color: rgba(201,168,76,0.5); color: #c9a84c; }
+
+  /* ── Edit panel ─────────────────────────────────────────────────────── */
+  .rpt-edit-panel {
+    width: 210mm; margin: 0 auto 10px;
+    background: rgba(16,16,16,0.97);
+    border: 1px solid rgba(201,168,76,0.25);
+    border-radius: 6px; padding: 16px 18px 14px;
+  }
+  .rpt-edit-panel-hdr {
+    font-size: 8px; font-weight: 700; color: rgba(201,168,76,0.75);
+    text-transform: uppercase; letter-spacing: 0.16em; margin-bottom: 14px;
+  }
+  .rpt-edit-row { display: flex; gap: 12px; margin-bottom: 12px; }
+  .rpt-edit-row:last-child { margin-bottom: 0; }
+  .rpt-edit-field { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  .rpt-edit-field-lbl {
+    font-size: 8px; font-weight: 700; color: rgba(255,255,255,0.40);
+    text-transform: uppercase; letter-spacing: 0.10em;
+  }
+  .rpt-edit-inp {
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.13);
+    border-radius: 4px; color: #e0e0e0; font-size: 11px;
+    padding: 6px 10px; outline: none; font-family: inherit; width: 100%;
+  }
+  .rpt-edit-inp:focus { border-color: rgba(201,168,76,0.65); background: rgba(255,255,255,0.10); }
+  .rpt-edit-inp::placeholder { color: rgba(255,255,255,0.22); }
+  .rpt-edit-textarea { resize: vertical; min-height: 58px; line-height: 1.55; }
+  .rpt-edit-toggles { display: flex; gap: 7px; flex-wrap: wrap; }
+  .rpt-edit-toggle {
+    display: flex; align-items: center; gap: 5px;
+    padding: 5px 12px 5px 9px;
+    border: 1px solid rgba(255,255,255,0.14); border-radius: 4px;
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.48); font-size: 10px; font-weight: 600;
+    cursor: pointer; user-select: none;
+  }
+  .rpt-edit-toggle.on {
+    border-color: rgba(201,168,76,0.45);
+    background: rgba(201,168,76,0.12);
+    color: #c9a84c;
+  }
+  .rpt-edit-toggle-box {
+    width: 11px; height: 11px; border-radius: 2px;
+    border: 1.5px solid currentColor; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; line-height: 1;
+  }
 
   .rpt-btn-print {
     background: #c9a84c; color: #0f0f0f; border: none;
@@ -364,7 +406,13 @@ body {
 
 // ── Report document ───────────────────────────────────────────────────────────
 
-function ReportDocument({ data, neighborhood }: { data: ReportData; neighborhood: NGuide | null }) {
+interface ReportOpts {
+  showFinancials: boolean;
+  showImages: boolean;
+  showNeighborhood: boolean;
+}
+
+function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighborhood: NGuide | null; opts: ReportOpts }) {
   const secDep = data.securityDeposit || data.monthlyRent;
   const utilityTotal = (data.kahramaaApplicable  ? (data.kahramaaAmount  || 0) : 0)
                      + (data.qatarCoolApplicable  ? (data.qatarCoolAmount || 0) : 0)
@@ -462,7 +510,7 @@ function ReportDocument({ data, neighborhood }: { data: ReportData; neighborhood
       )}
 
       {/* ── 5. Financial Summary Panel ────────────────────────────────── */}
-      <p className="rpt-sec-lbl">Move-In Payment Summary</p>
+      {opts.showFinancials && <><p className="rpt-sec-lbl">Move-In Payment Summary</p>
       <div className="rpt-fin-panel">
         {data.monthlyRent > 0 && (
           <div className="rpt-fin-row">
@@ -523,6 +571,7 @@ function ReportDocument({ data, neighborhood }: { data: ReportData; neighborhood
         </div>
       </div>
       <p style={{ fontSize: '7.5pt', color: '#94a3b8', marginTop: '4px', marginBottom: '0' }}>* T&amp;C apply.</p>
+      </>}
 
       {/* ── 6. Location & Media Anchors ───────────────────────────────── */}
       <p className="rpt-sec-lbl">Location &amp; Media</p>
@@ -550,7 +599,7 @@ function ReportDocument({ data, neighborhood }: { data: ReportData; neighborhood
       </div>
 
       {/* 2 rows × 3 columns — each cell locked to 33.33% width, 4:3 aspect ratio */}
-      <table className="rpt-img-tbl">
+      {opts.showImages && <table className="rpt-img-tbl">
         <tbody>
           {rows.map((row, ri) => (
             <tr key={ri}>
@@ -574,10 +623,10 @@ function ReportDocument({ data, neighborhood }: { data: ReportData; neighborhood
             </tr>
           ))}
         </tbody>
-      </table>
+      </table>}
 
       {/* ── 7. Neighborhood Guide ────────────────────────────────────── */}
-      {neighborhood && (neighborhood.lifestyle.length > 0 || neighborhood.parks.length > 0 || neighborhood.commute.length > 0) && (() => {
+      {opts.showNeighborhood && neighborhood && (neighborhood.lifestyle.length > 0 || neighborhood.parks.length > 0 || neighborhood.commute.length > 0) && (() => {
         const renderPillarCards = (cards: NCard[]) => cards.length === 0
           ? <p className="rpt-nbhd-empty">Not available</p>
           : cards.map(c => (
@@ -643,12 +692,21 @@ export default function ReportPage() {
   const params    = useParams();
   const unitUuid  = params?.unitUuid as string;
 
-  const [data,         setData        ] = useState<ReportData | null>(null);
-  const [neighborhood, setNeighborhood] = useState<NGuide | null>(null);
-  const [loading,      setLoading     ] = useState(true);
-  const [error,        setError       ] = useState<string | null>(null);
-  const [salutation,   setSalutation  ] = useState('');
-  const [generatedAt]                   = useState(() => formatDateTime(new Date()));
+  const [data,             setData           ] = useState<ReportData | null>(null);
+  const [neighborhood,     setNeighborhood   ] = useState<NGuide | null>(null);
+  const [loading,          setLoading        ] = useState(true);
+  const [error,            setError          ] = useState<string | null>(null);
+  const [generatedAt]                          = useState(() => formatDateTime(new Date()));
+
+  // Pre-print editing state
+  const [editOpen,         setEditOpen       ] = useState(false);
+  const [salutation,       setSalutation     ] = useState('');
+  const [remarksOverride,  setRemarksOverride] = useState('');
+  const [rentStr,          setRentStr        ] = useState('');
+  const [bookingValOverride, setBookingValOverride] = useState('');
+  const [showFinancials,   setShowFinancials  ] = useState(true);
+  const [showImages,       setShowImages      ] = useState(true);
+  const [showNeighborhood, setShowNeighborhood] = useState(true);
 
   useEffect(() => {
     if (!unitUuid) return;
@@ -730,6 +788,29 @@ export default function ReportPage() {
 
   /* ── Report ──────────────────────────────────────────────────────────────── */
 
+  const rentOverride = rentStr !== '' ? (Number(rentStr) || 0) : null;
+
+  const effectiveData: ReportData = {
+    ...data,
+    salutation,
+    operatorRemarks: remarksOverride.trim() || data.operatorRemarks,
+    monthlyRent:     rentOverride !== null ? rentOverride : data.monthlyRent,
+    bookingValidity: bookingValOverride.trim() || data.bookingValidity,
+  };
+
+  const opts: ReportOpts = { showFinancials, showImages, showNeighborhood };
+
+  const Toggle = ({ label, active, onToggle }: { label: string; active: boolean; onToggle: () => void }) => (
+    <button
+      type="button"
+      className={`rpt-edit-toggle${active ? ' on' : ''}`}
+      onClick={onToggle}
+    >
+      <span className="rpt-edit-toggle-box">{active ? '✓' : ''}</span>
+      {label}
+    </button>
+  );
+
   return (
     <>
       {/* Inject full stylesheet (includes @page margin boxes with timestamp) */}
@@ -738,23 +819,84 @@ export default function ReportPage() {
       {/* Toolbar — hidden on print via CSS */}
       <div className="rpt-toolbar">
         <span className="rpt-toolbar-label">Unit Report Preview — A4</span>
-        <div className="rpt-toolbar-greeting">
-          <label htmlFor="rpt-salutation-input">Salutation / Recipient Greeting</label>
-          <input
-            id="rpt-salutation-input"
-            type="text"
-            placeholder='e.g. Dear Mr. / Miss / Mrs. / Ms. Al Mansoori'
-            value={salutation}
-            onChange={e => setSalutation(e.target.value)}
-          />
-        </div>
         <div className="rpt-toolbar-btns">
+          <button
+            className={`rpt-btn-edit${editOpen ? ' open' : ''}`}
+            onClick={() => setEditOpen(v => !v)}
+          >
+            {editOpen ? '✕ Close Editor' : '✎ Edit Report'}
+          </button>
           <button className="rpt-btn-close" onClick={() => window.close()}>✕ Close</button>
           <button className="rpt-btn-print" onClick={() => window.print()}>⬇ Download PDF</button>
         </div>
       </div>
 
-      <ReportDocument data={{ ...data, salutation }} neighborhood={neighborhood} />
+      {/* Collapsible edit panel — hidden on print */}
+      {editOpen && (
+        <div className="rpt-edit-panel">
+          <p className="rpt-edit-panel-hdr">✎ Edit Report Before Download</p>
+
+          {/* Row 1: Salutation (full width) */}
+          <div className="rpt-edit-row">
+            <div className="rpt-edit-field">
+              <span className="rpt-edit-field-lbl">Salutation / Recipient Greeting</span>
+              <input
+                className="rpt-edit-inp"
+                type="text"
+                placeholder="e.g. Dear Mr. / Ms. Al Mansoori — appears below the property title"
+                value={salutation}
+                onChange={e => setSalutation(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Row 2: Remarks override + Rent + Booking validity */}
+          <div className="rpt-edit-row">
+            <div className="rpt-edit-field" style={{ flex: 2 }}>
+              <span className="rpt-edit-field-lbl">Operator Remarks Override</span>
+              <textarea
+                className="rpt-edit-inp rpt-edit-textarea"
+                placeholder="Leave blank to use the saved DB remarks. Type here to replace them on this report only."
+                value={remarksOverride}
+                onChange={e => setRemarksOverride(e.target.value)}
+              />
+            </div>
+            <div className="rpt-edit-field" style={{ flex: 1 }}>
+              <span className="rpt-edit-field-lbl">Monthly Rent Override (QAR)</span>
+              <input
+                className="rpt-edit-inp"
+                type="number"
+                min={0}
+                placeholder={`${data.monthlyRent || '—'} (leave blank = default)`}
+                value={rentStr}
+                onChange={e => setRentStr(e.target.value)}
+              />
+              <span className="rpt-edit-field-lbl" style={{ marginTop: 8 }}>Booking Validity Override</span>
+              <input
+                className="rpt-edit-inp"
+                type="text"
+                placeholder={data.bookingValidity || 'e.g. Valid until 31 July 2026'}
+                value={bookingValOverride}
+                onChange={e => setBookingValOverride(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Row 3: Section visibility toggles */}
+          <div className="rpt-edit-row">
+            <div className="rpt-edit-field">
+              <span className="rpt-edit-field-lbl">Show / Hide Sections</span>
+              <div className="rpt-edit-toggles">
+                <Toggle label="Financial Summary"  active={showFinancials}   onToggle={() => setShowFinancials(v => !v)} />
+                <Toggle label="Photos / Images"    active={showImages}       onToggle={() => setShowImages(v => !v)} />
+                <Toggle label="Neighborhood Guide" active={showNeighborhood} onToggle={() => setShowNeighborhood(v => !v)} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ReportDocument data={effectiveData} neighborhood={neighborhood} opts={opts} />
     </>
   );
 }
