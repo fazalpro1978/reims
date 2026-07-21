@@ -361,7 +361,6 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
   const [dbError, setDbError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
-  const [view, setView] = useState<'inventory' | 'import'>('inventory');
 
   useEffect(() => {
     async function fetchUnits() {
@@ -421,6 +420,17 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
     fetchUnits();
   }, [refreshKey]);
 
+  // ── Realtors registry (shared with dInges via public.realtors) ────────────
+  const [dbRealtors, setDbRealtors] = useState<string[]>([]);
+
+  useEffect(() => {
+    async function fetchRealtors() {
+      const { data, error } = await supabase.from('realtors').select('name').order('name');
+      if (!error && data) setDbRealtors(data.map((r) => r.name));
+    }
+    fetchRealtors();
+  }, [refreshKey]);
+
   // ── Modal / context menu / settings state ────────────────────────────────
   const [selectedUnit, setSelectedUnit] = useState<UnitListing | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
@@ -448,8 +458,10 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
   );
 
   const allRealtors = useMemo(
-    () => Array.from(new Set(units.map((u) => u.realtorName))).sort(),
-    [units]
+    () => dbRealtors.length > 0
+      ? dbRealtors
+      : Array.from(new Set(units.map((u) => u.realtorName))).sort(),
+    [dbRealtors, units]
   );
 
   const rentRange = useMemo(() => ({
@@ -669,36 +681,12 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
           <div>
             <h2 className="text-xl font-bold text-white tracking-tight">Units Inventory</h2>
             <p className="text-[#606060] text-sm mt-0.5">
-              {view === 'inventory'
-                ? 'Manage, filter, and monitor all Qatar property listings'
-                : 'Import property data from any file format'}
+              {'Manage, filter, and monitor all Qatar property listings'}
             </p>
-          </div>
-          <div className="flex items-center gap-1 bg-[#141414] border border-[#1e1e1e] rounded-xl p-1">
-            {([
-              { key: 'inventory', label: 'Inventory' },
-              { key: 'import',    label: 'Import Data' },
-            ] as const).map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setView(t.key)}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  view === t.key
-                    ? 'bg-[#c9a84c] text-[#0f0f0f]'
-                    : 'text-[#555] hover:text-[#e0e0e0]'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
           </div>
         </div>
 
-        {view === 'import' && (
-          <UnitImportPipeline embedded onMenuClick={onMenuClick} />
-        )}
-
-        {view === 'inventory' && (<>
+        {(<>
 
         {/* ══════════════════════════════════════════════════════════════════════
             SECTION A: METRIC TICKER RIBBON
@@ -1090,7 +1078,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
           Privé Group · Vanguard REOS · Qatar Property Portfolio · {units.length} active listings
         </p>
 
-        </>)} {/* end view === 'inventory' */}
+        </>)}
       </main>
 
       {/* ══════════════════════════════════════════════════════════════════════
