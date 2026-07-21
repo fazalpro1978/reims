@@ -17,6 +17,38 @@ export async function GET() {
   return NextResponse.json({ zones: data ?? [] });
 }
 
+export async function PUT(req: NextRequest) {
+  const body = await req.json();
+  const zoneCode = Number(body.zone_code);
+  if (!Number.isInteger(zoneCode) || zoneCode <= 0) {
+    return NextResponse.json({ error: 'zone_code must be a positive integer' }, { status: 400 });
+  }
+  const rawName = String(body.district_name ?? '').trim();
+  const districtName = rawName.replace(/^zone\s*\d+\s*[-–—]\s*/i, '').trim();
+  if (!districtName) return NextResponse.json({ error: 'district_name is required' }, { status: 400 });
+  const municipality = String(body.municipality ?? '').trim() || null;
+
+  const { data, error } = await admin
+    .from('cr_zone_codes')
+    .update({ district_name: districtName, municipality })
+    .eq('zone_code', zoneCode)
+    .select('zone_code, district_name, municipality')
+    .single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ zone: data });
+}
+
+export async function DELETE(req: NextRequest) {
+  const body = await req.json();
+  const zoneCode = Number(body.zone_code);
+  if (!Number.isInteger(zoneCode) || zoneCode <= 0) {
+    return NextResponse.json({ error: 'zone_code is required' }, { status: 400 });
+  }
+  const { error } = await admin.from('cr_zone_codes').delete().eq('zone_code', zoneCode);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const zoneCode = Number(body.zone_code);

@@ -59,6 +59,37 @@ export async function GET() {
   return NextResponse.json({ realtors: data ?? [] });
 }
 
+export async function PUT(req: NextRequest) {
+  const body = await req.json();
+  const { id, name, moci_id, classification } = body as {
+    id?: string; name?: string; moci_id?: string | null; classification?: string | null;
+  };
+  if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+  if (!name?.trim()) return NextResponse.json({ error: 'name is required' }, { status: 400 });
+  const row = {
+    name: name.trim(),
+    moci_id: moci_id?.trim() || null,
+    classification: classification?.trim() || null,
+  };
+  const { data, error } = await admin
+    .from('realtors').update(row).eq('id', id)
+    .select('id, name, moci_id, classification').single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Sync update into cr_entity_codes too
+  await admin.from('cr_entity_codes')
+    .update({ company_name: row.name, classification: row.classification || 'Independent' })
+    .ilike('company_name', name.trim());
+  return NextResponse.json({ realtor: data });
+}
+
+export async function DELETE(req: NextRequest) {
+  const { id } = await req.json() as { id?: string };
+  if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+  const { error } = await admin.from('realtors').delete().eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const { id, name, moci_id, classification } = body as {
