@@ -48,6 +48,7 @@ interface ReportData {
   images:              string[];
   operatorRemarks:     string;
   salutation:          string;
+  titleOverride:       string;
 }
 
 // ── Supabase ──────────────────────────────────────────────────────────────────
@@ -408,6 +409,7 @@ body {
 
 interface ReportOpts {
   showFinancials: boolean;
+  showLocationMedia: boolean;
   showImages: boolean;
   showNeighborhood: boolean;
 }
@@ -453,7 +455,10 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
 
       {/* ── 2. Asset Identification Banner ────────────────────────────── */}
       <h1 className="rpt-asset-title">
-        {data.propertyName}&nbsp;&bull;&nbsp;CODE:&nbsp;{data.unitCode}&nbsp;|&nbsp;Zone:&nbsp;{data.zoneCode}.&nbsp;{data.zoneName}
+        {data.titleOverride
+          ? data.titleOverride
+          : <>{data.propertyName}&nbsp;&bull;&nbsp;CODE:&nbsp;{data.unitCode}&nbsp;|&nbsp;Zone:&nbsp;{data.zoneCode}.&nbsp;{data.zoneName}</>
+        }
       </h1>
       {data.salutation && (
         <p className="rpt-salutation">{data.salutation}</p>
@@ -574,6 +579,7 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
       </>}
 
       {/* ── 6. Location & Media Anchors ───────────────────────────────── */}
+      {opts.showLocationMedia && <>
       <p className="rpt-sec-lbl">Location &amp; Media</p>
       <div className="rpt-links">
         {data.locationMapUrl ? (
@@ -597,6 +603,7 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
           <p><span className="rpt-link-key">Media Archive: </span>Not provided</p>
         )}
       </div>
+      </>}
 
       {/* 2 rows × 3 columns — each cell locked to 33.33% width, 4:3 aspect ratio */}
       {opts.showImages && <table className="rpt-img-tbl">
@@ -699,14 +706,26 @@ export default function ReportPage() {
   const [generatedAt]                          = useState(() => formatDateTime(new Date()));
 
   // Pre-print editing state
-  const [editOpen,         setEditOpen       ] = useState(false);
-  const [salutation,       setSalutation     ] = useState('');
-  const [remarksOverride,  setRemarksOverride] = useState('');
-  const [rentStr,          setRentStr        ] = useState('');
-  const [bookingValOverride, setBookingValOverride] = useState('');
-  const [showFinancials,   setShowFinancials  ] = useState(true);
-  const [showImages,       setShowImages      ] = useState(true);
-  const [showNeighborhood, setShowNeighborhood] = useState(true);
+  const [editOpen,            setEditOpen           ] = useState(false);
+  const [titleOverride,       setTitleOverride       ] = useState('');
+  const [salutation,          setSalutation          ] = useState('');
+  const [remarksOverride,     setRemarksOverride     ] = useState('');
+  const [bookingValOverride,  setBookingValOverride  ] = useState('');
+  // Financial overrides — empty string = use DB value
+  const [rentStr,             setRentStr             ] = useState('');
+  const [secDepStr,           setSecDepStr           ] = useState('');
+  const [contractStr,         setContractStr         ] = useState('');
+  const [additionalStr,       setAdditionalStr       ] = useState('');
+  const [elecWaterOverride,   setElecWaterOverride   ] = useState('');
+  const [agencyFeeStr,        setAgencyFeeStr        ] = useState('');
+  const [kahramaaStr,         setKahramaaStr         ] = useState('');
+  const [qatarCoolStr,        setQatarCoolStr        ] = useState('');
+  const [marafeqStr,          setMarafeqStr          ] = useState('');
+  // Section visibility
+  const [showFinancials,      setShowFinancials      ] = useState(true);
+  const [showLocationMedia,   setShowLocationMedia   ] = useState(true);
+  const [showImages,          setShowImages          ] = useState(true);
+  const [showNeighborhood,    setShowNeighborhood    ] = useState(true);
 
   useEffect(() => {
     if (!unitUuid) return;
@@ -759,6 +778,7 @@ export default function ReportPage() {
           images:              parseArray(row.images),
           operatorRemarks:     row.operator_remarks  ?? '',
           salutation:          '',
+          titleOverride:       '',
         });
 
         // Fetch neighborhood guide — unit-specific first, zone fallback second
@@ -788,17 +808,26 @@ export default function ReportPage() {
 
   /* ── Report ──────────────────────────────────────────────────────────────── */
 
-  const rentOverride = rentStr !== '' ? (Number(rentStr) || 0) : null;
+  const numOr = (s: string, fallback: number) => s !== '' ? (Number(s) || 0) : fallback;
 
   const effectiveData: ReportData = {
     ...data,
+    titleOverride:      titleOverride.trim(),
     salutation,
-    operatorRemarks: remarksOverride.trim() || data.operatorRemarks,
-    monthlyRent:     rentOverride !== null ? rentOverride : data.monthlyRent,
-    bookingValidity: bookingValOverride.trim() || data.bookingValidity,
+    operatorRemarks:    remarksOverride.trim() || data.operatorRemarks,
+    bookingValidity:    bookingValOverride.trim() || data.bookingValidity,
+    monthlyRent:        numOr(rentStr,        data.monthlyRent),
+    securityDeposit:    numOr(secDepStr,      data.securityDeposit),
+    contractCharges:    numOr(contractStr,    data.contractCharges),
+    additionalCharges:  numOr(additionalStr,  data.additionalCharges),
+    electricityWater:   elecWaterOverride.trim() || data.electricityWater,
+    agencyFeeAmount:    numOr(agencyFeeStr,   data.agencyFeeAmount),
+    kahramaaAmount:     numOr(kahramaaStr,    data.kahramaaAmount),
+    qatarCoolAmount:    numOr(qatarCoolStr,   data.qatarCoolAmount),
+    marafeqAmount:      numOr(marafeqStr,     data.marafeqAmount),
   };
 
-  const opts: ReportOpts = { showFinancials, showImages, showNeighborhood };
+  const opts: ReportOpts = { showFinancials, showLocationMedia, showImages, showNeighborhood };
 
   const Toggle = ({ label, active, onToggle }: { label: string; active: boolean; onToggle: () => void }) => (
     <button
@@ -836,42 +865,43 @@ export default function ReportPage() {
         <div className="rpt-edit-panel">
           <p className="rpt-edit-panel-hdr">✎ Edit Report Before Download</p>
 
-          {/* Row 1: Salutation (full width) */}
+          {/* Row 1: Property title + salutation */}
           <div className="rpt-edit-row">
-            <div className="rpt-edit-field">
+            <div className="rpt-edit-field" style={{ flex: 2 }}>
+              <span className="rpt-edit-field-lbl">Property Title Override</span>
+              <input
+                className="rpt-edit-inp"
+                type="text"
+                placeholder={`${data.propertyName} • CODE: ${data.unitCode} | Zone: ${data.zoneCode}. ${data.zoneName}`}
+                value={titleOverride}
+                onChange={e => setTitleOverride(e.target.value)}
+              />
+            </div>
+            <div className="rpt-edit-field" style={{ flex: 2 }}>
               <span className="rpt-edit-field-lbl">Salutation / Recipient Greeting</span>
               <input
                 className="rpt-edit-inp"
                 type="text"
-                placeholder="e.g. Dear Mr. / Ms. Al Mansoori — appears below the property title"
+                placeholder="e.g. Dear Mr. / Ms. Al Mansoori — appears below the title"
                 value={salutation}
                 onChange={e => setSalutation(e.target.value)}
               />
             </div>
           </div>
 
-          {/* Row 2: Remarks override + Rent + Booking validity */}
+          {/* Row 2: Remarks + booking validity */}
           <div className="rpt-edit-row">
-            <div className="rpt-edit-field" style={{ flex: 2 }}>
+            <div className="rpt-edit-field" style={{ flex: 3 }}>
               <span className="rpt-edit-field-lbl">Operator Remarks Override</span>
               <textarea
                 className="rpt-edit-inp rpt-edit-textarea"
-                placeholder="Leave blank to use the saved DB remarks. Type here to replace them on this report only."
+                placeholder="Leave blank to use saved remarks. Type here to replace for this print only."
                 value={remarksOverride}
                 onChange={e => setRemarksOverride(e.target.value)}
               />
             </div>
-            <div className="rpt-edit-field" style={{ flex: 1 }}>
-              <span className="rpt-edit-field-lbl">Monthly Rent Override (QAR)</span>
-              <input
-                className="rpt-edit-inp"
-                type="number"
-                min={0}
-                placeholder={`${data.monthlyRent || '—'} (leave blank = default)`}
-                value={rentStr}
-                onChange={e => setRentStr(e.target.value)}
-              />
-              <span className="rpt-edit-field-lbl" style={{ marginTop: 8 }}>Booking Validity Override</span>
+            <div className="rpt-edit-field" style={{ flex: 2 }}>
+              <span className="rpt-edit-field-lbl">Booking Validity Override</span>
               <input
                 className="rpt-edit-inp"
                 type="text"
@@ -882,14 +912,51 @@ export default function ReportPage() {
             </div>
           </div>
 
-          {/* Row 3: Section visibility toggles */}
+          {/* Row 3: Financial overrides grid */}
+          <div className="rpt-edit-row" style={{ flexWrap: 'wrap', gap: '10px 12px' }}>
+            {([
+              ['Monthly Rent (QAR)',       rentStr,       setRentStr,       data.monthlyRent      ],
+              ['Security Deposit (QAR)',   secDepStr,     setSecDepStr,     data.securityDeposit  ],
+              ['Contract Charges (QAR)',   contractStr,   setContractStr,   data.contractCharges  ],
+              ['Additional Charges (QAR)', additionalStr, setAdditionalStr, data.additionalCharges],
+              ['Agency Fee (QAR)',         agencyFeeStr,  setAgencyFeeStr,  data.agencyFeeAmount  ],
+              ['Kahramaa Deposit (QAR)',   kahramaaStr,   setKahramaaStr,   data.kahramaaAmount   ],
+              ['Qatar Cool Deposit (QAR)', qatarCoolStr,  setQatarCoolStr,  data.qatarCoolAmount  ],
+              ['Marafeq Deposit (QAR)',    marafeqStr,    setMarafeqStr,    data.marafeqAmount    ],
+            ] as [string, string, (v: string) => void, number][]).map(([lbl, val, setter, def]) => (
+              <div key={lbl} className="rpt-edit-field" style={{ flex: '1 1 22%', minWidth: 120 }}>
+                <span className="rpt-edit-field-lbl">{lbl}</span>
+                <input
+                  className="rpt-edit-inp"
+                  type="number"
+                  min={0}
+                  placeholder={String(def || '—')}
+                  value={val}
+                  onChange={e => setter(e.target.value)}
+                />
+              </div>
+            ))}
+            <div className="rpt-edit-field" style={{ flex: '1 1 22%', minWidth: 120 }}>
+              <span className="rpt-edit-field-lbl">Electricity &amp; Water</span>
+              <input
+                className="rpt-edit-inp"
+                type="text"
+                placeholder={data.electricityWater || 'e.g. Included / Tenant paid'}
+                value={elecWaterOverride}
+                onChange={e => setElecWaterOverride(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Row 4: Section visibility toggles */}
           <div className="rpt-edit-row">
             <div className="rpt-edit-field">
               <span className="rpt-edit-field-lbl">Show / Hide Sections</span>
               <div className="rpt-edit-toggles">
-                <Toggle label="Financial Summary"  active={showFinancials}   onToggle={() => setShowFinancials(v => !v)} />
-                <Toggle label="Photos / Images"    active={showImages}       onToggle={() => setShowImages(v => !v)} />
-                <Toggle label="Neighborhood Guide" active={showNeighborhood} onToggle={() => setShowNeighborhood(v => !v)} />
+                <Toggle label="Financial Summary"  active={showFinancials}     onToggle={() => setShowFinancials(v => !v)} />
+                <Toggle label="Location &amp; Media" active={showLocationMedia} onToggle={() => setShowLocationMedia(v => !v)} />
+                <Toggle label="Photos / Images"    active={showImages}         onToggle={() => setShowImages(v => !v)} />
+                <Toggle label="Neighborhood Guide" active={showNeighborhood}   onToggle={() => setShowNeighborhood(v => !v)} />
               </div>
             </div>
           </div>
