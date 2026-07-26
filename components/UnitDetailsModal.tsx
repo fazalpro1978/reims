@@ -164,6 +164,10 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
   onStatusSaved?: (newStatus: Status) => void;
   onAdminLock?: () => void;
 }) {
+  const { role } = useAuth();
+  const isReadOnly = role !== 'superuser' && role !== 'administrator';
+  const [readOnlyAlert, setReadOnlyAlert] = useState<'realtor' | 'zone' | null>(null);
+
   const [realtorName, setRealtorName] = useState(unit.realtorName);
   const [realtorMoci, setRealtorMoci] = useState(unit.realtorMOCI);
   const [propertyName, setPropertyName] = useState(unit.property);
@@ -210,6 +214,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
   }, []);
 
   async function saveNewRealtor() {
+    if (isReadOnly) { setReadOnlyAlert('realtor'); return; }
     if (!newRealtorName.trim()) { setRealtorError('Company name is required.'); return; }
     if (!newRealtorClass) { setRealtorError('Classification is required.'); return; }
     if (realtors.some(r => r.name.toLowerCase() === newRealtorName.trim().toLowerCase())) {
@@ -240,6 +245,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
   }
 
   async function saveNewZone() {
+    if (isReadOnly) { setReadOnlyAlert('zone'); return; }
     const code = Number(newZoneCode);
     const effectiveMuni = newZoneMunicipality === '__new__' ? newZoneCustomMuni.trim() : newZoneMunicipality;
     if (!Number.isInteger(code) || code <= 0) {
@@ -412,6 +418,41 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
         </div>
       )}
 
+      {/* ── Read-Only Intercept Modal (Zone / Realtor mutation attempts) ── */}
+      {readOnlyAlert && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-sm mx-4 bg-[#181818] border border-[#2a2a2a] rounded-2xl shadow-2xl overflow-hidden">
+            <div className="px-5 py-4 bg-[#111] border-b border-[#2a2a2a] flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-[#e0e0e0]">Read-Only Access</p>
+                <p className="text-[11px] text-[#555] mt-0.5">
+                  {readOnlyAlert === 'realtor' ? 'Realtor Information Registry' : 'Zone / District Registry'}
+                </p>
+              </div>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <p className="text-sm text-[#aaa] leading-relaxed">
+                You have <span className="text-[#e0e0e0] font-semibold">view-only</span> access to this registry. Add, edit, and delete actions are restricted to Administrators.
+              </p>
+              <p className="text-[12px] text-[#666]">
+                To create, modify, or remove a {readOnlyAlert === 'realtor' ? 'realtor' : 'zone'} record, please contact your Administrator to process the request.
+              </p>
+              <button
+                onClick={() => setReadOnlyAlert(null)}
+                className="w-full py-2 text-sm font-bold text-[#0f0f0f] bg-[#c9a84c] hover:bg-[#dfc070] rounded-lg transition-colors"
+              >
+                Understood
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <SectionCard title="Identification">
 
         {/* Realtor */}
@@ -424,13 +465,15 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
                 {realtors.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
               </select>
               {!addingRealtor ? (
-                <button
-                  onClick={() => setAddingRealtor(true)}
-                  className="mt-1.5 text-xs text-[#c9a84c] underline underline-offset-2 hover:text-[#dfc070] transition-colors"
-                >
-                  + Add new realtor
-                </button>
-              ) : (
+                isReadOnly ? null : (
+                  <button
+                    onClick={() => setAddingRealtor(true)}
+                    className="mt-1.5 text-xs text-[#c9a84c] underline underline-offset-2 hover:text-[#dfc070] transition-colors"
+                  >
+                    + Add new realtor
+                  </button>
+                )
+              ) : !isReadOnly ? (
                 <div className="mt-2 border border-[#c9a84c]/20 rounded-lg p-3 space-y-2.5 bg-[#0d0d0d]">
                   <p className="text-[10px] font-bold text-[#c9a84c] uppercase tracking-widest">Add New Realtor</p>
 
@@ -480,7 +523,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
                     </button>
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
           }
         />
@@ -551,13 +594,15 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
                 {zones.map(z => <option key={z.zone_code} value={z.district_name}>Zone {z.zone_code} — {z.district_name}</option>)}
               </select>
               {!addingZone ? (
-                <button
-                  onClick={() => setAddingZone(true)}
-                  className="mt-1.5 text-xs text-[#c9a84c] underline underline-offset-2 hover:text-[#dfc070] transition-colors"
-                >
-                  + Add new zone
-                </button>
-              ) : (
+                isReadOnly ? null : (
+                  <button
+                    onClick={() => setAddingZone(true)}
+                    className="mt-1.5 text-xs text-[#c9a84c] underline underline-offset-2 hover:text-[#dfc070] transition-colors"
+                  >
+                    + Add new zone
+                  </button>
+                )
+              ) : !isReadOnly ? (
                 <div className="mt-2 border border-[#c9a84c]/20 rounded-lg p-3 space-y-2.5 bg-[#0d0d0d]">
                   <p className="text-[10px] font-bold text-[#c9a84c] uppercase tracking-widest">Register New Zone</p>
 
@@ -635,7 +680,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
                     </button>
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
           }
         />
