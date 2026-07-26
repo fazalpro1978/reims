@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { authedFetch } from '../lib/authedFetch';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DocUploadRow — reusable document upload + view row
@@ -57,7 +58,7 @@ export default function DocUploadRow({
     form.append('path', `${category}/${safeName}`);
 
     try {
-      const res  = await fetch('/api/upload', { method: 'POST', body: form });
+      const res  = await authedFetch('/api/upload', { method: 'POST', body: form });
       const json = await res.json();
 
       if (!res.ok) {

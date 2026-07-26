@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { authedFetch } from '../lib/authedFetch';
 import TopBar from './TopBar';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -171,7 +172,7 @@ function URLImportPanel({ onImported }: { onImported: (fields: Partial<FormState
     if (!url.trim()) return;
     setLoading(true); setError(''); setOk('');
     try {
-      const res  = await fetch('/api/properties/fetch-url', {
+      const res  = await authedFetch('/api/properties/fetch-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: url.trim() }),

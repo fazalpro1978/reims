@@ -1,5 +1,6 @@
 'use client';
 import React, { useState } from 'react';
+import { authedFetch } from '../lib/authedFetch';
 import TopBar from './TopBar';
 
 type VettedRecord = {
@@ -40,7 +41,7 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
     setPhase('checking');
     setErrorMsg('');
     try {
-      const res = await fetch('/api/ingest/pull', { cache: 'no-store' });
+      const res = await authedFetch('/api/ingest/pull', { cache: 'no-store' });
       const data: PullResult & { error?: string } = await res.json();
       if (!res.ok || data.error) { setErrorMsg(data.error ?? 'Failed to fetch queue'); setPhase('error'); return; }
       setRecords(data.records ?? []);
@@ -54,7 +55,7 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
   async function importAll() {
     setPhase('importing');
     try {
-      const res = await fetch('/api/ingest/apply', {
+      const res = await authedFetch('/api/ingest/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ records }),

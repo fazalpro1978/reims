@@ -847,7 +847,7 @@ function RegisterTab({
     }
     const zone = String(zoneCode).padStart(2, '0');
     const prefix = `${category}${typeCode}${entityCode}${agentCode}${zone}`;
-    fetch(`/api/code-registry/next-seq?prefix=${encodeURIComponent(prefix)}`)
+    authedFetch(`/api/code-registry/next-seq?prefix=${encodeURIComponent(prefix)}`)
       .then(r => r.json())
       .then(d => setNextSeq(d.nextSeq))
       .catch(() => {});
@@ -1776,7 +1776,7 @@ function SearchTab({ options }: { options: Options }) {
       if (dateFrom)    params.set('dateFrom',    dateFrom);
       if (dateTo)      params.set('dateTo',      dateTo);
       if (q)           params.set('q',           q);
-      const res  = await fetch(`/api/code-registry/search?${params}`);
+      const res  = await authedFetch(`/api/code-registry/search?${params}`);
       const json = await res.json();
       setResults(json.data ?? []); setTotal(json.total ?? 0); setPage(p);
     } finally { setLoading(false); }
@@ -2277,7 +2277,7 @@ export default function CodeRegistry({ onMenuClick }: { onMenuClick?: () => void
   const [loadError,  setLoadError]  = useState(false);
 
   useEffect(() => {
-    fetch('/api/code-registry/options')
+    authedFetch('/api/code-registry/options')
       .then(r => r.json())
       .then(setOptions)
       .catch(() => setLoadError(true));

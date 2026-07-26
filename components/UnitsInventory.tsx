@@ -12,6 +12,7 @@ import React, {
   useEffect,
   useCallback,
 } from 'react';
+import { authedFetch } from '../lib/authedFetch';
 import {
   UnitListing,
   Status,
@@ -589,7 +590,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
     }
     setToast({ type: 'success', msg: 'Duplicating…' });
 
-    const res = await fetch('/api/duplicate-unit', {
+    const res = await authedFetch('/api/duplicate-unit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ unitUuid: unit.uuid }),
@@ -637,7 +638,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
     }
     if (!deleteTarget?.uuid) return;
     setDeleting(true);
-    const res = await fetch('/api/delete-unit', {
+    const res = await authedFetch('/api/delete-unit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ unitUuid: deleteTarget.uuid }),

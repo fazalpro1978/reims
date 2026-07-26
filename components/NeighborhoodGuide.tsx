@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { authedFetch } from '../lib/authedFetch';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -294,7 +295,7 @@ export default function NeighborhoodGuide({
     setSaving(true);
     setSaveMsg('');
     try {
-      const res = await fetch('/api/neighborhood', {
+      const res = await authedFetch('/api/neighborhood', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ unitUuid, zoneCode, isZoneLevel: asZoneLevel, lifestyle: guide.lifestyle, parks: guide.parks, commute: guide.commute }),

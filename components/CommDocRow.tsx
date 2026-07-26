@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { authedFetch } from '../lib/authedFetch';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CommDocRow — document row for Commission & Legal tab
@@ -71,7 +72,7 @@ export default function CommDocRow({
     form.append('file', file);
     form.append('path', `${category}/${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`);
     try {
-      const res  = await fetch('/api/upload', { method: 'POST', body: form });
+      const res  = await authedFetch('/api/upload', { method: 'POST', body: form });
       const json = await res.json();
       if (!res.ok) { setErrMsg(json.error ?? 'Upload failed'); setUpload('error'); return; }
       onChange({ ...doc, path: json.path, name: file.name });

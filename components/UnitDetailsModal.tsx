@@ -219,7 +219,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
     setRealtorSaving(true);
     setRealtorError('');
     try {
-      const res = await fetch('/api/realtors', {
+      const res = await authedFetch('/api/realtors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newRealtorName.trim(), classification: newRealtorClass }),
@@ -265,7 +265,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
     setZoneSaving(true);
     setZoneError('');
     try {
-      const res = await fetch('/api/zones', {
+      const res = await authedFetch('/api/zones', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ zone_code: code, district_name: newZoneName.trim(), municipality: effectiveMuni }),
@@ -335,7 +335,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
     setSaveError('');
 
     // Use service-role API route to bypass Supabase RLS on the units table
-    const res = await fetch('/api/save-unit', {
+    const res = await authedFetch('/api/save-unit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -367,7 +367,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
     }
 
     // Amenities saved separately — column may not exist in all environments; never blocks main save
-    fetch('/api/save-unit', {
+    authedFetch('/api/save-unit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ unitUuid, fields: { amenities } }),
@@ -961,7 +961,7 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   const handleSave = async () => {
     setSaveStatus('saving');
     setSaveError('');
-    const res = await fetch('/api/save-unit', {
+    const res = await authedFetch('/api/save-unit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1404,7 +1404,7 @@ function LegalDurationSection({ unit, unitUuid }: { unit: UnitListing; unitUuid:
     setSaveStatus('saving');
     setSaveError('');
     const legalDuration = `${durationValue} ${durationUnit}`;
-    const res = await fetch('/api/save-unit', {
+    const res = await authedFetch('/api/save-unit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1614,7 +1614,7 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
     }, { onConflict: 'unit_id' });
     if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
     // moci_contract_number lives on units — use service-role API to bypass RLS
-    const res = await fetch('/api/save-unit', {
+    const res = await authedFetch('/api/save-unit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

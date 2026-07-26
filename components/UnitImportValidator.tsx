@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
+import { authedFetch } from '../lib/authedFetch';
 import {
   MASTER_FIELDS, BATCH_FIELDS, castAndValidateField, slugifyProperty, toDbRow,
 } from '@/lib/importSchema';
@@ -60,7 +61,7 @@ export default function UnitImportValidator({ payload, onReset }: { payload: Map
   useEffect(() => {
     (async () => {
       try {
-        const optsRes = await fetch('/api/code-registry/options');
+        const optsRes = await authedFetch('/api/code-registry/options');
         const opts = await optsRes.json();
         const zoneMap = new Map<number, string>(
           (opts.zones ?? []).map((z: { zone_code: number; district_name: string }) => [z.zone_code, z.district_name]),

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import TopBar from './TopBar';
 import UnitDetailsModal from './UnitDetailsModal';
 import { supabase } from '../lib/supabase/client';
+import { authedFetch } from '../lib/authedFetch';
 import { generatePublicShareText } from '../lib/shareUtils';
 import {
   UnitListing, UnitType, Furnishing, Status,
@@ -1332,7 +1333,7 @@ function NotificationsPanel() {
 
   const load = async () => {
     setLoading(true);
-    const res  = await fetch('/api/notifications');
+    const res  = await authedFetch('/api/notifications');
     const data = await res.json();
     setNotifs(data.notifications ?? []);
     setLoading(false);
@@ -1341,7 +1342,7 @@ function NotificationsPanel() {
   useEffect(() => { load(); }, []);
 
   const markRead = async (ids?: string[]) => {
-    await fetch('/api/notifications', {
+    await authedFetch('/api/notifications', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(ids ? { ids } : { markAll: true }),
@@ -1427,14 +1428,14 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
 
   const loadAgents = async () => {
     try {
-      const res  = await fetch('/api/code-registry/options');
+      const res  = await authedFetch('/api/code-registry/options');
       const data = await res.json();
       setAgents(data.agents ?? []);
     } catch { /* non-critical */ }
   };
 
   const loadUnread = async () => {
-    const res  = await fetch('/api/notifications?unread=true');
+    const res  = await authedFetch('/api/notifications?unread=true');
     const data = await res.json();
     setUnreadCount(data.unreadCount ?? 0);
   };
