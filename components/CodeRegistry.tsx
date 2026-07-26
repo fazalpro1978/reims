@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { authedFetch } from '../lib/authedFetch';
 import * as XLSX from 'xlsx';
 import { PROPERTY_MATRIX, CONFIGURATION_REGEX } from '../lib/propertySchema';
 import TopBar from './TopBar';
@@ -2134,7 +2135,7 @@ function RealtorRegistryTab() {
   const [toast,    setToast]        = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
-    fetch('/api/realtors')
+    authedFetch('/api/realtors')
       .then(r => r.json())
       .then(d => setRealtors(d.realtors ?? []))
       .catch(() => setErr('Failed to load realtors.'))
@@ -2150,7 +2151,7 @@ function RealtorRegistryTab() {
     }
     setSaving(true); setErr('');
     try {
-      const res = await fetch('/api/realtors', {
+      const res = await authedFetch('/api/realtors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newName.trim(), classification: newClass }),

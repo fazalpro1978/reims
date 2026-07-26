@@ -8,6 +8,7 @@
 import React, { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
+import { authedFetch } from '../lib/authedFetch';
 
 interface SideNavProps {
   open: boolean;
@@ -245,7 +246,7 @@ function AddRealtorModal({ onClose }: { onClose: () => void }) {
     if (!cls)         { setErr('Classification is required.'); return; }
     setSaving(true); setErr('');
     try {
-      const res  = await fetch('/api/realtors', {
+      const res  = await authedFetch('/api/realtors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim(), classification: cls }),

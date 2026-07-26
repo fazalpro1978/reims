@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import TopBar from './TopBar';
+import { authedFetch } from '../lib/authedFetch';
 
 const QATAR_MUNICIPALITIES = [
   'Doha', 'Al Rayyan', 'Lusail', 'Al Wakrah',
@@ -72,7 +73,7 @@ export default function ZoneRegistry({ onMenuClick }: { onMenuClick?: () => void
   const editPreview = editCode && editDistrict.trim() ? `Zone ${editCode} — ${editDistrict.trim()}` : null;
 
   useEffect(() => {
-    fetch('/api/zones')
+    authedFetch('/api/zones')
       .then(r => r.json())
       .then(d => setZones(d.zones ?? []))
       .finally(() => setLoading(false));
@@ -126,7 +127,7 @@ export default function ZoneRegistry({ onMenuClick }: { onMenuClick?: () => void
     if (!editDistrict.trim()) { setEditErr('District Name is required.'); return; }
     setEditSaving(true); setEditErr('');
     try {
-      const res  = await fetch('/api/zones', {
+      const res  = await authedFetch('/api/zones', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ zone_code: editCode, district_name: editDistrict.trim(), municipality: editEffMuni }),
       });
@@ -145,7 +146,7 @@ export default function ZoneRegistry({ onMenuClick }: { onMenuClick?: () => void
     if (deleteCode === null) return;
     setDeleting(true);
     try {
-      const res  = await fetch('/api/zones', {
+      const res  = await authedFetch('/api/zones', {
         method: 'DELETE', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ zone_code: deleteCode }),
       });

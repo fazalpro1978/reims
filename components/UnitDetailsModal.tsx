@@ -16,6 +16,7 @@ import { UNIT_CONFIGS_FULL } from '../lib/propertySchema';
 import DocUploadRow from './DocUploadRow';
 import CommDocRow, { DocEntry } from './CommDocRow';
 import NeighborhoodGuide from './NeighborhoodGuide';
+import { authedFetch } from '../lib/authedFetch';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -200,10 +201,10 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
   const [zoneError, setZoneError] = useState('');
 
   useEffect(() => {
-    fetch('/api/realtors').then(r => r.json()).then(d => {
+    authedFetch('/api/realtors').then(r => r.json()).then(d => {
       if (d.realtors) setRealtors(d.realtors.map((r: { id: string; name: string; moci_id: string | null; classification?: string }) => ({ id: r.id, name: r.name, moci: r.moci_id ?? '', classification: r.classification ?? '' })));
     });
-    fetch('/api/zones').then(r => r.json()).then(d => {
+    authedFetch('/api/zones').then(r => r.json()).then(d => {
       if (d.zones) setZones(d.zones);
     });
   }, []);

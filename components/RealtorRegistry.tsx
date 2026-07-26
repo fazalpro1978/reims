@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import TopBar from './TopBar';
+import { authedFetch } from '../lib/authedFetch';
 
 const CLASSIFICATIONS = [
   'Semi-Government & Master Developer',
@@ -70,7 +71,7 @@ export default function RealtorRegistry({ onMenuClick }: { onMenuClick?: () => v
   const [deleting,   setDeleting]   = useState(false);
 
   useEffect(() => {
-    fetch('/api/realtors')
+    authedFetch('/api/realtors')
       .then(r => r.json())
       .then(d => setRealtors(d.realtors ?? []))
       .finally(() => setLoading(false));
@@ -90,7 +91,7 @@ export default function RealtorRegistry({ onMenuClick }: { onMenuClick?: () => v
     }
     setSaving(true); setErr('');
     try {
-      const res  = await fetch('/api/realtors', {
+      const res  = await authedFetch('/api/realtors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim(), classification: cls }),
@@ -115,7 +116,7 @@ export default function RealtorRegistry({ onMenuClick }: { onMenuClick?: () => v
     if (!editCls)         { setEditErr('Classification is required.'); return; }
     setEditSaving(true); setEditErr('');
     try {
-      const res  = await fetch('/api/realtors', {
+      const res  = await authedFetch('/api/realtors', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: editId, name: editName.trim(), classification: editCls, moci_id: editMoci || null }),
@@ -137,7 +138,7 @@ export default function RealtorRegistry({ onMenuClick }: { onMenuClick?: () => v
     const target = realtors.find(r => r.id === deleteId);
     setDeleting(true);
     try {
-      const res  = await fetch('/api/realtors', {
+      const res  = await authedFetch('/api/realtors', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: deleteId }),
