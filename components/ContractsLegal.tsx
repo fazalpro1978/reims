@@ -2,6 +2,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import TopBar from './TopBar';
 import { mimeLabel, isPreviewable } from '@/lib/mimeUtils';
+import { useAuth } from '@/contexts/AuthContext';
+import { authedFetch } from '@/lib/authedFetch';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -126,9 +128,101 @@ function PreviewModal({ contract, onClose }: { contract: Contract; onClose: () =
   );
 }
 
+// ─── Staff PIN Gate ──────────────────────────────────────────────────────────
+
+function StaffPinGate({ onUnlocked, onMenuClick }: { onUnlocked: () => void; onMenuClick?: () => void }) {
+  const [pin, setPin]           = useState('');
+  const [error, setError]       = useState('');
+  const [checking, setChecking] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!pin.trim()) return;
+    setChecking(true);
+    setError('');
+    try {
+      const res = await authedFetch('/api/verify-pin', {
+        method: 'POST',
+        body: JSON.stringify({ pin }),
+      });
+      if (res.ok) {
+        onUnlocked();
+      } else {
+        setError('Incorrect PIN. Contact your Administrator.');
+      }
+    } catch {
+      setError('Verification failed. Try again.');
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  return (
+    <>
+      <TopBar onMenuClick={onMenuClick} />
+      <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-6">
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <div className="w-full max-w-sm bg-[#111] border border-[#1e1e1e] rounded-2xl shadow-2xl overflow-hidden">
+
+            {/* Header */}
+            <div className="px-6 py-5 bg-[#0d0d0d] border-b border-[#1e1e1e] flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-[#e0e0e0]">Admin Authorisation Required</p>
+                <p className="text-[11px] text-[#555] mt-0.5">Contracts &amp; Legal is restricted to authorised personnel</p>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5 space-y-4">
+              <div>
+                <label className="block text-xs text-[#555] uppercase tracking-wider mb-2">Administrator PIN</label>
+                <input
+                  type="password"
+                  value={pin}
+                  onChange={e => { setPin(e.target.value); setError(''); }}
+                  onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+                  placeholder="Enter PIN to unlock"
+                  maxLength={12}
+                  autoFocus
+                  className="w-full px-3 py-2.5 text-sm text-[#e0e0e0] bg-[#0d0d0d] border border-[#2a2a2a] rounded-lg focus:outline-none focus:border-amber-500/60 placeholder-[#333] tracking-widest"
+                />
+                {error && (
+                  <p className="mt-2 text-[11px] text-red-400">{error}</p>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={checking || !pin.trim()}
+                className="w-full py-2.5 text-sm font-bold text-[#0f0f0f] bg-amber-500 hover:bg-amber-400 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {checking ? 'Verifying…' : 'Authorise Access'}
+              </button>
+
+              <p className="text-center text-[11px] text-[#444]">
+                Contact your Administrator if you do not have the PIN.
+              </p>
+            </div>
+
+          </div>
+        </div>
+      </main>
+    </>
+  );
+}
+
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export default function ContractsLegal({ onMenuClick }: { onMenuClick?: () => void }) {
+  const { role } = useAuth();
+  const isStaff = role === 'staff';
+  const [pinVerified, setPinVerified] = useState(false);
+
   const [contracts, setContracts]     = useState<Contract[]>([]);
   const [loading, setLoading]         = useState(true);
   const [syncing, setSyncing]         = useState(false);
@@ -136,6 +230,11 @@ export default function ContractsLegal({ onMenuClick }: { onMenuClick?: () => vo
   const [search, setSearch]           = useState('');
   const [mimeFilter, setMimeFilter]   = useState<MimeFilter>('');
   const [preview, setPreview]         = useState<Contract | null>(null);
+
+  // Block staff until PIN verified
+  if (isStaff && !pinVerified) {
+    return <StaffPinGate onUnlocked={() => setPinVerified(true)} onMenuClick={onMenuClick} />;
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
