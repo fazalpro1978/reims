@@ -201,8 +201,7 @@ export default function UserManagement() {
       </div>
 
       <p className="text-[11px] text-[#444] mt-4">
-        To invite new users, go to the Supabase Dashboard → Authentication → Users → Invite User.
-        Their profile is created automatically on first sign-in.
+        Only Superuser is authorised to invite new users.
       </p>
     </div>
   );
