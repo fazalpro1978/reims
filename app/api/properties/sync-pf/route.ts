@@ -171,7 +171,7 @@ export async function POST() {
       .insert(newRows)
       .select('id');
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
 
     return NextResponse.json({ synced: data?.length ?? 0, total_found: urls.length });
   } catch (err) {

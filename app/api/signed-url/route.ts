@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     .createSignedUrl(path, 3600);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Database error' }, { status: 500 });
   }
 
   return NextResponse.json({ signedUrl: data.signedUrl });

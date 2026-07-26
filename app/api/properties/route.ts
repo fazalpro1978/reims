@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   if (status      && status      !== 'all') q = q.eq('status', status);
 
   const { data, error } = await q;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
   return NextResponse.json({ properties: data ?? [] });
 }
 
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       .select('*')
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
     return NextResponse.json({ property: data }, { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Create failed' }, { status: 500 });

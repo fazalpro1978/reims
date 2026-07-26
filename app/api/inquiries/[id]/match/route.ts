@@ -83,6 +83,6 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     .order('match_tier', { ascending: true })
     .order('match_score', { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
   return NextResponse.json({ matches: data ?? [] });
 }

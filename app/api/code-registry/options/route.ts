@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/serverAuth';
 
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -12,7 +13,9 @@ async function getAll(path: string) {
   return Array.isArray(d) ? d : [];
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
+  if (!auth.ok) return auth.response;
   const [configs, entities, agents, zones] = await Promise.all([
     getAll('cr_property_type_configs?select=*&order=core_type,sub_type,configuration'),
     getAll('cr_entity_codes?select=*&order=company_name'),

@@ -8,7 +8,7 @@ const admin = createClient(
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const { data, error } = await admin.from('properties').select('*').eq('id', params.id).single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 404 });
+  if (error) return NextResponse.json({ error: 'Database error' }, { status: 404 });
   return NextResponse.json({ property: data });
 }
 
@@ -33,7 +33,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       .select('*')
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
     return NextResponse.json({ property: data });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Update failed' }, { status: 500 });
@@ -42,6 +42,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   const { error } = await admin.from('properties').delete().eq('id', params.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   if (agent)                      query = query.eq('assigned_agent', agent);
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
   return NextResponse.json({ inquiries: data ?? [] });
 }
 
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
       .select('*')
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
 
     // Fire notification asynchronously — never block the inquiry response on this.
     void Promise.resolve(

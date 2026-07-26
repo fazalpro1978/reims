@@ -1,9 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/serverAuth';
 
 const INGEST_URL = process.env.INGEST_SERVICE_URL ?? 'https://d-inges.vercel.app';
 const INGEST_KEY = process.env.INGEST_API_KEY ?? '';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req, ['superuser', 'administrator']);
+  if (!auth.ok) return auth.response;
   if (!INGEST_KEY) {
     return NextResponse.json({ error: 'INGEST_API_KEY is not configured on this server.' }, { status: 503 });
   }

@@ -26,7 +26,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       .select('*')
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
     return NextResponse.json({ match: data });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Shortlist failed' }, { status: 500 });

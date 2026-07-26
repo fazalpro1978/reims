@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAuth } from '@/lib/serverAuth';
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -7,6 +8,9 @@ const admin = createClient(
 );
 
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
+  if (!auth.ok) return auth.response;
+
   const unreadOnly = req.nextUrl.searchParams.get('unread') === 'true';
 
   let query = admin
@@ -18,7 +22,7 @@ export async function GET(req: NextRequest) {
   if (unreadOnly) query = query.eq('is_read', false);
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
 
   const unreadCount = (data ?? []).filter((n: { is_read: boolean }) => !n.is_read).length;
   return NextResponse.json({ notifications: data ?? [], unreadCount });

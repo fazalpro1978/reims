@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/serverAuth';
 
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -40,6 +41,9 @@ async function sbPatch(path: string, body: unknown) {
 }
 
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff', 'agent']);
+  if (!auth.ok) return auth.response;
+
   const { searchParams } = new URL(req.url);
   const unitUuid = searchParams.get('unitUuid') ?? '';
   const zoneCode = searchParams.get('zoneCode') ?? '0';

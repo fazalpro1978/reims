@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
     .from('realtors')
     .select('id, name, moci_id, classification')
     .order('name');
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
   return NextResponse.json({ realtors: data ?? [] });
 }
 
@@ -80,7 +80,7 @@ export async function PUT(req: NextRequest) {
   const { data, error } = await admin
     .from('realtors').update(row).eq('id', id)
     .select('id, name, moci_id, classification').single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
   // Sync update into cr_entity_codes too
   await admin.from('cr_entity_codes')
     .update({ company_name: row.name, classification: row.classification || 'Independent' })
@@ -95,7 +95,7 @@ export async function DELETE(req: NextRequest) {
   const { id } = await req.json() as { id?: string };
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
   const { error } = await admin.from('realtors').delete().eq('id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
 
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = id
     ? await admin.from('realtors').update(row).eq('id', id).select('id, name, moci_id, classification').single()
     : await admin.from('realtors').insert(row).select('id, name, moci_id, classification').single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
 
   // Dual-write: sync new realtor into cr_entity_codes for Code Registry
   if (!id) {

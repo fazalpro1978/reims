@@ -2198,11 +2198,10 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'operational', label: 'Operational' },
 ];
 
-const ADMIN_PIN = '974902';
-
 export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProps) {
   const { role } = useAuth();
   const isAgent = role === 'agent';
+  const canAdminUnlock = role === 'superuser' || role === 'administrator';
 
   // Agents cannot see financials or commission details
   const visibleTabs = isAgent
@@ -2217,21 +2216,14 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
   const [internalToast, setInternalToast] = useState(false);
   const [copyFocal, setCopyFocal] = useState({ name: '', phone: '', email: '', operatorRemarks: '' });
 
-  // Admin mode — unlocks MOCI License and Unit Number editing
+  // Admin mode — role-based unlock (SU/AD unlock immediately; others cannot unlock)
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminDialog, setShowAdminDialog] = useState(false);
-  const [adminPin, setAdminPin] = useState('');
-  const [pinError, setPinError] = useState('');
 
   const handleAdminUnlock = () => {
-    if (adminPin === ADMIN_PIN) {
+    if (canAdminUnlock) {
       setIsAdmin(true);
       setShowAdminDialog(false);
-      setAdminPin('');
-      setPinError('');
-    } else {
-      setPinError('Incorrect PIN. Access denied.');
-      setAdminPin('');
     }
   };
 
@@ -2483,54 +2475,45 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
           {activeTab === 'operational' && <OperationalTab unit={unit} unitUuid={unitUuid} />}
         </div>
 
-        {/* ── Admin PIN Dialog ── */}
+        {/* ── Admin Unlock Dialog — role-based, no PIN ── */}
         {showAdminDialog && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
             <div className="w-full max-w-xs mx-4 bg-[#181818] border border-[#2a2a2a] rounded-2xl shadow-2xl overflow-hidden">
               <div className="px-5 py-4 bg-[#111111] border-b border-[#2a2a2a] flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
-                  <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${canAdminUnlock ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-red-500/10 border border-red-500/20'}`}>
+                  <svg className={`w-4 h-4 ${canAdminUnlock ? 'text-amber-400' : 'text-red-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-[#e0e0e0]">Admin Access Required</p>
-                  <p className="text-[11px] text-[#555555] mt-0.5">Enter PIN to unlock restricted fields</p>
+                  <p className="text-sm font-semibold text-[#e0e0e0]">
+                    {canAdminUnlock ? 'Unlock Restricted Fields' : 'Access Denied'}
+                  </p>
+                  <p className="text-[11px] text-[#555555] mt-0.5">
+                    {canAdminUnlock
+                      ? `Logged in as ${role} — click Unlock to proceed`
+                      : 'Superuser or Administrator role required'}
+                  </p>
                 </div>
               </div>
-              <div className="px-5 py-4 space-y-3">
-                <input
-                  type="password"
-                  placeholder="Enter admin PIN…"
-                  value={adminPin}
-                  onChange={e => { setAdminPin(e.target.value); setPinError(''); }}
-                  onKeyDown={e => { if (e.key === 'Enter') handleAdminUnlock(); if (e.key === 'Escape') { setShowAdminDialog(false); setAdminPin(''); setPinError(''); } }}
-                  autoFocus
-                  className="w-full text-sm text-[#d0d0d0] bg-[#0d0d0d] border border-[#333333] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 placeholder:text-[#444444] font-mono tracking-widest"
-                />
-                {pinError && (
-                  <p className="text-xs text-red-400 flex items-center gap-1.5">
-                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                      <circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 8v4M12 16h.01" />
-                    </svg>
-                    {pinError}
-                  </p>
-                )}
-                <div className="flex gap-2 pt-1">
+              <div className="px-5 py-4">
+                <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => { setShowAdminDialog(false); setAdminPin(''); setPinError(''); }}
+                    onClick={() => setShowAdminDialog(false)}
                     className="flex-1 py-2 text-sm font-medium text-[#666666] bg-[#1e1e1e] border border-[#2a2a2a] rounded-lg hover:bg-[#252525] hover:text-[#aaaaaa] transition-colors"
                   >
                     Cancel
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleAdminUnlock}
-                    className="flex-1 py-2 text-sm font-bold text-[#0f0f0f] bg-amber-500 hover:bg-amber-400 rounded-lg transition-colors"
-                  >
-                    Unlock
-                  </button>
+                  {canAdminUnlock && (
+                    <button
+                      type="button"
+                      onClick={handleAdminUnlock}
+                      className="flex-1 py-2 text-sm font-bold text-[#0f0f0f] bg-amber-500 hover:bg-amber-400 rounded-lg transition-colors"
+                    >
+                      Unlock
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

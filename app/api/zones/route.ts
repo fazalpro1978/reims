@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAuth } from '../../../lib/serverAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,12 +9,15 @@ const admin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
+  if (!auth.ok) return auth.response;
+
   const { data, error } = await admin
     .from('cr_zone_codes')
     .select('zone_code, district_name, municipality')
     .order('zone_code');
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Failed to load zones' }, { status: 500 });
   return NextResponse.json({ zones: data ?? [] });
 }
 
@@ -34,7 +38,7 @@ export async function PUT(req: NextRequest) {
     .eq('zone_code', zoneCode)
     .select('zone_code, district_name, municipality')
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
   return NextResponse.json({ zone: data });
 }
 
@@ -45,7 +49,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'zone_code is required' }, { status: 400 });
   }
   const { error } = await admin.from('cr_zone_codes').delete().eq('zone_code', zoneCode);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
 
@@ -74,6 +78,6 @@ export async function POST(req: NextRequest) {
     .upsert(row, { onConflict: 'zone_code' })
     .select('zone_code, district_name, municipality')
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
   return NextResponse.json({ zone: data });
 }

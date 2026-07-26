@@ -1,7 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { MASTER_FIELDS } from '@/lib/importSchema';
+import { requireAuth } from '@/lib/serverAuth';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
+  if (!auth.ok) return auth.response;
   const header = MASTER_FIELDS.map((f) => f.key).join(',');
   const csv = `${header}\n`;
 
