@@ -220,7 +220,7 @@ function StaffPinGate({ onUnlocked, onMenuClick }: { onUnlocked: () => void; onM
 
 export default function ContractsLegal({ onMenuClick }: { onMenuClick?: () => void }) {
   const { role } = useAuth();
-  const isStaff = role === 'staff';
+  const needsPin = role !== 'superuser' && role !== 'administrator';
   const [pinVerified, setPinVerified] = useState(false);
 
   const [contracts, setContracts]     = useState<Contract[]>([]);
@@ -231,8 +231,8 @@ export default function ContractsLegal({ onMenuClick }: { onMenuClick?: () => vo
   const [mimeFilter, setMimeFilter]   = useState<MimeFilter>('');
   const [preview, setPreview]         = useState<Contract | null>(null);
 
-  // Block staff until PIN verified
-  if (isStaff && !pinVerified) {
+  // All non-SU/AD roles blocked until PIN verified
+  if (needsPin && !pinVerified) {
     return <StaffPinGate onUnlocked={() => setPinVerified(true)} onMenuClick={onMenuClick} />;
   }
 
