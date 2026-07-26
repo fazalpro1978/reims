@@ -6,11 +6,24 @@
 
 import React, { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 import {
   Theme, ThemeId,
   CORPORATE_THEMES, MOTORSPORT_THEMES,
   WINDOWS_STANDARD_THEMES, WINDOWS_HC_THEMES, UNIX_THEMES,
 } from '../lib/theme/themes';
+
+// Themes only superusers may see
+const SUPERUSER_ONLY_THEMES = new Set([
+  'prive-group',
+  'tech-amethyst',
+  'windows-glow',
+  'windows-sunrise',
+  'windows-flow',
+  'hc-dusk',
+  'unix-gnome',
+  'unix-kde',
+]);
 
 // ── ThemePanel ────────────────────────────────────────────────────────────────
 // Self-contained panel (no button). Drop it anywhere — inside a dropdown,
@@ -18,6 +31,16 @@ import {
 
 export function ThemePanel({ onClose }: { onClose?: () => void }) {
   const { theme: current, setTheme } = useTheme();
+  const { user } = useAuth();
+  const isSuperuser = user?.role === 'superuser';
+
+  const allow = (t: Theme) => isSuperuser || !SUPERUSER_ONLY_THEMES.has(t.id);
+
+  const corporate       = CORPORATE_THEMES.filter(allow);
+  const motorsport      = MOTORSPORT_THEMES.filter(allow);
+  const windowsStandard = WINDOWS_STANDARD_THEMES.filter(allow);
+  const windowsHc       = WINDOWS_HC_THEMES.filter(allow);
+  const unix            = UNIX_THEMES.filter(allow);
 
   const select = (id: ThemeId) => {
     setTheme(id);
@@ -25,11 +48,11 @@ export function ThemePanel({ onClose }: { onClose?: () => void }) {
   };
 
   const CATEGORY_BADGE: Record<string, string> = {
-    corporate:        'Corp',
-    motorsport:       'Sport',
+    corporate:          'Corp',
+    motorsport:         'Sport',
     'windows-standard': 'Win',
-    'windows-hc':     'HC',
-    unix:             'Unix',
+    'windows-hc':       'HC',
+    unix:               'Unix',
   };
 
   return (
@@ -69,45 +92,61 @@ export function ThemePanel({ onClose }: { onClose?: () => void }) {
       </div>
 
       {/* ── Corporate Tiers ─────────────────────────────────────────────────── */}
-      <SectionHeader label="Corporate Tiers" />
-      {CORPORATE_THEMES.map(t => (
-        <ThemeRow key={t.id} theme={t} active={current.id === t.id} onSelect={() => select(t.id as ThemeId)} />
-      ))}
-
-      <Divider />
+      {corporate.length > 0 && (
+        <>
+          <SectionHeader label="Corporate Tiers" />
+          {corporate.map(t => (
+            <ThemeRow key={t.id} theme={t} active={current.id === t.id} onSelect={() => select(t.id as ThemeId)} />
+          ))}
+          <Divider />
+        </>
+      )}
 
       {/* ── Motorsport Dashboard ─────────────────────────────────────────────── */}
-      <SectionHeader label="Motorsport Dashboard" />
-      {MOTORSPORT_THEMES.map(t => (
-        <ThemeRow key={t.id} theme={t} active={current.id === t.id} onSelect={() => select(t.id as ThemeId)} />
-      ))}
-
-      <Divider />
+      {motorsport.length > 0 && (
+        <>
+          <SectionHeader label="Motorsport Dashboard" />
+          {motorsport.map(t => (
+            <ThemeRow key={t.id} theme={t} active={current.id === t.id} onSelect={() => select(t.id as ThemeId)} />
+          ))}
+          <Divider />
+        </>
+      )}
 
       {/* ── Windows Core Standard ────────────────────────────────────────────── */}
-      <SectionHeader label="Windows Core Standard" icon="windows" />
-      {WINDOWS_STANDARD_THEMES.map(t => (
-        <ThemeRow key={t.id} theme={t} active={current.id === t.id} onSelect={() => select(t.id as ThemeId)} />
-      ))}
-
-      <Divider />
+      {windowsStandard.length > 0 && (
+        <>
+          <SectionHeader label="Windows Core Standard" icon="windows" />
+          {windowsStandard.map(t => (
+            <ThemeRow key={t.id} theme={t} active={current.id === t.id} onSelect={() => select(t.id as ThemeId)} />
+          ))}
+          <Divider />
+        </>
+      )}
 
       {/* ── Windows High-Contrast Accessibility ─────────────────────────────── */}
-      <SectionHeader label="High-Contrast Accessibility" icon="accessibility" />
-      {WINDOWS_HC_THEMES.map(t => (
-        <ThemeRow key={t.id} theme={t} active={current.id === t.id} onSelect={() => select(t.id as ThemeId)} />
-      ))}
-
-      <Divider />
+      {windowsHc.length > 0 && (
+        <>
+          <SectionHeader label="High-Contrast Accessibility" icon="accessibility" />
+          {windowsHc.map(t => (
+            <ThemeRow key={t.id} theme={t} active={current.id === t.id} onSelect={() => select(t.id as ThemeId)} />
+          ))}
+          {unix.length > 0 && <Divider />}
+        </>
+      )}
 
       {/* ── Cairo Shell — Unix Workstation ───────────────────────────────────── */}
-      <SectionHeader label="Cairo Shell · Unix Workstation" icon="unix" />
-      <p className="px-4 pb-1 text-[10px] leading-snug" style={{ color: 'var(--text-dimmest)' }}>
-        Activates a shell overlay (top panel + dock or taskbar) simulating GNOME or KDE.
-      </p>
-      {UNIX_THEMES.map(t => (
-        <ThemeRow key={t.id} theme={t} active={current.id === t.id} onSelect={() => select(t.id as ThemeId)} />
-      ))}
+      {unix.length > 0 && (
+        <>
+          <SectionHeader label="Cairo Shell · Unix Workstation" icon="unix" />
+          <p className="px-4 pb-1 text-[10px] leading-snug" style={{ color: 'var(--text-dimmest)' }}>
+            Activates a shell overlay (top panel + dock or taskbar) simulating GNOME or KDE.
+          </p>
+          {unix.map(t => (
+            <ThemeRow key={t.id} theme={t} active={current.id === t.id} onSelect={() => select(t.id as ThemeId)} />
+          ))}
+        </>
+      )}
 
       {/* Footer */}
       <div className="px-4 py-2.5" style={{ borderTop: '1px solid var(--border-faint)' }}>
