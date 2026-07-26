@@ -71,9 +71,13 @@ CREATE TRIGGER trg_inquiry_status_changed_at
   FOR EACH ROW EXECUTE FUNCTION public.set_inquiry_status_changed_at();
 
 -- ── 5. AFTER trigger — appends immutable history row on every transition ─────
+-- SECURITY DEFINER: runs as function owner (postgres) regardless of calling role,
+-- so RLS / role restrictions on inquiry_status_history never block the insert.
+
+GRANT SELECT, INSERT ON public.inquiry_status_history TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.log_inquiry_status_change()
-RETURNS TRIGGER LANGUAGE plpgsql AS $$
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
   IF (TG_OP = 'INSERT') OR (OLD.status IS DISTINCT FROM NEW.status) THEN
     INSERT INTO public.inquiry_status_history (inquiry_id, from_status, to_status, changed_by)

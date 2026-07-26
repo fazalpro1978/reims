@@ -253,7 +253,7 @@ CREATE INDEX IF NOT EXISTS idx_unit_documents_unit ON unit_documents (unit_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_unit      ON audit_log (unit_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_time      ON audit_log (changed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_log_unit_id
-  ON audit_log (unit_id, created_at DESC);
+  ON audit_log (unit_id, changed_at DESC);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 4. ROW LEVEL SECURITY

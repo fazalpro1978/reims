@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAuth } from '../../../../lib/serverAuth';
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -71,6 +72,9 @@ function toUnitRow(raw: Record<string, unknown>): Record<string, unknown> {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req, ['superuser', 'administrator']);
+  if (!auth.ok) return auth.response;
+
   try {
     const { records } = (await req.json()) as { records: VettedRecord[] };
     if (!Array.isArray(records) || records.length === 0) {

@@ -32,6 +32,7 @@ ALTER TABLE cr_sequence_counters
 -- New prefix: category(1) + type(2) + entity(3) + agent(2) + zone(2) = 10 chars
 -- New code:   prefix(10) + seq(4) = 14 chars
 -- Sequence starts at 0001 per unique prefix combination
+DROP FUNCTION IF EXISTS cr_generate_smart_code(text,text,text,integer,text,text,text,text);
 CREATE OR REPLACE FUNCTION cr_generate_smart_code(
   p_type_code     TEXT,
   p_entity_code   TEXT,

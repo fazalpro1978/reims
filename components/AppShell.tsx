@@ -2,6 +2,7 @@
 import { createContext, useContext, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import SideNav from './SideNav';
+import { useAuth } from '../contexts/AuthContext';
 
 // ── Nav context ───────────────────────────────────────────────────────────────
 
@@ -14,6 +15,20 @@ export const useNav = () => useContext(NavContext);
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [navOpen, setNavOpen] = useState(false);
   const pathname = usePathname();
+  const { loading, user } = useAuth();
+
+  // During auth check, show nothing (AuthContext redirects unauthenticated users)
+  const isPublicRoute = pathname?.startsWith('/login') || pathname?.startsWith('/report');
+  if (loading && !isPublicRoute) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-[#c9a84c]/30 border-t-[#c9a84c] animate-spin" />
+          <p className="text-[#555] text-xs">Loading…</p>
+        </div>
+      </div>
+    );
+  }
 
   // Report pages render bare — no chrome
   if (pathname?.startsWith('/report')) {

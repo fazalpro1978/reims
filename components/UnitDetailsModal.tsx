@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { UnitListing, Status, Furnishing, KitchenType, UnitType } from '../types/inventory';
+import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase/client';
 import { logEvent } from '../lib/auditLog';
 import { DurationUnit, parseLegalDuration, calcEndDate, calcDurationFromDates } from '../lib/legalDuration';
@@ -2197,9 +2198,17 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'operational', label: 'Operational' },
 ];
 
-const ADMIN_PIN = 'PRIVE2024';
+const ADMIN_PIN = '974902';
 
 export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProps) {
+  const { role } = useAuth();
+  const isAgent = role === 'agent';
+
+  // Agents cannot see financials or commission details
+  const visibleTabs = isAgent
+    ? TABS.filter(t => t.id !== 'financials' && t.id !== 'commission')
+    : TABS;
+
   const [activeTab, setActiveTab] = useState<TabId>('property');
   const [visible, setVisible] = useState(false);
   const [unitUuid, setUnitUuid] = useState('');
@@ -2445,7 +2454,7 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
         {/* ── Tab Navigation ── */}
         <div className="shrink-0 border-b border-[#2a2a2a] bg-[#181818] px-6">
           <nav className="flex gap-1 overflow-x-auto" role="tablist">
-            {TABS.map((tab, i) => (
+            {visibleTabs.map((tab, i) => (
               <button
                 key={tab.id}
                 role="tab"

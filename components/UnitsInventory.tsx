@@ -26,6 +26,7 @@ import {
 } from '../types/inventory';
 import { supabase } from '../lib/supabase/client';
 import { formatQAR, generateShareText, generateEmailBody, generatePublicShareText, generateInternalCopyText } from '../lib/shareUtils';
+import { useAuth } from '../contexts/AuthContext';
 import UnitDetailsModal from './UnitDetailsModal';
 import TopBar from './TopBar';
 import Link from 'next/link';
@@ -343,6 +344,9 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDupl
 // ── Main export ────────────────────────────────────────────────────────────
 
 export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => void }) {
+  const { role: userRole, can } = useAuth();
+  const isAgent = userRole === 'agent';
+
   // ── Filter state ──────────────────────────────────────────────────────────
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('All');
@@ -485,6 +489,9 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
   const _minR = minRent !== '' ? Number(minRent) : null;
   const _maxR = maxRent !== '' ? Number(maxRent) : null;
   const filteredUnits = units.filter((u) => {
+    // Agents only see Available units
+    if (isAgent && u.status !== Status.Available) return false;
+
     const matchSearch =
       !_q ||
       u.property.toLowerCase().includes(_q) ||

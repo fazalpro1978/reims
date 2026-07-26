@@ -2,35 +2,67 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { ThemePanel } from './ThemeSwitcher';
+import { useAuth } from '../contexts/AuthContext';
+
+const ROLE_LABEL: Record<string, string> = {
+  superuser:     'Superuser',
+  administrator: 'Administrator',
+  staff:         'Staff',
+  agent:         'Agent',
+  public:        'Public',
+};
+
+const ROLE_COLOR: Record<string, string> = {
+  superuser:     '#c9a84c',
+  administrator: '#3b82f6',
+  staff:         '#10b981',
+  agent:         '#8b5cf6',
+  public:        '#64748b',
+};
 
 export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
+  const { user, signOut } = useAuth();
+
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+
   const settingsBtnRef  = useRef<HTMLButtonElement>(null);
   const settingsPanelRef = useRef<HTMLDivElement>(null);
+  const userBtnRef      = useRef<HTMLButtonElement>(null);
+  const userMenuRef     = useRef<HTMLDivElement>(null);
 
+  // Close dropdowns on outside click
   useEffect(() => {
-    if (!settingsOpen) return;
     const handler = (e: MouseEvent) => {
-      if (
-        settingsBtnRef.current?.contains(e.target as Node) ||
-        settingsPanelRef.current?.contains(e.target as Node)
-      ) return;
+      if (!settingsOpen && !userMenuOpen) return;
+      if (settingsBtnRef.current?.contains(e.target as Node) || settingsPanelRef.current?.contains(e.target as Node)) return;
+      if (userBtnRef.current?.contains(e.target as Node)     || userMenuRef.current?.contains(e.target as Node))     return;
       setSettingsOpen(false);
+      setUserMenuOpen(false);
     };
-    const keyHandler = (e: KeyboardEvent) => { if (e.key === 'Escape') setSettingsOpen(false); };
+    const keyHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setSettingsOpen(false); setUserMenuOpen(false); }
+    };
     document.addEventListener('mousedown', handler);
     document.addEventListener('keydown', keyHandler);
     return () => {
       document.removeEventListener('mousedown', handler);
       document.removeEventListener('keydown', keyHandler);
     };
-  }, [settingsOpen]);
+  }, [settingsOpen, userMenuOpen]);
+
+  // Derive initials from full name
+  const initials = user?.fullName
+    ? user.fullName.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
+    : '?';
+
+  const roleColor = ROLE_COLOR[user?.role ?? ''] ?? '#888';
 
   return (
     <header className="bg-[#0d0d0d] sticky top-0 z-30 border-b border-[#1e1e1e]">
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          {/* Hamburger — desktop (lg+) */}
+          {/* Hamburger — desktop */}
           <button
             onClick={onMenuClick}
             aria-label="Open navigation menu"
@@ -53,7 +85,16 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-[#888888] text-xs hidden md:block font-medium tracking-wide">Admin Console</span>
+          {/* Role badge */}
+          {user && (
+            <span
+              className="hidden md:inline-flex text-[10px] font-bold uppercase tracking-[0.12em] px-2 py-0.5 rounded"
+              style={{ color: roleColor, background: `${roleColor}18`, border: `1px solid ${roleColor}30` }}
+            >
+              {ROLE_LABEL[user.role] ?? user.role}
+            </span>
+          )}
+
           <div className="hidden md:block w-px h-4 bg-[#222222] mx-1" />
 
           {/* Notifications bell */}
@@ -63,11 +104,11 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
             </svg>
           </button>
 
-          {/* Settings gear — opens theme panel */}
+          {/* Settings gear */}
           <div className="relative">
             <button
               ref={settingsBtnRef}
-              onClick={() => setSettingsOpen(v => !v)}
+              onClick={() => { setSettingsOpen(v => !v); setUserMenuOpen(false); }}
               aria-label="Settings"
               title="Settings & Theme"
               className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors ${
@@ -83,19 +124,59 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
             </button>
 
             {settingsOpen && (
-              <div
-                ref={settingsPanelRef}
-                className="absolute top-full right-0 mt-2"
-                style={{ zIndex: 200 }}
-              >
+              <div ref={settingsPanelRef} className="absolute top-full right-0 mt-2" style={{ zIndex: 200 }}>
                 <ThemePanel onClose={() => setSettingsOpen(false)} />
               </div>
             )}
           </div>
 
-          {/* Avatar */}
-          <div className="w-7 h-7 rounded-full bg-[#c9a84c]/15 border border-[#c9a84c]/25 flex items-center justify-center cursor-default">
-            <span className="text-[#c9a84c] text-xs font-bold select-none">A</span>
+          {/* Avatar + user menu */}
+          <div className="relative">
+            <button
+              ref={userBtnRef}
+              onClick={() => { setUserMenuOpen(v => !v); setSettingsOpen(false); }}
+              className="w-7 h-7 rounded-full border flex items-center justify-center transition-colors hover:opacity-80"
+              style={{
+                background: `${roleColor}18`,
+                borderColor: `${roleColor}35`,
+              }}
+              title={user?.fullName ?? 'User'}
+            >
+              <span className="text-xs font-bold select-none" style={{ color: roleColor }}>
+                {initials}
+              </span>
+            </button>
+
+            {userMenuOpen && (
+              <div
+                ref={userMenuRef}
+                className="absolute top-full right-0 mt-2 w-56 bg-[#141414] border border-[#2a2a2a] rounded-xl shadow-[0_16px_48px_rgba(0,0,0,0.7)] overflow-hidden"
+                style={{ zIndex: 200 }}
+              >
+                {/* User info header */}
+                <div className="px-4 py-3 border-b border-[#222]">
+                  <p className="text-sm font-semibold text-[#e0e0e0] truncate">{user?.fullName ?? '—'}</p>
+                  <p className="text-[11px] text-[#666] truncate mt-0.5">{user?.email ?? ''}</p>
+                  <span
+                    className="inline-flex mt-1.5 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                    style={{ color: roleColor, background: `${roleColor}18` }}
+                  >
+                    {ROLE_LABEL[user?.role ?? ''] ?? ''}
+                  </span>
+                </div>
+
+                {/* Sign out */}
+                <button
+                  onClick={() => { setUserMenuOpen(false); signOut(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#aaa] hover:text-[#ef4444] hover:bg-[#ef444408] transition-colors text-left"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 shrink-0">
+                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
+                  </svg>
+                  Sign Out
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

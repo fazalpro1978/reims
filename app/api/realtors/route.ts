@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAuth } from '../../../lib/serverAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,7 +51,10 @@ async function syncToEntityCodes(name: string, classification: string | null): P
   });
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
+  if (!auth.ok) return auth.response;
+
   const { data, error } = await admin
     .from('realtors')
     .select('id, name, moci_id, classification')
@@ -60,6 +64,8 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
+  const auth = await requireAuth(req, ['superuser', 'administrator']);
+  if (!auth.ok) return auth.response;
   const body = await req.json();
   const { id, name, moci_id, classification } = body as {
     id?: string; name?: string; moci_id?: string | null; classification?: string | null;
@@ -83,6 +89,9 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth(req, ['superuser', 'administrator']);
+  if (!auth.ok) return auth.response;
+
   const { id } = await req.json() as { id?: string };
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
   const { error } = await admin.from('realtors').delete().eq('id', id);
@@ -91,6 +100,8 @@ export async function DELETE(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req, ['superuser', 'administrator']);
+  if (!auth.ok) return auth.response;
   const body = await req.json();
   const { id, name, moci_id, classification } = body as {
     id?: string;

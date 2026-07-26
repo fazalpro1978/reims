@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAuth } from '../../../lib/serverAuth';
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -7,6 +8,9 @@ const admin = createClient(
 );
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
+  if (!auth.ok) return auth.response;
+
   try {
     const { unitUuid } = await req.json() as { unitUuid: string };
 
@@ -14,7 +18,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'unitUuid is required' }, { status: 400 });
     }
 
-    // Fetch full row (service role reads private columns too)
     const { data: row, error: fetchErr } = await admin
       .from('units')
       .select('*')
@@ -28,7 +31,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Strip DB-managed columns, reset lease-specific fields
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = row;
     const newCode = `${row.unit_code}-COPY`;
