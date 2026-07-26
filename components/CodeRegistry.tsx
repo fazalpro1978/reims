@@ -2374,7 +2374,7 @@ export default function CodeRegistry({ onMenuClick }: { onMenuClick?: () => void
         <div className="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-base font-bold text-[#e0e0e0] tracking-wide">Code Registry</h1>
-            <p className="text-[11px] text-[#555] mt-0.5">14-Digit Smart Serial Code Generator by VANGUARD REOS</p>
+            <p className="text-[11px] text-[#555] mt-0.5">14-Digit Smart Serial Code Generator by Vanguard REOS</p>
           </div>
           <div className="flex items-center gap-1 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg p-1">
             {(['register', 'search', 'realtors'] as const).map(tab => (

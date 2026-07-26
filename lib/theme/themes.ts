@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Vanguard REOS Theme Engine · Privé Group Real Estate
+// Vanguard REOS Theme Engine · PropertyScape
 // Eight hot-swappable branding themes: 5 Corporate + 3 Motorsport
 // ─────────────────────────────────────────────────────────────────────────────
 

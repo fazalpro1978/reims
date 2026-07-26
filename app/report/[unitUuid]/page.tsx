@@ -1,7 +1,7 @@
 'use client';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Privé Group Vanguard REOS — Unit PDF Report
+// PropertyScape · Vanguard REOS — Unit PDF Report
 // Route: /report/[unitUuid]  →  opens in new tab, renders A4 report
 //
 // All styles live in buildCSS() — zero Tailwind, zero external CSS files.

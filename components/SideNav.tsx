@@ -1,7 +1,7 @@
 'use client';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SIDE NAVIGATION PANEL — Privé Group Vanguard REOS
+// SIDE NAVIGATION PANEL — PropertyScape · Vanguard REOS
 // Slide-out drawer · overlay on all screen sizes
 // ─────────────────────────────────────────────────────────────────────────────
 

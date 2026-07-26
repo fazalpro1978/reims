@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // SECTION 1 — DOMAIN TYPES & DATA INTERFACES
-// Privé Group Vanguard REOS · Qatar Property Portfolio
+// PropertyScape · Vanguard REOS · Qatar Property Portfolio
 // ─────────────────────────────────────────────────────────────────────────────
 
 export enum Status {

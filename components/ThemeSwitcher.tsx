@@ -151,7 +151,7 @@ export function ThemePanel({ onClose }: { onClose?: () => void }) {
       {/* Footer */}
       <div className="px-4 py-2.5" style={{ borderTop: '1px solid var(--border-faint)' }}>
         <p className="text-[9px]" style={{ color: 'var(--text-dimmest)' }}>
-          <span className="font-semibold uppercase tracking-wide">Privé Group Vanguard REOS</span>
+          <span className="font-semibold uppercase tracking-wide">PropertyScape · Vanguard REOS</span>
           <span className="mx-1.5">·</span>
           Theme persisted in browser
         </p>

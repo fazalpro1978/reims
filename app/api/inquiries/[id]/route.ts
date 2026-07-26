@@ -108,7 +108,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         <!-- Gold header -->
         <tr>
           <td style="background:#c9a84c;padding:28px 28px 24px;">
-            <img src="cid:logo-prive" alt="Prive Group Real Estate" style="height:52px;width:auto;display:block;margin-bottom:18px;" />
+            <img src="cid:logo-prive" alt="Privé Group Real Estate" style="height:52px;width:auto;display:block;margin-bottom:18px;" />
             <a href="${inquiryLink}" style="display:inline-block;font-size:11px;font-family:monospace;color:#fff;letter-spacing:1px;text-decoration:underline;margin-bottom:8px;">${inq.ref_no}</a>
             <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;line-height:1.3;">A new task is assigned to you &mdash; Please action</h1>
           </td>

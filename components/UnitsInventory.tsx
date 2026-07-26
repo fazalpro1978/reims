@@ -2,7 +2,7 @@
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SECTION 3 — MAIN CORE UNITS INVENTORY PANEL
-// Privé Group Vanguard REOS · Admin Dashboard
+// PropertyScape · Vanguard REOS · Admin Dashboard
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, {
