@@ -3,9 +3,11 @@ import { createClient } from '@supabase/supabase-js';
 
 type Role = 'superuser' | 'administrator' | 'staff' | 'agent' | 'public';
 
-interface AuthResult {
-  uid:  string;
-  role: Role;
+export interface AuthResult {
+  uid:      string;
+  role:     Role;
+  email:    string;
+  fullName: string;
 }
 
 const serviceClient = () =>
@@ -14,11 +16,6 @@ const serviceClient = () =>
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
-/**
- * Verify the Bearer JWT from the request, fetch the caller's profile,
- * and return { uid, role } — or null if unauthenticated / inactive.
- * Call `requireAuth(req, ['superuser','administrator'])` to gate by role.
- */
 export async function requireAuth(
   req: NextRequest,
   allowedRoles?: Role[],
@@ -38,7 +35,7 @@ export async function requireAuth(
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, is_active')
+    .select('role, is_active, full_name')
     .eq('id', user.id)
     .single();
 
@@ -52,5 +49,13 @@ export async function requireAuth(
     return { ok: false, response: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
   }
 
-  return { ok: true, auth: { uid: user.id, role } };
+  return {
+    ok: true,
+    auth: {
+      uid:      user.id,
+      role,
+      email:    user.email ?? '',
+      fullName: profile.full_name ?? user.email?.split('@')[0] ?? '',
+    },
+  };
 }

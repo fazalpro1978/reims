@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAuth } from '@/lib/serverAuth';
 import { Resend } from 'resend';
 import fs from 'fs';
 import path from 'path';
@@ -23,16 +24,34 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
+  if (!auth.ok) return auth.response;
+
   try {
     const body = await req.json();
 
+    // Staff can only patch their own inquiries
+    if (auth.auth.role === 'staff') {
+      const { data: existing } = await admin
+        .from('inquiries')
+        .select('staff_email')
+        .eq('id', params.id)
+        .single();
+      if (existing?.staff_email && existing.staff_email !== auth.auth.email) {
+        return NextResponse.json({ error: 'Forbidden — contact an Administrator to reassign this inquiry' }, { status: 403 });
+      }
+    }
+
     // Allowlist only patchable fields — never forward arbitrary body keys.
     const allowed: Record<string, unknown> = {};
-    const patchable = [
+    const staffPatchable = [
       'status', 'assigned_agent',
       'assigned_unit_id', 'assigned_unit_id_2', 'assigned_unit_id_3',
       'follow_up_date', 'move_in_date', 'bills_included', 'size', 'notes',
     ];
+    // SU/AD can also reassign the staff owner
+    const adminPatchable = [...staffPatchable, 'staff_email', 'staff_name', 'staff_assigned_at'];
+    const patchable = (auth.auth.role === 'staff') ? staffPatchable : adminPatchable;
     for (const key of patchable) {
       if (key in body) allowed[key] = body[key] ?? null;
     }

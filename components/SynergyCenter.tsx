@@ -4,6 +4,7 @@ import TopBar from './TopBar';
 import UnitDetailsModal from './UnitDetailsModal';
 import { supabase } from '../lib/supabase/client';
 import { authedFetch } from '../lib/authedFetch';
+import { useAuth } from '../contexts/AuthContext';
 import { generatePublicShareText } from '../lib/shareUtils';
 import {
   UnitListing, UnitType, Furnishing, Status,
@@ -38,6 +39,9 @@ interface Inquiry {
   status: 'new' | 'contacted' | 'viewing' | 'negotiating' | 'won' | 'lost' | 'cancelled' | 'closed';
   status_changed_at?: string | null;
   assigned_agent?: string;
+  staff_email?: string | null;
+  staff_name?: string | null;
+  staff_assigned_at?: string | null;
   assigned_unit_id?: string | null;
   assigned_unit?: AssignedUnit | null;
   assigned_unit_id_2?: string | null;
@@ -1092,7 +1096,7 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
   const [assignedUnit3, setAssignedUnit3] = useState<AssignedUnit | null>(inquiry.assigned_unit3 ?? null);
 
   const patch = async (fields: Record<string, unknown>) => {
-    const res  = await fetch(`/api/inquiries/${inquiry.id}`, {
+    const res  = await authedFetch(`/api/inquiries/${inquiry.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(fields),
@@ -1402,8 +1406,12 @@ function NotificationsPanel() {
 const PIPELINE_STATUSES = ['all', ...STATUSES] as const;
 
 export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick?: () => void; initialRef?: string }) {
+  const { role, user } = useAuth();
+  const isStaff = role === 'staff';
+
   const [tab, setTab]                   = useState<'inquiries' | 'notifications'>('inquiries');
   const [inquiries, setInquiries]       = useState<Inquiry[]>([]);
+  const [allStats, setAllStats]         = useState({ total: 0, new: 0, open: 0, won: 0, matches: 0 });
   const [agents, setAgents]             = useState<AgentProfile[]>([]);
   const [loading, setLoading]           = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -1414,13 +1422,16 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
   const [extractRevision, setExtractRevision] = useState(0);
   const [selected, setSelected]         = useState<Inquiry | null>(null);
   const [unreadCount, setUnreadCount]   = useState(0);
+  // Guardrail modal — shown when staff tries to open another staff member's inquiry
+  const [guardrail, setGuardrail]       = useState<Inquiry | null>(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      const res  = await fetch('/api/inquiries');
+      const res  = await authedFetch('/api/inquiries');
       const data = await res.json();
       setInquiries(data.inquiries ?? []);
+      if (data.allStats) setAllStats(data.allStats);
     } finally {
       setLoading(false);
     }
@@ -1452,10 +1463,19 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
 
   const openForm = () => { setFormError(null); setExtractedFields({}); setExtractRevision(0); setShowForm(true); };
 
+  // Guard: staff can only open their own inquiries
+  const handleSelectInquiry = (inquiry: Inquiry) => {
+    if (isStaff && inquiry.staff_email && inquiry.staff_email !== user?.email) {
+      setGuardrail(inquiry);
+      return;
+    }
+    setSelected(inquiry);
+  };
+
   const createInquiry = async (payload: Record<string, unknown>) => {
     setFormError(null);
     try {
-      const res  = await fetch('/api/inquiries', {
+      const res  = await authedFetch('/api/inquiries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -1470,8 +1490,7 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
       setInquiries(prev => [data.inquiry, ...prev]);
       setShowForm(false);
 
-      // Auto-run matching; always refresh list when done regardless of outcome
-      fetch(`/api/inquiries/${data.inquiry.id}/match`, { method: 'POST' })
+      authedFetch(`/api/inquiries/${data.inquiry.id}/match`, { method: 'POST' })
         .finally(() => load());
     } catch {
       setFormError('Network error — please check your connection and try again.');
@@ -1486,11 +1505,12 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
     return matchStatus && matchSearch;
   });
 
+  // Stats tiles always show ALL-record counts (from server allStats), not just the filtered list
   const stats = {
-    total:    inquiries.length,
-    open:     inquiries.filter(i => !['won','lost'].includes(i.status)).length,
-    won:      inquiries.filter(i => i.status === 'won').length,
-    matches:  inquiries.reduce((s, i) => s + (i.match_count ?? 0), 0),
+    total:   allStats.total,
+    open:    allStats.open,
+    won:     allStats.won,
+    matches: allStats.matches,
   };
 
   return (
@@ -1530,7 +1550,7 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
             {[
               { label: 'Total Inquiries', value: stats.total,                                            filterVal: 'all',          color: 'text-[#e0e0e0]',  ring: 'border-[#444]'       },
-              { label: 'New',             value: inquiries.filter(i => i.status === 'new').length,       filterVal: 'new',          color: 'text-[#94a3b8]',  ring: 'border-[#94a3b8]'    },
+              { label: 'New',             value: allStats.new,                                           filterVal: 'new',          color: 'text-[#94a3b8]',  ring: 'border-[#94a3b8]'    },
               { label: 'Open',            value: stats.open,                                             filterVal: 'contacted',    color: 'text-[#f43f5e]',  ring: 'border-[#f43f5e]'    },
               { label: 'Won',             value: stats.won,                                              filterVal: 'won',          color: 'text-[#4ade80]',  ring: 'border-[#4ade80]'    },
               { label: 'Total Matches',   value: stats.matches,                                          filterVal: '__matches__',  color: 'text-[#c9a84c]',  ring: 'border-[#c9a84c]'    },
@@ -1596,7 +1616,7 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
               {filtered.map(inq => {
                 const sm2 = STATUS_META[inq.status] ?? STATUS_META.new;
                 return (
-                  <div key={inq.id} onClick={() => setSelected(inq)}
+                  <div key={inq.id} onClick={() => handleSelectInquiry(inq)}
                     className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-xl p-4 cursor-pointer hover:border-[#f43f5e44] hover:bg-[#110810] transition-colors group">
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div>
@@ -1722,6 +1742,63 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
           agents={agents}
           onAgentAdded={a => setAgents(prev => [...prev, a].sort((x, y) => x.agent_code.localeCompare(y.agent_code)))}
         />
+      )}
+
+      {/* ── Staff Reassignment Guardrail Modal ── */}
+      {guardrail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-sm mx-4 bg-[#111] border border-[#2a2a2a] rounded-2xl shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="px-5 py-4 bg-[#0d0d0d] border-b border-[#1e1e1e] flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-[#e0e0e0]">Record Already Assigned</p>
+                <p className="text-[11px] text-[#555] mt-0.5">{guardrail.ref_no}</p>
+              </div>
+            </div>
+
+            {/* Assignment detail tile */}
+            <div className="px-5 py-4 space-y-3">
+              <div className="rounded-xl bg-[#181818] border border-[#2a2a2a] p-4 space-y-3">
+                <div>
+                  <p className="text-[10px] font-medium text-[#555] uppercase tracking-widest mb-0.5">Assigned Staff</p>
+                  <p className="text-sm font-semibold text-[#e0e0e0]">{guardrail.staff_name ?? '—'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-medium text-[#555] uppercase tracking-widest mb-0.5">Email</p>
+                  <p className="text-sm text-[#94a3b8] font-mono">{guardrail.staff_email ?? '—'}</p>
+                </div>
+                {guardrail.staff_assigned_at && (
+                  <div>
+                    <p className="text-[10px] font-medium text-[#555] uppercase tracking-widest mb-0.5">Assigned At</p>
+                    <p className="text-sm text-[#666]">{new Date(guardrail.staff_assigned_at).toLocaleString('en-QA', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-xl bg-amber-500/5 border border-amber-500/20 px-4 py-3">
+                <p className="text-[12px] text-amber-400/90 leading-relaxed">
+                  This inquiry is managed by another staff member. To request reassignment, please contact an <span className="font-semibold">Administrator</span>.
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 pb-5">
+              <button
+                type="button"
+                onClick={() => setGuardrail(null)}
+                className="w-full py-2.5 text-sm font-semibold text-[#0f0f0f] bg-amber-500 hover:bg-amber-400 rounded-xl transition-colors"
+              >
+                Understood
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

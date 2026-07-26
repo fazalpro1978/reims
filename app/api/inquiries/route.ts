@@ -1,30 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAuth } from '@/lib/serverAuth';
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
+const UNIT_JOIN = '*, assigned_unit:units!assigned_unit_id(id, unit_code, unit_no, property), assigned_unit2:units!assigned_unit_id_2(id, unit_code, unit_no, property), assigned_unit3:units!assigned_unit_id_3(id, unit_code, unit_no, property)';
+
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
+  if (!auth.ok) return auth.response;
+
   const { searchParams } = req.nextUrl;
   const status = searchParams.get('status');
   const agent  = searchParams.get('agent');
 
+  // All-record aggregate stats (always full dataset — used for dashboard tiles)
+  const { data: allRows } = await admin
+    .from('inquiries')
+    .select('id, status, match_count');
+  const allStats = {
+    total:   allRows?.length ?? 0,
+    new:     allRows?.filter(i => i.status === 'new').length ?? 0,
+    open:    allRows?.filter(i => !['won','lost','cancelled','closed'].includes(i.status)).length ?? 0,
+    won:     allRows?.filter(i => i.status === 'won').length ?? 0,
+    matches: allRows?.reduce((s: number, i: { match_count: number }) => s + (i.match_count ?? 0), 0) ?? 0,
+  };
+
   let query = admin
     .from('inquiries')
-    .select('*, assigned_unit:units!assigned_unit_id(id, unit_code, unit_no, property), assigned_unit2:units!assigned_unit_id_2(id, unit_code, unit_no, property), assigned_unit3:units!assigned_unit_id_3(id, unit_code, unit_no, property)')
+    .select(UNIT_JOIN)
     .order('created_at', { ascending: false });
 
   if (status && status !== 'all') query = query.eq('status', status);
   if (agent)                      query = query.eq('assigned_agent', agent);
 
+  // Staff see only inquiries assigned to their email
+  if (auth.auth.role === 'staff') {
+    query = query.eq('staff_email', auth.auth.email);
+  }
+
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
-  return NextResponse.json({ inquiries: data ?? [] });
+  return NextResponse.json({ inquiries: data ?? [], allStats });
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
+  if (!auth.ok) return auth.response;
+
   try {
     const body = await req.json();
 
@@ -32,9 +58,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Client name is required' }, { status: 400 });
     }
 
-    // Explicit field mapping — never blindly forward raw body to Supabase.
-    // assigned_agent is intentionally excluded: agent routing is a post-match event.
-    const row = {
+    const row: Record<string, unknown> = {
       client_name:        String(body.client_name).trim(),
       client_phone:       body.client_phone       || null,
       client_email:       body.client_email       || null,
@@ -55,6 +79,13 @@ export async function POST(req: NextRequest) {
       notes:              body.notes              || null,
     };
 
+    // Staff inquiries are auto-assigned to the creating user
+    if (auth.auth.role === 'staff') {
+      row.staff_email       = auth.auth.email;
+      row.staff_name        = auth.auth.fullName;
+      row.staff_assigned_at = new Date().toISOString();
+    }
+
     const { data, error } = await admin
       .from('inquiries')
       .insert(row)
@@ -63,7 +94,6 @@ export async function POST(req: NextRequest) {
 
     if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
 
-    // Fire notification asynchronously — never block the inquiry response on this.
     void Promise.resolve(
       admin.from('notifications').insert({
         type:       'new_inquiry',
@@ -74,10 +104,7 @@ export async function POST(req: NextRequest) {
     ).catch(() => {});
 
     return NextResponse.json({ inquiry: data }, { status: 201 });
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Create failed' },
-      { status: 500 },
-    );
+  } catch {
+    return NextResponse.json({ error: 'Create failed' }, { status: 500 });
   }
 }
