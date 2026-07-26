@@ -217,7 +217,7 @@ function MetricCard({ label, count, valueColor, isActive, onClick, accentRing }:
         isActive ? `${accentRing} shadow-md` : 'border-[#2a2a2a]'
       }`}
     >
-      <p className="text-xs font-semibold text-[#606060] uppercase tracking-wider">{label}</p>
+      <p className="text-xs font-semibold text-[#999999] uppercase tracking-wider">{label}</p>
       <p className={`text-3xl font-bold mt-1.5 tabular-nums ${valueColor}`}>{count}</p>
       {isActive && (
         <div className="mt-2 h-0.5 w-8 rounded-full bg-[#c9a84c]" />
@@ -688,7 +688,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div>
             <h2 className="text-xl font-bold text-white tracking-tight">Units Inventory</h2>
-            <p className="text-[#606060] text-sm mt-0.5">
+            <p className="text-[#888888] text-sm mt-0.5">
               {'Manage, filter, and monitor all Qatar property listings'}
             </p>
           </div>
@@ -871,11 +871,11 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
 
           {/* ── Summary row ── */}
           <div className="mt-3 flex items-center justify-between flex-wrap gap-2">
-            <p className="text-xs text-[#606060]">
+            <p className="text-xs text-[#888888]">
               Showing{' '}
-              <strong className="text-[#c0c0c0] font-semibold">{filteredUnits.length}</strong>
+              <strong className="text-[#d0d0d0] font-semibold">{filteredUnits.length}</strong>
               {' '}of{' '}
-              <strong className="text-[#888888] font-semibold">{units.length}</strong>
+              <strong className="text-[#aaaaaa] font-semibold">{units.length}</strong>
               {' '}units
               {(minRent !== '' || maxRent !== '') && (
                 <span className="ml-1 text-[#888888]">
@@ -1082,7 +1082,7 @@ export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => vo
         )} {/* end loading conditional */}
 
         {/* Footer note */}
-        <p className="text-center text-xs text-[#666666] pb-4">
+        <p className="text-center text-xs text-[#888888] pb-4">
           Privé Group · Vanguard REOS · Qatar Property Portfolio · {units.length} active listings
         </p>
 
