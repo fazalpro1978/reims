@@ -658,18 +658,22 @@ export default function SideNav({ open, onClose }: SideNavProps) {
 
         {/* ── Navigation ── */}
         <nav className="flex-1 overflow-y-auto py-5 px-3 space-y-6">
-          {NAV_SECTIONS.map((section) => (
-            <div key={section.label}>
-              <p className="px-3 pb-2 text-[10px] font-bold text-[#666666] uppercase tracking-[0.14em]">
-                {section.label}
-              </p>
-              <div className="space-y-0.5">
-                {section.items.map((item) => (
-                  <NavItem key={item.id} item={item} />
-                ))}
+          {NAV_SECTIONS.map((section) => {
+            const visibleItems = section.items.filter(item => !item.roles || item.roles.includes(userRole));
+            if (visibleItems.length === 0) return null;
+            return (
+              <div key={section.label}>
+                <p className="px-3 pb-2 text-[10px] font-bold text-[#666666] uppercase tracking-[0.14em]">
+                  {section.label}
+                </p>
+                <div className="space-y-0.5">
+                  {section.items.map((item) => (
+                    <NavItem key={item.id} item={item} />
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
         {/* ── Bottom section ── */}
