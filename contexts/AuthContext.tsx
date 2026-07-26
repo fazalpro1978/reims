@@ -63,22 +63,49 @@ interface AuthCtx {
   loading:  boolean;
   signOut:  () => Promise<void>;
   can:      (permission: string) => boolean;
+  reloadPermissions: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthCtx>({
   user: null, role: null, loading: true,
   signOut: async () => {},
   can: () => false,
+  reloadPermissions: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
+
+// ── Dynamic permission loader ─────────────────────────────────────────────────
+async function loadDbPermissions(): Promise<Record<string, UserRole[]> | null> {
+  try {
+    const { data, error } = await supabase
+      .from('role_permissions')
+      .select('permission_key,role,level');
+
+    if (error || !data || data.length === 0) return null;
+
+    const map: Record<string, UserRole[]> = {};
+    for (const row of data) {
+      if (row.level === 'none') continue;
+      if (!map[row.permission_key]) map[row.permission_key] = [];
+      map[row.permission_key].push(row.role as UserRole);
+    }
+    return map;
+  } catch { return null; }
+}
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router   = useRouter();
   const pathname = usePathname();
-  const [user,    setUser   ] = useState<AuthProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user,         setUser        ] = useState<AuthProfile | null>(null);
+  const [loading,      setLoading     ] = useState(true);
+  const [dynamicPerms, setDynamicPerms] = useState<Record<string, UserRole[]> | null>(null);
+
+  const reloadPermissions = useCallback(async () => {
+    const perms = await loadDbPermissions();
+    setDynamicPerms(perms);
+  }, []);
 
   const fetchProfile = useCallback(async (authUser: User) => {
     const { data, error } = await supabase
@@ -98,6 +125,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         platforms:  ['reims'],
         isActive:   true,
       });
+      // Still attempt to load permissions even for fallback profile
+      loadDbPermissions().then(setDynamicPerms);
       return;
     }
 
@@ -116,6 +145,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       platforms:  data.platforms ?? ['reims'],
       isActive:   data.is_active,
     });
+
+    // Load DB permissions in background; fall back to hardcoded if table is empty/missing
+    loadDbPermissions().then(setDynamicPerms);
   }, [router]);
 
   useEffect(() => {
@@ -153,13 +185,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const can = useCallback((permission: string): boolean => {
     if (!user?.role) return false;
-    const allowed = PERMISSIONS[permission];
+    // Prefer DB-loaded permissions; fall back to hardcoded constant
+    const source  = dynamicPerms ?? PERMISSIONS;
+    const allowed = source[permission];
     if (!allowed) return false;
     return allowed.includes(user.role);
-  }, [user]);
+  }, [user, dynamicPerms]);
 
   return (
-    <AuthContext.Provider value={{ user, role: user?.role ?? null, loading, signOut, can }}>
+    <AuthContext.Provider value={{ user, role: user?.role ?? null, loading, signOut, can, reloadPermissions }}>
       {children}
     </AuthContext.Provider>
   );
