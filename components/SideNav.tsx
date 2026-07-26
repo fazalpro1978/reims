@@ -7,6 +7,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '../contexts/AuthContext';
 
 interface SideNavProps {
   open: boolean;
@@ -194,12 +195,13 @@ const NAV_ICON_COLOR: Record<string, string> = {
 const NAV_SECTIONS = [
   {
     label: 'Portfolio',
+    // role gates: undefined = all roles; array = allowed roles
     items: [
-      { id: 'code-registry', label: 'Code Registry',       href: '/code-registry', icon: 'hash',      soon: false },
-      { id: 'realtors',      label: 'Realtor Information', href: '/realtors', icon: 'briefcase', soon: false },
-      { id: 'zones',         label: 'Zone / District',     href: '/zones',    icon: 'mappin',    soon: false },
-      { id: 'ingest-queue',  label: 'Axiom Queue',         href: '/ingest-queue',  icon: 'ingest',    soon: false },
-      { id: 'synergy',       label: 'Synergy Center',      href: '/synergy',       icon: 'synergy',   soon: false },
+      { id: 'code-registry', label: 'Code Registry',       href: '/code-registry', icon: 'hash',      soon: false, roles: ['superuser','administrator','staff'] },
+      { id: 'realtors',      label: 'Realtor Information', href: '/realtors', icon: 'briefcase', soon: false, roles: ['superuser','administrator','staff'] },
+      { id: 'zones',         label: 'Zone / District',     href: '/zones',    icon: 'mappin',    soon: false, roles: ['superuser','administrator','staff'] },
+      { id: 'ingest-queue',  label: 'Axiom Queue',         href: '/ingest-queue',  icon: 'ingest',    soon: false, roles: ['superuser','administrator'] },
+      { id: 'synergy',       label: 'Synergy Center',      href: '/synergy',       icon: 'synergy',   soon: false, roles: ['superuser','administrator','staff'] },
       { id: 'inventory',     label: 'Units Inventory',     href: '/',              icon: 'grid',      soon: false },
       { id: 'properties',    label: 'Properties',          href: '/properties',    icon: 'building',  soon: false },
       { id: 'tenants',       label: 'Tenants',             href: '/tenants',       icon: 'users',     soon: true  },
@@ -211,6 +213,12 @@ const NAV_SECTIONS = [
       { id: 'contracts',  label: 'Contracts & Legal', href: '/contracts',  icon: 'document', soon: false },
       { id: 'financials', label: 'Financials',        href: '/financials', icon: 'chart',    soon: true  },
       { id: 'reports',    label: 'Reports',           href: '/reports',    icon: 'report',   soon: true  },
+    ],
+  },
+  {
+    label: 'Administration',
+    items: [
+      { id: 'admin-users', label: 'User Management', href: '/admin/users', icon: 'users', soon: false, roles: ['superuser','administrator'] },
     ],
   },
 ];
@@ -483,9 +491,25 @@ function SuccessBanner({ label }: { label: string }) {
 
 export default function SideNav({ open, onClose }: SideNavProps) {
   const pathname = usePathname();
+  const { user, signOut } = useAuth();
 
   const [addRealtorOpen, setAddRealtorOpen] = useState(false);
   const [addZoneOpen,    setAddZoneOpen]    = useState(false);
+
+  const userRole = user?.role ?? 'public';
+  const canWrite = ['superuser','administrator'].includes(userRole);
+
+  // Role label / color (same as TopBar)
+  const ROLE_LABEL: Record<string, string> = {
+    superuser:'Superuser', administrator:'Administrator', staff:'Staff', agent:'Agent', public:'Public',
+  };
+  const ROLE_COLOR: Record<string, string> = {
+    superuser:'#c9a84c', administrator:'#3b82f6', staff:'#10b981', agent:'#8b5cf6', public:'#64748b',
+  };
+  const roleColor  = ROLE_COLOR[userRole] ?? '#888';
+  const initials   = user?.fullName
+    ? user.fullName.split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase()
+    : '?';
 
   const isActive = (href: string) => {
     const base = href.split('?')[0];
@@ -503,13 +527,17 @@ export default function SideNav({ open, onClose }: SideNavProps) {
     return () => { document.body.style.overflow = ''; };
   }, [open]);
 
-  type NavItemData = { id: string; label: string; href: string; icon: string; soon: boolean };
+  type NavItemData = { id: string; label: string; href: string; icon: string; soon: boolean; roles?: string[] };
 
   function NavItem({ item }: { item: NavItemData }) {
+    // Role gate — if item has roles list, only show to those roles
+    if (item.roles && !item.roles.includes(userRole)) return null;
+
     const active     = isActive(item.href);
     const isRealtor  = item.id === 'realtors';
     const isZone     = item.id === 'zones';
-    const hasAdd     = QUICK_ADD_IDS.has(item.id);
+    // Quick-add only visible to SU/AD
+    const hasAdd     = QUICK_ADD_IDS.has(item.id) && canWrite;
     const accentCol  = isRealtor ? '#fbbf24' : '#34d399';
 
     const baseClass = 'flex items-center gap-3 rounded-lg text-sm font-medium transition-colors group';
@@ -653,18 +681,29 @@ export default function SideNav({ open, onClose }: SideNavProps) {
 
           <div className="mx-3 mb-3 border-t border-[#1e1e1e]" />
 
-          {/* User profile */}
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[#1a1a1a] transition-colors cursor-default group">
-            <div className="w-8 h-8 rounded-full bg-[#c9a84c]/15 border border-[#c9a84c]/20 flex items-center justify-center shrink-0">
-              <span className="text-[#c9a84c] text-xs font-bold select-none">A</span>
+          {/* User profile + sign out */}
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[#1a1a1a] transition-colors group">
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+              style={{ background: `${roleColor}18`, border: `1px solid ${roleColor}30` }}
+            >
+              <span className="text-xs font-bold select-none" style={{ color: roleColor }}>{initials}</span>
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-[#c8c8c8] truncate">Administrator</p>
-              <p className="text-[11px] text-[#888888] truncate">Privé Group · Admin</p>
+              <p className="text-sm font-medium text-[#c8c8c8] truncate">{user?.fullName ?? '—'}</p>
+              <p className="text-[11px] truncate" style={{ color: `${roleColor}bb` }}>
+                {ROLE_LABEL[userRole] ?? userRole}
+              </p>
             </div>
-            <svg className="w-3.5 h-3.5 text-[#666666] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
+            <button
+              onClick={signOut}
+              title="Sign out"
+              className="w-6 h-6 rounded-md flex items-center justify-center text-[#666] hover:text-[#ef4444] hover:bg-[#ef444410] transition-all"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
+              </svg>
+            </button>
           </div>
         </div>
       </aside>
