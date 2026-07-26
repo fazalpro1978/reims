@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import TopBar from './TopBar';
 import { authedFetch } from '../lib/authedFetch';
+import { useAuth } from '../contexts/AuthContext';
 
 const QATAR_MUNICIPALITIES = [
   'Doha', 'Al Rayyan', 'Lusail', 'Al Wakrah',
@@ -42,6 +43,10 @@ function IcCheck() {
 }
 
 export default function ZoneRegistry({ onMenuClick }: { onMenuClick?: () => void }) {
+  const { role } = useAuth();
+  const isReadOnly = role !== 'superuser' && role !== 'administrator';
+  const [readOnlyAlert, setReadOnlyAlert] = useState(false);
+
   const [zones,      setZones]      = useState<Zone[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [adding,     setAdding]     = useState(false);
@@ -86,6 +91,7 @@ export default function ZoneRegistry({ onMenuClick }: { onMenuClick?: () => void
 
   // ── Add ──────────────────────────────────────────────────────────────────────
   async function save() {
+    if (isReadOnly) { setReadOnlyAlert(true); return; }
     if (!effectiveMuni)   { setErr('Municipality is required.'); return; }
     const code = Number(zoneNum);
     if (!zoneNum || !Number.isInteger(code) || code <= 0) { setErr('Zone Number must be a positive integer.'); return; }
@@ -114,6 +120,7 @@ export default function ZoneRegistry({ onMenuClick }: { onMenuClick?: () => void
 
   // ── Edit ─────────────────────────────────────────────────────────────────────
   function openEdit(z: Zone) {
+    if (isReadOnly) { setReadOnlyAlert(true); return; }
     setEditCode(z.zone_code);
     setEditDistrict(z.district_name);
     const isKnown = QATAR_MUNICIPALITIES.includes(z.municipality);
@@ -123,6 +130,7 @@ export default function ZoneRegistry({ onMenuClick }: { onMenuClick?: () => void
   }
 
   async function saveEdit() {
+    if (isReadOnly) { setReadOnlyAlert(true); return; }
     if (!editEffMuni)        { setEditErr('Municipality is required.'); return; }
     if (!editDistrict.trim()) { setEditErr('District Name is required.'); return; }
     setEditSaving(true); setEditErr('');
@@ -143,6 +151,7 @@ export default function ZoneRegistry({ onMenuClick }: { onMenuClick?: () => void
 
   // ── Delete ───────────────────────────────────────────────────────────────────
   async function confirmDelete() {
+    if (isReadOnly) { setReadOnlyAlert(true); return; }
     if (deleteCode === null) return;
     setDeleting(true);
     try {
@@ -175,6 +184,39 @@ export default function ZoneRegistry({ onMenuClick }: { onMenuClick?: () => void
     <div className="min-h-screen bg-[#0f0f0f] flex flex-col">
       <TopBar onMenuClick={onMenuClick} />
 
+      {/* ── Read-Only Intercept Modal ── */}
+      {readOnlyAlert && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-sm mx-4 bg-[#181818] border border-[#2a2a2a] rounded-2xl shadow-2xl overflow-hidden">
+            <div className="px-5 py-4 bg-[#111] border-b border-[#2a2a2a] flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-[#e0e0e0]">Read-Only Access</p>
+                <p className="text-[11px] text-[#555] mt-0.5">Zone / District Registry</p>
+              </div>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <p className="text-sm text-[#aaa] leading-relaxed">
+                You have <span className="text-[#e0e0e0] font-semibold">view-only</span> access to this registry. Add, edit, and delete actions are restricted to Administrators.
+              </p>
+              <p className="text-[12px] text-[#666]">
+                To create, modify, or remove a zone record, please contact your Administrator to process the request.
+              </p>
+              <button
+                onClick={() => setReadOnlyAlert(false)}
+                className="w-full py-2 text-sm font-bold text-[#0f0f0f] bg-[#34d399] hover:bg-[#6ee7b7] rounded-lg transition-colors"
+              >
+                Understood
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Page header ── */}
       <div className="sticky top-[53px] z-20 bg-[#0f0f0f] border-b border-[#1e1e1e]">
         <div className="max-w-4xl mx-auto px-5 py-4 flex items-center justify-between gap-4">
@@ -184,12 +226,21 @@ export default function ZoneRegistry({ onMenuClick }: { onMenuClick?: () => void
               Master zone list · referenced across Units Inventory, Axiom Pipeline, and Code Registry
             </p>
           </div>
-          <button
-            onClick={() => { setAdding(a => !a); setErr(''); setMuni(''); setCustomMuni(''); setZoneNum(''); setDistrict(''); setEditCode(null); setDeleteCode(null); }}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-[#34d399] hover:bg-[#6ee7b7] text-[#0f0f0f] text-sm font-bold rounded-xl transition-colors shrink-0"
-          >
-            <span className="text-lg leading-none">+</span> Add Zone
-          </button>
+          {isReadOnly ? (
+            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1a1a1a] border border-[#2a2a2a] text-xs text-[#555] font-medium">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+              </svg>
+              View Only
+            </span>
+          ) : (
+            <button
+              onClick={() => { setAdding(a => !a); setErr(''); setMuni(''); setCustomMuni(''); setZoneNum(''); setDistrict(''); setEditCode(null); setDeleteCode(null); }}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-[#34d399] hover:bg-[#6ee7b7] text-[#0f0f0f] text-sm font-bold rounded-xl transition-colors shrink-0"
+            >
+              <span className="text-lg leading-none">+</span> Add Zone
+            </button>
+          )}
         </div>
       </div>
 
@@ -203,8 +254,8 @@ export default function ZoneRegistry({ onMenuClick }: { onMenuClick?: () => void
           </div>
         )}
 
-        {/* ── Inline add form ── */}
-        {adding && (
+        {/* ── Inline add form — admin only ── */}
+        {adding && !isReadOnly && (
           <div className="rounded-2xl border border-[#34d399]/20 bg-[#34d399]/5 p-5 space-y-4">
             <p className="text-[10px] font-bold text-[#34d399] uppercase tracking-widest">Register New Zone</p>
             <div>
@@ -367,23 +418,26 @@ export default function ZoneRegistry({ onMenuClick }: { onMenuClick?: () => void
                     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: MUNI_COLOR[z.municipality] ?? '#6b7280' }} />
                     <span className="text-xs truncate" style={{ color: MUNI_COLOR[z.municipality] ?? '#888' }}>{z.municipality}</span>
                   </span>
-                  {/* Action buttons */}
-                  <div className="col-span-2 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => openEdit(z)}
-                      title="Edit"
-                      className="w-6 h-6 rounded-md flex items-center justify-center text-[#888] hover:text-[#34d399] hover:bg-[#34d399]/10 transition-colors"
-                    >
-                      <IcEdit />
-                    </button>
-                    <button
-                      onClick={() => { setDeleteCode(z.zone_code); setEditCode(null); }}
-                      title="Delete"
-                      className="w-6 h-6 rounded-md flex items-center justify-center text-[#888] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors"
-                    >
-                      <IcTrash />
-                    </button>
-                  </div>
+                  {/* Action buttons — hidden for read-only roles */}
+                  {!isReadOnly && (
+                    <div className="col-span-2 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => openEdit(z)}
+                        title="Edit"
+                        className="w-6 h-6 rounded-md flex items-center justify-center text-[#888] hover:text-[#34d399] hover:bg-[#34d399]/10 transition-colors"
+                      >
+                        <IcEdit />
+                      </button>
+                      <button
+                        onClick={() => { setDeleteCode(z.zone_code); setEditCode(null); }}
+                        title="Delete"
+                        className="w-6 h-6 rounded-md flex items-center justify-center text-[#888] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors"
+                      >
+                        <IcTrash />
+                      </button>
+                    </div>
+                  )}
+                  {isReadOnly && <div className="col-span-2" />}
                 </div>
               )}
             </div>

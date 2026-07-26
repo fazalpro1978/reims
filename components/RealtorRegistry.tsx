@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import TopBar from './TopBar';
 import { authedFetch } from '../lib/authedFetch';
+import { useAuth } from '../contexts/AuthContext';
 
 const CLASSIFICATIONS = [
   'Semi-Government & Master Developer',
@@ -48,6 +49,10 @@ function IcCheck() {
 }
 
 export default function RealtorRegistry({ onMenuClick }: { onMenuClick?: () => void }) {
+  const { role } = useAuth();
+  const isReadOnly = role !== 'superuser' && role !== 'administrator';
+  const [readOnlyAlert, setReadOnlyAlert] = useState(false);
+
   const [realtors,   setRealtors]   = useState<Realtor[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [adding,     setAdding]     = useState(false);
@@ -84,6 +89,7 @@ export default function RealtorRegistry({ onMenuClick }: { onMenuClick?: () => v
 
   // ── Add ──────────────────────────────────────────────────────────────────────
   async function save() {
+    if (isReadOnly) { setReadOnlyAlert(true); return; }
     if (!name.trim()) { setErr('Company name is required.'); return; }
     if (!cls)         { setErr('Classification is required.'); return; }
     if (realtors.some(r => r.name.toLowerCase() === name.trim().toLowerCase())) {
@@ -107,11 +113,13 @@ export default function RealtorRegistry({ onMenuClick }: { onMenuClick?: () => v
 
   // ── Edit ─────────────────────────────────────────────────────────────────────
   function openEdit(r: Realtor) {
+    if (isReadOnly) { setReadOnlyAlert(true); return; }
     setEditId(r.id); setEditName(r.name); setEditCls(r.classification ?? '');
     setEditMoci(r.moci_id ?? ''); setEditErr(''); setDeleteId(null);
   }
 
   async function saveEdit() {
+    if (isReadOnly) { setReadOnlyAlert(true); return; }
     if (!editName.trim()) { setEditErr('Name is required.'); return; }
     if (!editCls)         { setEditErr('Classification is required.'); return; }
     setEditSaving(true); setEditErr('');
@@ -134,6 +142,7 @@ export default function RealtorRegistry({ onMenuClick }: { onMenuClick?: () => v
 
   // ── Delete ───────────────────────────────────────────────────────────────────
   async function confirmDelete() {
+    if (isReadOnly) { setReadOnlyAlert(true); return; }
     if (!deleteId) return;
     const target = realtors.find(r => r.id === deleteId);
     setDeleting(true);
@@ -163,6 +172,39 @@ export default function RealtorRegistry({ onMenuClick }: { onMenuClick?: () => v
     <div className="min-h-screen bg-[#0f0f0f] flex flex-col">
       <TopBar onMenuClick={onMenuClick} />
 
+      {/* ── Read-Only Intercept Modal ── */}
+      {readOnlyAlert && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-sm mx-4 bg-[#181818] border border-[#2a2a2a] rounded-2xl shadow-2xl overflow-hidden">
+            <div className="px-5 py-4 bg-[#111] border-b border-[#2a2a2a] flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-[#e0e0e0]">Read-Only Access</p>
+                <p className="text-[11px] text-[#555] mt-0.5">Realtor Information Registry</p>
+              </div>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <p className="text-sm text-[#aaa] leading-relaxed">
+                You have <span className="text-[#e0e0e0] font-semibold">view-only</span> access to this registry. Add, edit, and delete actions are restricted to Administrators.
+              </p>
+              <p className="text-[12px] text-[#666]">
+                To create, modify, or remove a realtor record, please contact your Administrator to process the request.
+              </p>
+              <button
+                onClick={() => setReadOnlyAlert(false)}
+                className="w-full py-2 text-sm font-bold text-[#0f0f0f] bg-[#fbbf24] hover:bg-[#fcd34d] rounded-lg transition-colors"
+              >
+                Understood
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Page header ── */}
       <div className="sticky top-[53px] z-20 bg-[#0f0f0f] border-b border-[#1e1e1e]">
         <div className="max-w-4xl mx-auto px-5 py-4 flex items-center justify-between gap-4">
@@ -172,12 +214,21 @@ export default function RealtorRegistry({ onMenuClick }: { onMenuClick?: () => v
               Shared brokerage registry · used across Units Inventory, Axiom Pipeline, and Code Registry
             </p>
           </div>
-          <button
-            onClick={() => { setAdding(a => !a); setErr(''); setName(''); setCls(''); setEditId(null); setDeleteId(null); }}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-[#fbbf24] hover:bg-[#fcd34d] text-[#0f0f0f] text-sm font-bold rounded-xl transition-colors shrink-0"
-          >
-            <span className="text-lg leading-none">+</span> Add Realtor
-          </button>
+          {isReadOnly ? (
+            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1a1a1a] border border-[#2a2a2a] text-xs text-[#555] font-medium">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+              </svg>
+              View Only
+            </span>
+          ) : (
+            <button
+              onClick={() => { setAdding(a => !a); setErr(''); setName(''); setCls(''); setEditId(null); setDeleteId(null); }}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-[#fbbf24] hover:bg-[#fcd34d] text-[#0f0f0f] text-sm font-bold rounded-xl transition-colors shrink-0"
+            >
+              <span className="text-lg leading-none">+</span> Add Realtor
+            </button>
+          )}
         </div>
       </div>
 
@@ -191,8 +242,8 @@ export default function RealtorRegistry({ onMenuClick }: { onMenuClick?: () => v
           </div>
         )}
 
-        {/* ── Inline add form ── */}
-        {adding && (
+        {/* ── Inline add form — admin only ── */}
+        {adding && !isReadOnly && (
           <div className="rounded-2xl border border-[#fbbf24]/20 bg-[#fbbf24]/5 p-5 space-y-4">
             <p className="text-[10px] font-bold text-[#fbbf24] uppercase tracking-widest">Register New Realtor</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -330,23 +381,26 @@ export default function RealtorRegistry({ onMenuClick }: { onMenuClick?: () => v
                     ) : <span className="text-xs text-[#333]">—</span>}
                   </span>
                   <span className="col-span-2 text-[11px] font-mono text-[#c9a84c] truncate">{r.moci_id ?? '—'}</span>
-                  {/* Action buttons — visible on row hover */}
-                  <div className="col-span-2 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => openEdit(r)}
-                      title="Edit"
-                      className="w-6 h-6 rounded-md flex items-center justify-center text-[#888] hover:text-[#fbbf24] hover:bg-[#fbbf24]/10 transition-colors"
-                    >
-                      <IcEdit />
-                    </button>
-                    <button
-                      onClick={() => { setDeleteId(r.id); setEditId(null); }}
-                      title="Delete"
-                      className="w-6 h-6 rounded-md flex items-center justify-center text-[#888] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors"
-                    >
-                      <IcTrash />
-                    </button>
-                  </div>
+                  {/* Action buttons — hidden for read-only roles */}
+                  {!isReadOnly && (
+                    <div className="col-span-2 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => openEdit(r)}
+                        title="Edit"
+                        className="w-6 h-6 rounded-md flex items-center justify-center text-[#888] hover:text-[#fbbf24] hover:bg-[#fbbf24]/10 transition-colors"
+                      >
+                        <IcEdit />
+                      </button>
+                      <button
+                        onClick={() => { setDeleteId(r.id); setEditId(null); }}
+                        title="Delete"
+                        className="w-6 h-6 rounded-md flex items-center justify-center text-[#888] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors"
+                      >
+                        <IcTrash />
+                      </button>
+                    </div>
+                  )}
+                  {isReadOnly && <div className="col-span-2" />}
                 </div>
               )}
             </div>

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { authedFetch } from '../lib/authedFetch';
+import { useAuth } from '../contexts/AuthContext';
 import * as XLSX from 'xlsx';
 import { PROPERTY_MATRIX, CONFIGURATION_REGEX } from '../lib/propertySchema';
 import TopBar from './TopBar';
@@ -2125,6 +2126,10 @@ function SearchTab({ options }: { options: Options }) {
 type RealtorRow = { id: string; name: string; classification: string | null; moci_id: string | null };
 
 function RealtorRegistryTab() {
+  const { role } = useAuth();
+  const isReadOnly = role !== 'superuser' && role !== 'administrator';
+  const [readOnlyAlert, setReadOnlyAlert] = useState(false);
+
   const [realtors, setRealtors]     = useState<RealtorRow[]>([]);
   const [loading,  setLoading]      = useState(true);
   const [adding,   setAdding]       = useState(false);
@@ -2143,6 +2148,7 @@ function RealtorRegistryTab() {
   }, []);
 
   async function saveRealtor() {
+    if (isReadOnly) { setReadOnlyAlert(true); return; }
     if (!newName.trim()) { setErr('Company name is required.'); return; }
     if (!newClass) { setErr('Classification is required.'); return; }
     if (realtors.some(r => r.name.toLowerCase() === newName.trim().toLowerCase())) {
@@ -2182,22 +2188,64 @@ function RealtorRegistryTab() {
     <div className="space-y-5">
       {toast && <Toast message={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
 
+      {/* ── Read-Only Intercept Modal ── */}
+      {readOnlyAlert && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-sm mx-4 bg-[#181818] border border-[#2a2a2a] rounded-2xl shadow-2xl overflow-hidden">
+            <div className="px-5 py-4 bg-[#111] border-b border-[#2a2a2a] flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-[#e0e0e0]">Read-Only Access</p>
+                <p className="text-[11px] text-[#555] mt-0.5">Code Registry — Realtors</p>
+              </div>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <p className="text-sm text-[#aaa] leading-relaxed">
+                You have <span className="text-[#e0e0e0] font-semibold">view-only</span> access to the Realtor Registry. Add, edit, and delete actions are restricted to Administrators.
+              </p>
+              <p className="text-[12px] text-[#666]">
+                To create, modify, or remove a realtor record, please contact your Administrator to process the request.
+              </p>
+              <button
+                onClick={() => setReadOnlyAlert(false)}
+                className="w-full py-2 text-sm font-bold text-[#0f0f0f] bg-[#c9a84c] hover:bg-[#dfc070] rounded-lg transition-colors"
+              >
+                Understood
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header strip */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-bold text-[#e0e0e0]">Realtor Registry</h2>
           <p className="text-[11px] text-[#555] mt-0.5">Shared brokerage registry — used across Units Inventory, Axiom Pipeline, and Smart Code generation</p>
         </div>
-        <button
-          onClick={() => { setAdding(a => !a); setErr(''); setNewName(''); setNewClass(''); }}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#c9a84c] hover:bg-[#dfc070] text-[#0f0f0f] text-xs font-bold rounded-lg transition-colors"
-        >
-          <span className="text-base leading-none">+</span> Add Realtor
-        </button>
+        {isReadOnly ? (
+          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1a1a1a] border border-[#2a2a2a] text-xs text-[#555] font-medium">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+            </svg>
+            View Only
+          </span>
+        ) : (
+          <button
+            onClick={() => { setAdding(a => !a); setErr(''); setNewName(''); setNewClass(''); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#c9a84c] hover:bg-[#dfc070] text-[#0f0f0f] text-xs font-bold rounded-lg transition-colors"
+          >
+            <span className="text-base leading-none">+</span> Add Realtor
+          </button>
+        )}
       </div>
 
-      {/* Inline add form */}
-      {adding && (
+      {/* Inline add form — admin only */}
+      {adding && !isReadOnly && (
         <div className="rounded-xl border border-[#c9a84c]/20 bg-[#c9a84c]/5 p-5 space-y-4">
           <p className="text-[10px] font-bold text-[#c9a84c] uppercase tracking-widest">Register New Realtor</p>
 
