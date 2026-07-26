@@ -2203,6 +2203,7 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
   const { role } = useAuth();
   const isAgent = role === 'agent';
   const canAdminUnlock = role === 'superuser' || role === 'administrator';
+  const isStaff = role === 'staff';
 
   // Agents cannot see financials or commission details
   const visibleTabs = isAgent
@@ -2217,14 +2218,40 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
   const [internalToast, setInternalToast] = useState(false);
   const [copyFocal, setCopyFocal] = useState({ name: '', phone: '', email: '', operatorRemarks: '' });
 
-  // Admin mode — role-based unlock (SU/AD unlock immediately; others cannot unlock)
+  // Admin mode — SU/AD unlock immediately; Staff enter PIN; others blocked
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminDialog, setShowAdminDialog] = useState(false);
+  const [pinValue, setPinValue] = useState('');
+  const [pinError, setPinError] = useState('');
+  const [pinChecking, setPinChecking] = useState(false);
 
   const handleAdminUnlock = () => {
     if (canAdminUnlock) {
       setIsAdmin(true);
       setShowAdminDialog(false);
+    }
+  };
+
+  const handlePinSubmit = async () => {
+    if (!pinValue.trim()) return;
+    setPinChecking(true);
+    setPinError('');
+    try {
+      const res = await authedFetch('/api/verify-pin', {
+        method: 'POST',
+        body: JSON.stringify({ pin: pinValue }),
+      });
+      if (res.ok) {
+        setIsAdmin(true);
+        setShowAdminDialog(false);
+        setPinValue('');
+      } else {
+        setPinError('Incorrect PIN. Contact your administrator.');
+      }
+    } catch {
+      setPinError('Verification failed. Try again.');
+    } finally {
+      setPinChecking(false);
     }
   };
 
@@ -2476,32 +2503,51 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
           {activeTab === 'operational' && <OperationalTab unit={unit} unitUuid={unitUuid} />}
         </div>
 
-        {/* ── Admin Unlock Dialog — role-based, no PIN ── */}
+        {/* ── Admin Unlock Dialog — SU/AD: one-click; Staff: PIN; others: blocked ── */}
         {showAdminDialog && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
             <div className="w-full max-w-xs mx-4 bg-[#181818] border border-[#2a2a2a] rounded-2xl shadow-2xl overflow-hidden">
               <div className="px-5 py-4 bg-[#111111] border-b border-[#2a2a2a] flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${canAdminUnlock ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-red-500/10 border border-red-500/20'}`}>
-                  <svg className={`w-4 h-4 ${canAdminUnlock ? 'text-amber-400' : 'text-red-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${canAdminUnlock || isStaff ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-red-500/10 border border-red-500/20'}`}>
+                  <svg className={`w-4 h-4 ${canAdminUnlock || isStaff ? 'text-amber-400' : 'text-red-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-[#e0e0e0]">
-                    {canAdminUnlock ? 'Unlock Restricted Fields' : 'Access Denied'}
+                    {canAdminUnlock ? 'Unlock Restricted Fields' : isStaff ? 'Admin Authorisation Required' : 'Access Denied'}
                   </p>
                   <p className="text-[11px] text-[#555555] mt-0.5">
                     {canAdminUnlock
                       ? `Logged in as ${role} — click Unlock to proceed`
+                      : isStaff
+                      ? 'Enter admin PIN to authorise access'
                       : 'Superuser or Administrator role required'}
                   </p>
                 </div>
               </div>
               <div className="px-5 py-4">
+                {isStaff && (
+                  <div className="mb-3">
+                    <input
+                      type="password"
+                      value={pinValue}
+                      onChange={e => { setPinValue(e.target.value); setPinError(''); }}
+                      onKeyDown={e => e.key === 'Enter' && handlePinSubmit()}
+                      placeholder="Enter PIN"
+                      maxLength={12}
+                      autoFocus
+                      className="w-full px-3 py-2 text-sm text-[#e0e0e0] bg-[#111111] border border-[#2a2a2a] rounded-lg focus:outline-none focus:border-amber-500/60 placeholder-[#444] tracking-widest"
+                    />
+                    {pinError && (
+                      <p className="mt-1.5 text-[11px] text-red-400">{pinError}</p>
+                    )}
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setShowAdminDialog(false)}
+                    onClick={() => { setShowAdminDialog(false); setPinValue(''); setPinError(''); }}
                     className="flex-1 py-2 text-sm font-medium text-[#666666] bg-[#1e1e1e] border border-[#2a2a2a] rounded-lg hover:bg-[#252525] hover:text-[#aaaaaa] transition-colors"
                   >
                     Cancel
@@ -2513,6 +2559,16 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
                       className="flex-1 py-2 text-sm font-bold text-[#0f0f0f] bg-amber-500 hover:bg-amber-400 rounded-lg transition-colors"
                     >
                       Unlock
+                    </button>
+                  )}
+                  {isStaff && (
+                    <button
+                      type="button"
+                      onClick={handlePinSubmit}
+                      disabled={pinChecking || !pinValue.trim()}
+                      className="flex-1 py-2 text-sm font-bold text-[#0f0f0f] bg-amber-500 hover:bg-amber-400 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {pinChecking ? 'Checking…' : 'Authorise'}
                     </button>
                   )}
                 </div>
