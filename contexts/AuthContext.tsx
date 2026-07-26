@@ -119,21 +119,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        fetchProfile(session.user).finally(() => setLoading(false));
-      } else {
-        setLoading(false);
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        fetchProfile(session.user).finally(() => setLoading(false));
-      } else {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || !session?.user) {
         setUser(null);
         setLoading(false);
+        return;
       }
+      // TOKEN_REFRESHED only updates the JWT — profile hasn't changed, skip the fetch
+      if (event === 'TOKEN_REFRESHED') {
+        setLoading(false);
+        return;
+      }
+      fetchProfile(session.user).finally(() => setLoading(false));
     });
 
     return () => subscription.unsubscribe();
