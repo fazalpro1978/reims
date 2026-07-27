@@ -148,7 +148,7 @@ export default function UserManagement() {
 
                   <td className="px-4 py-3">
                     <div className="flex gap-1.5 flex-wrap">
-                      {['reims','dinges'].map(p => {
+                      {([['reims','REIMS'],['dinges','AXIOM']] as [string,string][]).map(([p, label]) => {
                         const active = (u.platforms ?? []).includes(p);
                         const isLocked = isSelf || isSaving;
                         return (
@@ -167,7 +167,7 @@ export default function UserManagement() {
                               color:      active ? (p === 'reims' ? '#c9a84c' : '#3b82f6') : '#555',
                             }}
                           >
-                            {p}
+                            {label}
                           </button>
                         );
                       })}
