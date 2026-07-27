@@ -52,9 +52,9 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
         userSelect:     'none',
       }}
     >
-      {/* Neon "POWERED BY" */}
+      {/* Neon tagline */}
       <p className="neon-label">
-        Powered by
+        Built on Intelligence. Built for Real Estate.
       </p>
 
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -73,10 +73,9 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
       <style>{`
         .neon-label {
           margin: 0 0 28px;
-          font-size: 11px;
-          font-weight: 600;
-          letter-spacing: .36em;
-          text-transform: uppercase;
+          font-size: 13px;
+          font-weight: 300;
+          letter-spacing: .06em;
           font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
           color: #00D0B8;
           text-shadow:
