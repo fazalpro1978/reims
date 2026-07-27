@@ -1,13 +1,30 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 export default function SplashScreen({ onDone }: { onDone: () => void }) {
-  const onDoneRef             = useRef(onDone);
-  const [show,   setShow  ]   = useState(false);
-  const [fading, setFading]   = useState(false);
+  const onDoneRef              = useRef(onDone);
+  const [show,    setShow  ]   = useState(false);
+  const [fading,  setFading]   = useState(false);
+  const [logoSize, setLogoSize] = useState({ w: 0, h: 0 });
 
   useEffect(() => { onDoneRef.current = onDone; });
+
+  // Measure viewport and size the logo to fill it like the dashboard does
+  const measure = useCallback(() => {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    // Match the dashboard's max-width (1400px) with comfortable vertical headroom
+    const w = Math.min(vw * 0.82, 1400 * 0.6);
+    const h = Math.min(vh * 0.68, w);          // square-ish — logo is 1:1
+    setLogoSize({ w: Math.round(w), h: Math.round(h) });
+  }, []);
+
+  useEffect(() => {
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [measure]);
 
   useEffect(() => {
     const t1 = setTimeout(() => setShow(true),         80);
@@ -50,15 +67,15 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
         Powered by
       </p>
 
-      {/* Static logo — drop propertyscape-logo.png into /public */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/propertyscape-logo.png"
         alt="PropertyScape"
         style={{
-          width:     'min(460px, 80vw)',
-          height:    'auto',
-          display:   'block',
+          width:          logoSize.w || 'min(560px, 82vw)',
+          height:         logoSize.h || 'auto',
+          objectFit:      'contain',
+          display:        'block',
           imageRendering: 'auto',
         }}
       />
