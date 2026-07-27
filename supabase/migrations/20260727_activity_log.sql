@@ -23,23 +23,23 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_entity_id   ON public.activity_log (
 CREATE OR REPLACE FUNCTION public.log_unit_activity()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 DECLARE
-  etype TEXT;
-  desc  TEXT;
+  etype    TEXT;
+  evt_desc TEXT;
 BEGIN
   IF TG_OP = 'INSERT' THEN
-    etype := 'unit_added';
-    desc  := 'Unit ' || NEW.unit_code || ' added to '
-             || COALESCE(NEW.property, 'portfolio')
-             || CASE WHEN NEW.zone IS NOT NULL THEN ' (' || NEW.zone || ')' ELSE '' END;
+    etype    := 'unit_added';
+    evt_desc := 'Unit ' || NEW.unit_code || ' added to '
+                || COALESCE(NEW.property, 'portfolio')
+                || CASE WHEN NEW.zone IS NOT NULL THEN ' (' || NEW.zone || ')' ELSE '' END;
 
   ELSIF TG_OP = 'UPDATE' THEN
     IF OLD.status IS DISTINCT FROM NEW.status THEN
-      etype := 'unit_status_changed';
-      desc  := NEW.unit_code || ' status changed from '
-               || OLD.status || ' → ' || NEW.status;
+      etype    := 'unit_status_changed';
+      evt_desc := NEW.unit_code || ' status changed from '
+                  || OLD.status || ' → ' || NEW.status;
     ELSE
-      etype := 'unit_updated';
-      desc  := 'Unit ' || NEW.unit_code || ' details updated';
+      etype    := 'unit_updated';
+      evt_desc := 'Unit ' || NEW.unit_code || ' details updated';
     END IF;
   END IF;
 
@@ -48,7 +48,7 @@ BEGIN
     etype,
     'unit',
     NEW.unit_code,
-    desc,
+    evt_desc,
     jsonb_build_object(
       'property', NEW.property,
       'zone',     NEW.zone,
