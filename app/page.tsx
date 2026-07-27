@@ -17,7 +17,7 @@ import RevenuePanel from '@/components/dashboard/RevenuePanel';
 import TeamRoster from '@/components/dashboard/TeamRoster';
 import SplashScreen from '@/components/dashboard/SplashScreen';
 
-const SPLASH_KEY = 'vanguard_splash_done';
+const SPLASH_KEY = 'vanguard_splash_done_v2';
 
 function DashboardInner() {
   const { user, loading } = useAuth();
