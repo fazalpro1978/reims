@@ -73,7 +73,7 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
       <style>{`
         .neon-label {
           margin: 0 0 28px;
-          font-size: 13px;
+          font-size: 20px;
           font-weight: 300;
           letter-spacing: .06em;
           font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
