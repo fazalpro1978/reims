@@ -52,18 +52,8 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
         userSelect:     'none',
       }}
     >
-      {/* "POWERED BY" label */}
-      <p
-        style={{
-          margin:        '0 0 28px',
-          fontSize:      11,
-          fontWeight:    500,
-          letterSpacing: '.28em',
-          textTransform: 'uppercase',
-          color:         '#4A6A96',
-          fontFamily:    '-apple-system, BlinkMacSystemFont, system-ui, sans-serif',
-        }}
-      >
+      {/* Neon "POWERED BY" */}
+      <p className="neon-label">
         Powered by
       </p>
 
@@ -79,6 +69,56 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
           imageRendering: 'auto',
         }}
       />
+
+      <style>{`
+        .neon-label {
+          margin: 0 0 28px;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: .36em;
+          text-transform: uppercase;
+          font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+          color: #00D0B8;
+          text-shadow:
+            0 0 4px  #00D0B8,
+            0 0 10px #00D0B8,
+            0 0 22px #00D0B8,
+            0 0 45px rgba(0, 208, 184, 0.7),
+            0 0 90px rgba(0, 208, 184, 0.35);
+          animation: neonPulse 2.8s ease-in-out infinite;
+        }
+
+        @keyframes neonPulse {
+          0%, 100% {
+            text-shadow:
+              0 0 4px  #00D0B8,
+              0 0 10px #00D0B8,
+              0 0 22px #00D0B8,
+              0 0 45px rgba(0, 208, 184, 0.7),
+              0 0 90px rgba(0, 208, 184, 0.35);
+            opacity: 1;
+          }
+          45% {
+            text-shadow:
+              0 0 2px  #00D0B8,
+              0 0 6px  #00D0B8,
+              0 0 14px #00D0B8,
+              0 0 30px rgba(0, 208, 184, 0.5),
+              0 0 60px rgba(0, 208, 184, 0.2);
+            opacity: 0.85;
+          }
+          50% {
+            text-shadow:
+              0 0 6px  #00D0B8,
+              0 0 14px #00D0B8,
+              0 0 28px #00D0B8,
+              0 0 55px rgba(0, 208, 184, 0.8),
+              0 0 110px rgba(0, 208, 184, 0.4),
+              0 0 160px rgba(0, 208, 184, 0.15);
+            opacity: 1;
+          }
+        }
+      `}</style>
     </div>
   );
 }
