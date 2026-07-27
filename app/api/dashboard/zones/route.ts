@@ -29,20 +29,20 @@ export async function GET(req: NextRequest) {
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const sb = adminClient();
-  const { data, error } = await sb.from('units').select('status, type');
+  const { data, error } = await sb.from('units').select('zone, status');
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const rows = data ?? [];
-  const total       = rows.length;
-  const available   = rows.filter(r => r.status === 'Available').length;
-  const leased      = rows.filter(r => r.status === 'Leased').length;
-  const reserved    = rows.filter(r => r.status === 'Reserved').length;
-  const maintenance = rows.filter(r => r.status === 'Under_Maintenance').length;
-
-  const types: Record<string, number> = {};
-  for (const r of rows) {
-    if (r.type) types[r.type] = (types[r.type] ?? 0) + 1;
+  const map: Record<string, { total: number; available: number }> = {};
+  for (const r of data ?? []) {
+    const z = r.zone ?? 'Unassigned';
+    if (!map[z]) map[z] = { total: 0, available: 0 };
+    map[z].total++;
+    if (r.status === 'Available') map[z].available++;
   }
 
-  return NextResponse.json({ total, available, leased, reserved, maintenance, types });
+  const zones = Object.entries(map)
+    .map(([zone, v]) => ({ zone, ...v }))
+    .sort((a, b) => b.total - a.total);
+
+  return NextResponse.json({ zones });
 }

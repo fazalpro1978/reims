@@ -344,15 +344,23 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDupl
 
 // ── Main export ────────────────────────────────────────────────────────────
 
-export default function UnitsInventory({ onMenuClick }: { onMenuClick?: () => void }) {
+export default function UnitsInventory({
+  onMenuClick,
+  initialStatus,
+  initialZone,
+}: {
+  onMenuClick?: () => void;
+  initialStatus?: string;
+  initialZone?: string;
+}) {
   const { role: userRole, can } = useAuth();
   const isAgent = userRole === 'agent';
 
   // ── Filter state ──────────────────────────────────────────────────────────
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('All');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>((initialStatus as StatusFilter) ?? 'All');
   const [furnishingFilter, setFurnishingFilter] = useState<FurnishingFilter>('All');
-  const [zoneFilter, setZoneFilter] = useState<string>('All');
+  const [zoneFilter, setZoneFilter] = useState<string>(initialZone ?? 'All');
   const [typeFilter, setTypeFilter] = useState<UnitType | 'All'>('All');
   const [configFilter, setConfigFilter] = useState<string>('All');
   const [realtorFilter, setRealtorFilter] = useState<string>('All');

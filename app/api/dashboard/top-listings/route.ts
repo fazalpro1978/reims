@@ -29,20 +29,14 @@ export async function GET(req: NextRequest) {
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const sb = adminClient();
-  const { data, error } = await sb.from('units').select('status, type');
+  const { data, error } = await sb
+    .from('units')
+    .select('unit_code, property, zone, type, config, furnishing, rent')
+    .eq('status', 'Available')
+    .order('rent', { ascending: false })
+    .limit(3);
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const rows = data ?? [];
-  const total       = rows.length;
-  const available   = rows.filter(r => r.status === 'Available').length;
-  const leased      = rows.filter(r => r.status === 'Leased').length;
-  const reserved    = rows.filter(r => r.status === 'Reserved').length;
-  const maintenance = rows.filter(r => r.status === 'Under_Maintenance').length;
-
-  const types: Record<string, number> = {};
-  for (const r of rows) {
-    if (r.type) types[r.type] = (types[r.type] ?? 0) + 1;
-  }
-
-  return NextResponse.json({ total, available, leased, reserved, maintenance, types });
+  return NextResponse.json({ listings: data ?? [] });
 }

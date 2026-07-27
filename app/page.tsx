@@ -7,6 +7,9 @@ import TopBar from '@/components/TopBar';
 import { useNav } from '@/components/AppShell';
 import GreetingBar from '@/components/dashboard/GreetingBar';
 import KPIStrip from '@/components/dashboard/KPIStrip';
+import StatusDonut from '@/components/dashboard/StatusDonut';
+import ZoneBreakdown from '@/components/dashboard/ZoneBreakdown';
+import TopListings from '@/components/dashboard/TopListings';
 import SplashScreen from '@/components/dashboard/SplashScreen';
 
 const SPLASH_KEY = 'vanguard_splash_done';
@@ -16,7 +19,6 @@ function DashboardInner() {
   const router            = useRouter();
   const { openNav }       = useNav();
 
-  // Show splash once per browser session
   const [showSplash, setShowSplash] = useState(false);
 
   useEffect(() => {
@@ -46,18 +48,32 @@ function DashboardInner() {
           <GreetingBar />
           <KPIStrip />
 
-          {/* Phase 2–4 panels will be added here */}
+          {/* Phase 2 — Portfolio panels */}
           <div
             style={{
-              marginTop: 8,
-              padding: '48px 24px',
+              display: 'grid',
+              gridTemplateColumns: '280px 1fr 1fr',
+              gap: 12,
+              marginBottom: 12,
+            }}
+          >
+            <StatusDonut />
+            <ZoneBreakdown />
+            <TopListings />
+          </div>
+
+          {/* Phase 3–4 placeholder */}
+          <div
+            style={{
+              marginTop: 4,
+              padding: '36px 24px',
               border: '1px dashed #22222e',
               borderRadius: 12,
               textAlign: 'center',
             }}
           >
             <p style={{ fontSize: 12, color: '#44445a', margin: 0 }}>
-              Portfolio charts · Activity feed · AXIOM status · Top listings — coming in Phase 2
+              Activity feed · AXIOM pipeline status · Occupancy trend — coming in Phase 3
             </p>
           </div>
         </main>
