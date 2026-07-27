@@ -198,14 +198,20 @@ const NAV_SECTIONS = [
     label: 'Portfolio',
     // role gates: undefined = all roles; array = allowed roles
     items: [
+      { id: 'dashboard',     label: 'Dashboard',           href: '/',              icon: 'chart',     soon: false },
+      { id: 'inventory',     label: 'Units Inventory',     href: '/inventory',     icon: 'grid',      soon: false },
+      { id: 'properties',    label: 'Properties',          href: '/properties',    icon: 'building',  soon: false },
+      { id: 'tenants',       label: 'Tenants',             href: '/tenants',       icon: 'users',     soon: true  },
       { id: 'code-registry', label: 'Code Registry',       href: '/code-registry', icon: 'hash',      soon: false, roles: ['superuser','administrator','staff'] },
       { id: 'realtors',      label: 'Realtor Information', href: '/realtors', icon: 'briefcase', soon: false, roles: ['superuser','administrator','staff'] },
       { id: 'zones',         label: 'Zone / District',     href: '/zones',    icon: 'mappin',    soon: false, roles: ['superuser','administrator','staff'] },
+    ],
+  },
+  {
+    label: 'Ingest',
+    items: [
       { id: 'ingest-queue',  label: 'Axiom Queue',         href: '/ingest-queue',  icon: 'ingest',    soon: false, roles: ['superuser','administrator'] },
       { id: 'synergy',       label: 'Synergy Center',      href: '/synergy',       icon: 'synergy',   soon: false, roles: ['superuser','administrator','staff'] },
-      { id: 'inventory',     label: 'Units Inventory',     href: '/',              icon: 'grid',      soon: false },
-      { id: 'properties',    label: 'Properties',          href: '/properties',    icon: 'building',  soon: false },
-      { id: 'tenants',       label: 'Tenants',             href: '/tenants',       icon: 'users',     soon: true  },
     ],
   },
   {
