@@ -12,6 +12,9 @@ import ZoneBreakdown from '@/components/dashboard/ZoneBreakdown';
 import TopListings from '@/components/dashboard/TopListings';
 import ActivityFeed from '@/components/dashboard/ActivityFeed';
 import AxiomStatus from '@/components/dashboard/AxiomStatus';
+import AlertsStrip from '@/components/dashboard/AlertsStrip';
+import RevenuePanel from '@/components/dashboard/RevenuePanel';
+import TeamRoster from '@/components/dashboard/TeamRoster';
 import SplashScreen from '@/components/dashboard/SplashScreen';
 
 const SPLASH_KEY = 'vanguard_splash_done';
@@ -77,19 +80,13 @@ function DashboardInner() {
             <AxiomStatus />
           </div>
 
-          {/* Phase 4 placeholder */}
-          <div
-            style={{
-              marginTop: 12,
-              padding: '28px 24px',
-              border: '1px dashed #22222e',
-              borderRadius: 12,
-              textAlign: 'center',
-            }}
-          >
-            <p style={{ fontSize: 12, color: '#44445a', margin: 0 }}>
-              Revenue panel · Team activity · Alerts strip — coming in Phase 4
-            </p>
+          {/* Phase 4 — Alerts + Revenue + Team */}
+          <div style={{ marginTop: 4 }}>
+            <AlertsStrip />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <RevenuePanel />
+              <TeamRoster />
+            </div>
           </div>
         </main>
       </div>
