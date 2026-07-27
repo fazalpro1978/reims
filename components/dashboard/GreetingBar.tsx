@@ -32,7 +32,7 @@ export default function GreetingBar() {
   const actions = [
     can('units.add')      && { label: '+ Add Unit',        onClick: () => router.push('/inventory?action=add'),    primary: true  },
     can('report.generate')&& { label: 'Generate Report',   onClick: () => router.push('/inventory'),               primary: false },
-    can('admin.access')   && { label: 'AXIOM Import',      onClick: () => window.open(process.env.NEXT_PUBLIC_AXIOM_URL ?? '#', '_blank'), primary: false },
+    can('admin.access')   && { label: 'AXIOM Import',      onClick: () => router.push('/ingest-queue'),                                primary: false },
   ].filter(Boolean) as { label: string; onClick: () => void; primary: boolean }[];
 
   return (
