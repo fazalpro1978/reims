@@ -183,6 +183,8 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
   const [locationMapUrl, setLocationMapUrl] = useState(unit.locationMapUrl);
   const [mediaUrl, setMediaUrl] = useState(unit.mediaUrl);
   const [amenities, setAmenities] = useState<string[]>([]);
+  const [floor, setFloor] = useState<string>(unit.floor !== undefined ? String(unit.floor) : '');
+  const [sizeSqm, setSizeSqm] = useState<string>(unit.size !== undefined ? String(unit.size) : '');
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState('');
   const [realtors, setRealtors] = useState<{ id: string; name: string; moci: string; classification?: string }[]>([]);
@@ -297,7 +299,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
   useEffect(() => {
     if (!unitUuid) return;
     supabase.from('units')
-      .select('realtor_name,realtor_moci,property,unit_no,zone,zone_code,type,config,parking,kitchen,furnishing,status,location_map_url,media_url,amenities')
+      .select('realtor_name,realtor_moci,property,unit_no,zone,zone_code,type,config,parking,kitchen,furnishing,status,location_map_url,media_url,amenities,floor,size_sqm')
       .eq('id', unitUuid).single()
       .then(({ data }) => {
         if (!data) return;
@@ -320,6 +322,8 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
         else if (typeof raw === 'string') {
           try { setAmenities(JSON.parse(raw)); } catch { /* leave empty */ }
         }
+        if (data.floor != null) setFloor(String(data.floor));
+        if (data.size_sqm != null) setSizeSqm(String(data.size_sqm));
       });
   }, [unitUuid]);
 
@@ -361,6 +365,8 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
           status,
           location_map_url: locationMapUrl || null,
           media_url:        mediaUrl || null,
+          floor:            floor !== '' ? Number(floor) : null,
+          size_sqm:         sizeSqm !== '' ? Number(sizeSqm) : null,
         },
       }),
     });
@@ -779,6 +785,39 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
           <span className="font-mono text-sm">{unit.bathrooms % 1 === 0 ? unit.bathrooms : unit.bathrooms.toFixed(1)}</span>
         } />
 
+        {/* Floor */}
+        <FieldRow
+          label="Floor"
+          value={
+            <input
+              type="number"
+              min={0}
+              value={floor}
+              onChange={e => setFloor(e.target.value)}
+              placeholder="e.g. 12"
+              className={`${inp} w-28`}
+            />
+          }
+        />
+
+        {/* Size */}
+        <FieldRow
+          label="Size (sqm)"
+          value={
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={0}
+                value={sizeSqm}
+                onChange={e => setSizeSqm(e.target.value)}
+                placeholder="e.g. 185"
+                className={`${inp} w-28`}
+              />
+              {sizeSqm && <span className="text-xs text-[#666]">sqm</span>}
+            </div>
+          }
+        />
+
         {/* Amenities */}
         <div className="pt-3 pb-1">
           <div className="flex items-center justify-between mb-2.5">
@@ -797,7 +836,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
               'Shared Pool', 'Study', 'View of Water', 'Security',
               'Concierge', 'Shared Spa', 'Shared Gym', 'Maid Service',
               'Walk-in Closet', 'View of Landmark', "Children's Play Area",
-              'Lobby in Building', "Children's Pool",
+              'Lobby in Building', "Children's Pool", 'WiFi',
             ] as const).map(name => {
               const checked = amenities.includes(name);
               return (

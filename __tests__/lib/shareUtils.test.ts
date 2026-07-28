@@ -1,5 +1,5 @@
 import { formatQAR, generateShareText, generateEmailBody } from '../../lib/shareUtils';
-import { Status, Furnishing, UnitType, ListingType } from '../../types/inventory';
+import { Status, Furnishing, UnitType, ListingType, MociContractStatus } from '../../types/inventory';
 import type { UnitListing } from '../../types/inventory';
 
 // ── Minimal fixture covering every field referenced by the utils ──────────────
@@ -21,14 +21,30 @@ const unit: UnitListing = {
   listingType:   ListingType.Rent,
   status:        Status.Available,
   rent:          8000,
+  serviceCharges: 0,
+  depositAmount:  0,
+  agencyFee:      0,
+  kahramaaApplicable:  false,
+  kahramaaAmount:      0,
+  qatarCoolApplicable: false,
+  qatarCoolAmount:     0,
+  marafeqApplicable:   false,
+  marafeqAmount:       0,
   amenities:     [],
   floor:         4,
   size:          120,
   views:         [],
+  mociContractStatus: 'REGISTERED' as MociContractStatus,
+  mociContractNumber: '',
   legalDuration: '1 Year',
-  listedDate:    '',
   contractStartDate: '',
   contractEndDate:   '',
+  maintenanceNotes:  '',
+  accessLockbox:     '',
+  assetHistoryLinks: [],
+  locationMapUrl:    '',
+  mediaUrl:          '',
+  listedDate:    '',
   lastUpdated:   '',
   notes:         '',
   mociStatus:    'REGISTERED',

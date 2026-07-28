@@ -55,11 +55,13 @@ export interface UnitListing {
   parking: boolean;
   kitchen: KitchenType;
   amenities: string[];
+  floor?: number;      // Floor number within the building
 
   // ── Classification ────────────────────────────────────────────────────────
   furnishing: Furnishing;
   listingType: ListingType;
   status: Status;
+  size?: number;       // Unit size in square metres
 
   // ── Financials ────────────────────────────────────────────────────────────
   rent: number;               // QAR / month
@@ -88,6 +90,11 @@ export interface UnitListing {
   // ── External Links ────────────────────────────────────────────────────────
   locationMapUrl: string;
   mediaUrl: string;
+
+  // ── Optional / Extended ───────────────────────────────────────────────────
+  views?: string[];      // View descriptors, e.g. ["Sea View", "City View"]
+  notes?: string;        // General freeform notes
+  mociStatus?: string;   // MOCI registration status label, e.g. "REGISTERED"
 
   // ── Metadata ──────────────────────────────────────────────────────────────
   listedDate: string;    // ISO 8601 date string
