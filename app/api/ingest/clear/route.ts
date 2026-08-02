@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-const INGEST_URL = process.env.INGEST_SERVICE_URL ?? 'https://d-inges.vercel.app';
+const INGEST_URL = process.env.INGEST_SERVICE_URL ?? 'https://axiom.propertyscape.io';
 const INGEST_KEY = process.env.INGEST_API_KEY ?? '';
 
 export async function POST() {

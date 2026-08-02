@@ -7,7 +7,7 @@ const admin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-const INGEST_URL = process.env.INGEST_SERVICE_URL ?? 'https://d-inges.vercel.app';
+const INGEST_URL = process.env.INGEST_SERVICE_URL ?? 'https://axiom.propertyscape.io';
 const INGEST_KEY = process.env.INGEST_API_KEY ?? '';
 
 type VettedRecord = { id: string; payload: Record<string, unknown> };
