@@ -30,14 +30,25 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   try {
     const body = await req.json();
 
-    // Staff can only patch their own inquiries
+    // Staff can only patch their own inquiries (as handler OR as consultant)
     if (auth.auth.role === 'staff') {
+      const { data: agentRow } = await admin
+        .from('cr_agents')
+        .select('agent_code')
+        .eq('email', auth.auth.email)
+        .maybeSingle();
+      const staffCode = agentRow?.agent_code ?? null;
+
       const { data: existing } = await admin
         .from('inquiries')
-        .select('staff_email')
+        .select('staff_email, assigned_agent')
         .eq('id', params.id)
         .single();
-      if (existing?.staff_email && existing.staff_email !== auth.auth.email) {
+
+      const isHandler    = existing?.staff_email === auth.auth.email;
+      const isConsultant = staffCode && existing?.assigned_agent === staffCode;
+
+      if (!isHandler && !isConsultant) {
         return NextResponse.json({ error: 'Forbidden — contact an Administrator to reassign this inquiry' }, { status: 403 });
       }
     }

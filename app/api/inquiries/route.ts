@@ -17,18 +17,31 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get('status');
   const agent  = searchParams.get('agent');
 
+  // For staff: resolve their agent code from cr_agents so the filter can match
+  // inquiries where they are the consultant (assigned_agent) OR the handler (staff_email).
+  let staffOrFilter: string | null = null;
+  if (auth.auth.role === 'staff') {
+    const { data: agentRow } = await admin
+      .from('cr_agents')
+      .select('agent_code')
+      .eq('email', auth.auth.email)
+      .maybeSingle();
+    const code = agentRow?.agent_code;
+    staffOrFilter = code
+      ? `staff_email.eq.${auth.auth.email},assigned_agent.eq.${code}`
+      : `staff_email.eq.${auth.auth.email}`;
+  }
+
   // Aggregate stats — scoped to the caller's own records for staff
   let statsQuery = admin.from('inquiries').select('id, status, match_count');
-  if (auth.auth.role === 'staff') {
-    statsQuery = statsQuery.eq('staff_email', auth.auth.email);
-  }
+  if (staffOrFilter) statsQuery = statsQuery.or(staffOrFilter);
   const { data: allRows } = await statsQuery;
   const allStats = {
     total:   allRows?.length ?? 0,
-    new:     allRows?.filter(i => i.status === 'new').length ?? 0,
-    open:    allRows?.filter(i => !['won','lost','cancelled','closed'].includes(i.status)).length ?? 0,
-    won:     allRows?.filter(i => i.status === 'won').length ?? 0,
-    matches: allRows?.reduce((s: number, i: { match_count: number }) => s + (i.match_count ?? 0), 0) ?? 0,
+    new:     (allRows ?? []).filter((i: { status: string }) => i.status === 'new').length,
+    open:    (allRows ?? []).filter((i: { status: string }) => !['won','lost','cancelled','closed'].includes(i.status)).length,
+    won:     (allRows ?? []).filter((i: { status: string }) => i.status === 'won').length,
+    matches: (allRows ?? []).reduce((s: number, i: { match_count: number }) => s + (i.match_count ?? 0), 0),
   };
 
   let query = admin
@@ -38,11 +51,7 @@ export async function GET(req: NextRequest) {
 
   if (status && status !== 'all') query = query.eq('status', status);
   if (agent)                      query = query.eq('assigned_agent', agent);
-
-  // Staff see only inquiries assigned to their email
-  if (auth.auth.role === 'staff') {
-    query = query.eq('staff_email', auth.auth.email);
-  }
+  if (staffOrFilter)              query = query.or(staffOrFilter);
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
