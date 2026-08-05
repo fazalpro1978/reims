@@ -20,7 +20,7 @@ async function assertStaff(req: NextRequest) {
   if (!user) return null;
   const { data: p } = await sb.from('profiles').select('role,is_active').eq('id', user.id).single();
   if (!p?.is_active) return null;
-  if ((ROLE_RANK[p.role] ?? -1) < ROLE_RANK.staff) return null;
+  if ((ROLE_RANK[p.role] ?? -1) < ROLE_RANK.agent) return null;
   return { uid: user.id, role: p.role as string };
 }
 

@@ -34,7 +34,8 @@ function timeAgo(iso: string): string {
 }
 
 export default function ActivityFeed() {
-  const { user }  = useAuth();
+  const { user, role }  = useAuth();
+  const isAgent = role === 'agent';
   const [events,  setEvents ] = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [pulse,   setPulse  ] = useState(false);
@@ -42,16 +43,16 @@ export default function ActivityFeed() {
 
   // Initial load
   useEffect(() => {
-    if (!user) return;
+    if (!user || isAgent) return;
     authedFetch('/api/dashboard/activity')
       .then(r => r.ok ? r.json() : null)
       .then(j => { if (j?.events) setEvents(j.events); })
       .finally(() => setLoading(false));
-  }, [user]);
+  }, [user, isAgent]);
 
   // Realtime subscription
   useEffect(() => {
-    if (!user) return;
+    if (!user || isAgent) return;
 
     const ch = supabase
       .channel('activity_log_feed')
@@ -69,7 +70,9 @@ export default function ActivityFeed() {
 
     channelRef.current = ch;
     return () => { supabase.removeChannel(ch); };
-  }, [user]);
+  }, [user, isAgent]);
+
+  if (isAgent) return null;
 
   const defaultIcon = { icon: '●', color: '#44445a' };
 

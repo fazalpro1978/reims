@@ -45,18 +45,21 @@ function shortFileName(name: string): string {
 }
 
 export default function AxiomStatus() {
-  const { user }  = useAuth();
+  const { user, role }  = useAuth();
+  const isAgent = role === 'agent';
   const router    = useRouter();
   const [data,    setData   ] = useState<AxiomData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || isAgent) return;
     authedFetch('/api/dashboard/axiom-status')
       .then(r => r.ok ? r.json() : null)
       .then(j => { if (j && !j.error) setData(j); })
       .finally(() => setLoading(false));
-  }, [user]);
+  }, [user, isAgent]);
+
+  if (isAgent) return null;
 
   const latest = data?.recentRuns?.[0];
 

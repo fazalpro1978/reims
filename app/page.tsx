@@ -20,7 +20,8 @@ import SplashScreen from '@/components/dashboard/SplashScreen';
 const SPLASH_KEY = 'vanguard_splash_done_v2';
 
 function DashboardInner() {
-  const { user, loading } = useAuth();
+  const { user, loading, role } = useAuth();
+  const isAgent           = role === 'agent';
   const router            = useRouter();
   const { openNav }       = useNav();
 
@@ -53,7 +54,7 @@ function DashboardInner() {
           <GreetingBar />
           <KPIStrip />
 
-          {/* Phase 2 — Portfolio panels */}
+          {/* Phase 2 — Portfolio panels (visible to all roles) */}
           <div
             style={{
               display: 'grid',
@@ -67,27 +68,31 @@ function DashboardInner() {
             <TopListings />
           </div>
 
-          {/* Phase 3 — Activity + AXIOM */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 12,
-              marginTop: 4,
-            }}
-          >
-            <ActivityFeed />
-            <AxiomStatus />
-          </div>
-
-          {/* Phase 4 — Alerts + Revenue + Team */}
-          <div style={{ marginTop: 4 }}>
-            <AlertsStrip />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <RevenuePanel />
-              <TeamRoster />
+          {/* Phase 3 — Activity + AXIOM (staff/admin only) */}
+          {!isAgent && (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 12,
+                marginTop: 4,
+              }}
+            >
+              <ActivityFeed />
+              <AxiomStatus />
             </div>
-          </div>
+          )}
+
+          {/* Phase 4 — Alerts + Revenue + Team (staff/admin only) */}
+          {!isAgent && (
+            <div style={{ marginTop: 4 }}>
+              <AlertsStrip />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <RevenuePanel />
+                <TeamRoster />
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </>

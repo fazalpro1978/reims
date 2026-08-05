@@ -17,20 +17,21 @@ interface AlertsData {
 }
 
 export default function AlertsStrip() {
-  const { user }  = useAuth();
+  const { user, role }  = useAuth();
+  const isAgent = role === 'agent';
   const router    = useRouter();
   const [data,    setData   ] = useState<AlertsData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || isAgent) return;
     authedFetch('/api/dashboard/alerts')
       .then(r => r.ok ? r.json() : null)
       .then(j => { if (j && !j.error) setData(j); })
       .finally(() => setLoading(false));
-  }, [user]);
+  }, [user, isAgent]);
 
-  if (loading || !data) return null;
+  if (isAgent || loading || !data) return null;
 
   interface Alert {
     key:    string;
