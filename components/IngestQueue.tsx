@@ -36,6 +36,8 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
   const [clearing, setClearing] = useState(false);
   const [clearResult, setClearResult] = useState<{ cleared: number } | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [discarding, setDiscarding] = useState(false);
 
   async function checkQueue() {
     setPhase('checking');
@@ -70,7 +72,39 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
     }
   }
 
-  function reset() { setPhase('idle'); setRecords([]); setResult(null); setErrorMsg(''); setClearResult(null); setConfirmClear(false); }
+  function reset() { setPhase('idle'); setRecords([]); setResult(null); setErrorMsg(''); setClearResult(null); setConfirmClear(false); setSelectedIds(new Set()); }
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+  function toggleAll() {
+    setSelectedIds(prev => prev.size === records.length ? new Set() : new Set(records.map(r => r.id)));
+  }
+  async function discardSelected() {
+    if (selectedIds.size === 0 || discarding) return;
+    setDiscarding(true);
+    const ids = [...selectedIds];
+    try {
+      const res = await authedFetch('/api/ingest/discard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      if (res.ok) {
+        setRecords(prev => prev.filter(r => !selectedIds.has(r.id)));
+        setSelectedIds(new Set());
+      } else {
+        const d = await res.json();
+        setErrorMsg(d.error ?? 'Discard failed');
+        setPhase('error');
+      }
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Discard failed');
+      setPhase('error');
+    } finally {
+      setDiscarding(false);
+    }
+  }
 
   async function clearQueue() {
     setClearing(true);
@@ -185,14 +219,26 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
               <div className="space-y-4">
                 {/* Summary bar */}
                 <div className="flex items-center justify-between flex-wrap gap-3">
-                  <div>
+                  <div className="flex items-center gap-3">
                     <span className="text-2xl font-bold text-[#c9a84c]">{records.length}</span>
-                    <span className="text-sm text-[#888] ml-2">record{records.length !== 1 ? 's' : ''} ready to import</span>
+                    <span className="text-sm text-[#888]">record{records.length !== 1 ? 's' : ''} ready to import</span>
+                    {selectedIds.size > 0 && (
+                      <span className="text-xs text-[#ef4444] font-semibold">{selectedIds.size} selected</span>
+                    )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <button onClick={reset} className="px-3 py-1.5 text-xs border border-[#2a2a2a] text-[#888] rounded-lg hover:border-[#3a3a3a] hover:bg-[#141414] transition-colors">
                       Cancel
                     </button>
+                    {selectedIds.size > 0 && (
+                      <button
+                        onClick={discardSelected}
+                        disabled={discarding}
+                        className="px-4 py-1.5 text-xs border border-[#ef4444]/40 bg-[#ef4444]/10 text-[#ef4444] font-bold rounded-lg hover:bg-[#ef4444]/20 transition-colors disabled:opacity-50"
+                      >
+                        {discarding ? 'Discarding…' : `Discard Selected (${selectedIds.size})`}
+                      </button>
+                    )}
                     <button
                       onClick={importAll}
                       className="px-5 py-1.5 bg-[#c9a84c] hover:bg-[#dfc070] text-[#0f0f0f] text-xs font-bold rounded-lg transition-colors"
@@ -206,6 +252,7 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                 <div className="rounded-xl border border-[#1e1e1e] w-full">
                   <table className="table-fixed w-full text-[11px]">
                     <colgroup>
+                      <col style={{ width: '3%'  }} />{/* Checkbox */}
                       <col style={{ width: '5%'  }} />{/* Match */}
                       <col style={{ width: '9%'  }} />{/* Realtor */}
                       <col style={{ width: '11%' }} />{/* Property */}
@@ -220,10 +267,18 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                       <col style={{ width: '7%'  }} />{/* Furnishing */}
                       <col style={{ width: '8%'  }} />{/* Rent/mo */}
                       <col style={{ width: '5%'  }} />{/* Status */}
-                      <col style={{ width: '12%' }} />{/* Source File */}
+                      <col style={{ width: '9%'  }} />{/* Source File */}
                     </colgroup>
                     <thead>
                       <tr className="border-b border-[#1e1e1e] bg-[#0d0d0d]">
+                        <th className="px-2 py-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.size === records.length && records.length > 0}
+                            onChange={toggleAll}
+                            className="w-3 h-3 accent-[#ef4444] cursor-pointer"
+                          />
+                        </th>
                         {['Match', 'Realtor', 'Property', 'Unit', 'Zone #', 'Zone', 'Type', 'Config', 'Bath', 'Kitchen', 'Parking', 'Furnishing', 'Rent/mo', 'Status', 'Source File'].map((h) => (
                           <th key={h} className="px-2 py-2 text-left text-[9px] font-bold text-[#555] uppercase tracking-wider truncate">{h}</th>
                         ))}
@@ -232,8 +287,21 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                     <tbody>
                       {records.map((r) => {
                         const p = r.payload;
+                        const checked = selectedIds.has(r.id);
                         return (
-                          <tr key={r.id} className="border-b border-[#1a1a1a] hover:bg-[#141414] transition-colors">
+                          <tr
+                            key={r.id}
+                            className={`border-b border-[#1a1a1a] transition-colors cursor-pointer ${checked ? 'bg-[#ef4444]/5' : 'hover:bg-[#141414]'}`}
+                            onClick={() => toggleSelect(r.id)}
+                          >
+                            <td className="px-2 py-2" onClick={e => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleSelect(r.id)}
+                                className="w-3 h-3 accent-[#ef4444] cursor-pointer"
+                              />
+                            </td>
                             <td className="px-2 py-2"><MatchBadge type={r.match_type} /></td>
                             <td className="px-2 py-2 text-[#888] truncate" title={fmt(p.realtor_name)}>{fmt(p.realtor_name)}</td>
                             <td className="px-2 py-2 text-white font-medium truncate" title={fmt(p.property)}>{fmt(p.property)}</td>

@@ -45,6 +45,15 @@ const STATUS_MAP: Record<string, string> = {
   'Under Preparation': 'Under_Maintenance',
 };
 
+// DB kitchen_type enum: 'Open' | 'Closed' | 'Yes' | 'Pantry'
+// dInges may send any casing — normalise by lowercase lookup
+const KITCHEN_MAP: Record<string, string> = {
+  'open':   'Open',
+  'closed': 'Closed',
+  'yes':    'Yes',
+  'pantry': 'Pantry',
+};
+
 function normaliseEnums(row: Record<string, unknown>): Record<string, unknown> {
   const out = { ...row };
   if (typeof out.furnishing === 'string') {
@@ -55,6 +64,9 @@ function normaliseEnums(row: Record<string, unknown>): Record<string, unknown> {
     out.status = STATUS_MAP[out.status] ?? (
       String(out.status).startsWith('Awaiting') ? 'Reserved' : 'Available'
     );
+  }
+  if (typeof out.kitchen === 'string') {
+    out.kitchen = KITCHEN_MAP[out.kitchen.toLowerCase()] ?? out.kitchen;
   }
   // Convert 'Yes'/'No' string from Validation table to boolean for the DB column
   if (typeof out.parking === 'string') {
