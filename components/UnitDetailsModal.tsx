@@ -412,7 +412,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
 
   return (
     <div className="space-y-4">
-      <SaveBar status={saveStatus} onSave={handleSave} errorMsg={saveError} />
+      {!isReadOnly && <SaveBar status={saveStatus} onSave={handleSave} errorMsg={saveError} />}
 
       {isAdmin && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/5 border border-amber-500/20">
@@ -466,10 +466,13 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
           label="Realtor"
           value={
             <div>
-              <select value={realtorName} onChange={e => handleRealtorChange(e.target.value)} className={sel}>
-                <option value="">— Select realtor —</option>
-                {realtors.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
-              </select>
+              {isReadOnly
+                ? <span className="text-sm text-[#d0d0d0]">{realtorName || '—'}</span>
+                : <select value={realtorName} onChange={e => handleRealtorChange(e.target.value)} className={sel}>
+                    <option value="">— Select realtor —</option>
+                    {realtors.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+                  </select>
+              }
               {!addingRealtor ? (
                 isReadOnly ? null : (
                   <button
@@ -546,6 +549,10 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
                   onChange={e => setRealtorMoci(e.target.value)}
                   className={`${inp} font-mono text-[#c9a84c] w-56`}
                 />
+              ) : isReadOnly ? (
+                <span className="font-mono text-sm bg-[#111111] text-[#c9a84c] px-2.5 py-0.5 rounded">
+                  {realtorMoci || '—'}
+                </span>
               ) : (
                 <>
                   <span className="font-mono text-sm bg-[#111111] text-[#c9a84c] px-2.5 py-0.5 rounded">
@@ -562,9 +569,9 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
         <FieldRow
           label="Property Name"
           value={
-            <input type="text" value={propertyName}
-              onChange={e => setPropertyName(e.target.value)}
-              className={inp} />
+            isReadOnly
+              ? <span className="text-sm text-[#d0d0d0]">{propertyName || '—'}</span>
+              : <input type="text" value={propertyName} onChange={e => setPropertyName(e.target.value)} className={inp} />
           }
         />
 
@@ -580,6 +587,8 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
                   onChange={e => setUnitNo(e.target.value)}
                   className={`${inp} font-mono w-40`}
                 />
+              ) : isReadOnly ? (
+                <span className="font-mono text-sm text-[#d0d0d0]">{unitNo || '—'}</span>
               ) : (
                 <>
                   <span className="font-mono text-sm text-[#d0d0d0]">{unitNo}</span>
@@ -595,10 +604,13 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
           label="District / Area"
           value={
             <div>
-              <select value={zone} onChange={e => handleZoneChange(e.target.value)} className={sel}>
-                <option value="">— Select district —</option>
-                {zones.map(z => <option key={z.zone_code} value={z.district_name}>Zone {z.zone_code} — {z.district_name}</option>)}
-              </select>
+              {isReadOnly
+                ? <span className="text-sm text-[#d0d0d0]">{zone ? `Zone ${zoneCode} — ${zone}` : '—'}</span>
+                : <select value={zone} onChange={e => handleZoneChange(e.target.value)} className={sel}>
+                    <option value="">— Select district —</option>
+                    {zones.map(z => <option key={z.zone_code} value={z.district_name}>Zone {z.zone_code} — {z.district_name}</option>)}
+                  </select>
+              }
               {!addingZone ? (
                 isReadOnly ? null : (
                   <button
@@ -709,9 +721,11 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
         <FieldRow
           label="Unit Type"
           value={
-            <select value={unitType} onChange={e => setUnitType(e.target.value as UnitType)} className={`${sel} w-44`}>
-              {Object.values(UnitType).map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
+            isReadOnly
+              ? <span className="text-sm text-[#d0d0d0]">{unitType}</span>
+              : <select value={unitType} onChange={e => setUnitType(e.target.value as UnitType)} className={`${sel} w-44`}>
+                  {Object.values(UnitType).map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
           }
         />
 
@@ -719,9 +733,11 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
         <FieldRow
           label="Config"
           value={
-            <select value={config} onChange={e => setConfig(e.target.value)} className={`${sel} w-52`}>
-              {UNIT_CONFIGS.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            isReadOnly
+              ? <span className="text-sm text-[#d0d0d0]">{config}</span>
+              : <select value={config} onChange={e => setConfig(e.target.value)} className={`${sel} w-52`}>
+                  {UNIT_CONFIGS.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
           }
         />
 
@@ -729,16 +745,18 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
         <FieldRow
           label="Parking"
           value={
-            <div className="inline-flex rounded-lg overflow-hidden border border-[#333333] text-xs font-medium">
-              <button type="button" onClick={() => setParking(true)}
-                className={`px-3 py-1.5 transition-colors ${parking ? 'bg-emerald-600 text-white' : 'bg-[#1e1e1e] text-[#666666] hover:bg-[#2a2a2a]'}`}>
-                Included
-              </button>
-              <button type="button" onClick={() => setParking(false)}
-                className={`px-3 py-1.5 border-l border-[#333333] transition-colors ${!parking ? 'bg-[#3a3a3a] text-[#e0e0e0]' : 'bg-[#1e1e1e] text-[#666666] hover:bg-[#2a2a2a]'}`}>
-                Not Included
-              </button>
-            </div>
+            isReadOnly
+              ? <span className="text-sm text-[#d0d0d0]">{parking ? 'Included' : 'Not Included'}</span>
+              : <div className="inline-flex rounded-lg overflow-hidden border border-[#333333] text-xs font-medium">
+                  <button type="button" onClick={() => setParking(true)}
+                    className={`px-3 py-1.5 transition-colors ${parking ? 'bg-emerald-600 text-white' : 'bg-[#1e1e1e] text-[#666666] hover:bg-[#2a2a2a]'}`}>
+                    Included
+                  </button>
+                  <button type="button" onClick={() => setParking(false)}
+                    className={`px-3 py-1.5 border-l border-[#333333] transition-colors ${!parking ? 'bg-[#3a3a3a] text-[#e0e0e0]' : 'bg-[#1e1e1e] text-[#666666] hover:bg-[#2a2a2a]'}`}>
+                    Not Included
+                  </button>
+                </div>
           }
         />
 
@@ -746,9 +764,11 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
         <FieldRow
           label="Kitchen"
           value={
-            <select value={kitchen} onChange={e => setKitchen(e.target.value as KitchenType)} className={`${sel} w-36`}>
-              {(['Open', 'Closed', 'Yes', 'Pantry'] as KitchenType[]).map(k => <option key={k} value={k}>{k}</option>)}
-            </select>
+            isReadOnly
+              ? <span className="text-sm text-[#d0d0d0]">{kitchen}</span>
+              : <select value={kitchen} onChange={e => setKitchen(e.target.value as KitchenType)} className={`${sel} w-36`}>
+                  {(['Open', 'Closed', 'Yes', 'Pantry'] as KitchenType[]).map(k => <option key={k} value={k}>{k}</option>)}
+                </select>
           }
         />
 
@@ -756,9 +776,11 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
         <FieldRow
           label="Furnishing State"
           value={
-            <select value={furnishing} onChange={e => setFurnishing(e.target.value as Furnishing)} className={`${sel} w-44`}>
-              {Object.values(Furnishing).map(f => <option key={f} value={f}>{f}</option>)}
-            </select>
+            isReadOnly
+              ? <span className="text-sm text-[#d0d0d0]">{furnishing}</span>
+              : <select value={furnishing} onChange={e => setFurnishing(e.target.value as Furnishing)} className={`${sel} w-44`}>
+                  {Object.values(Furnishing).map(f => <option key={f} value={f}>{f}</option>)}
+                </select>
           }
         />
 
@@ -770,9 +792,11 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
               <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${STATUS_BADGE[status]}`}>
                 {status.replace('_', ' ')}
               </span>
-              <select value={status} onChange={e => setStatus(e.target.value as Status)} className={`${sel} w-44`}>
-                {Object.values(Status).map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
-              </select>
+              {!isReadOnly && (
+                <select value={status} onChange={e => setStatus(e.target.value as Status)} className={`${sel} w-44`}>
+                  {Object.values(Status).map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+                </select>
+              )}
             </div>
           }
         />
@@ -789,14 +813,9 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
         <FieldRow
           label="Floor"
           value={
-            <input
-              type="number"
-              min={0}
-              value={floor}
-              onChange={e => setFloor(e.target.value)}
-              placeholder="e.g. 12"
-              className={`${inp} w-28`}
-            />
+            isReadOnly
+              ? <span className="text-sm text-[#d0d0d0] font-mono">{floor || '—'}</span>
+              : <input type="number" min={0} value={floor} onChange={e => setFloor(e.target.value)} placeholder="e.g. 12" className={`${inp} w-28`} />
           }
         />
 
@@ -804,17 +823,12 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
         <FieldRow
           label="Size (sqm)"
           value={
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min={0}
-                value={sizeSqm}
-                onChange={e => setSizeSqm(e.target.value)}
-                placeholder="e.g. 185"
-                className={`${inp} w-28`}
-              />
-              {sizeSqm && <span className="text-xs text-[#666]">sqm</span>}
-            </div>
+            isReadOnly
+              ? <span className="text-sm text-[#d0d0d0] font-mono">{sizeSqm ? `${sizeSqm} sqm` : '—'}</span>
+              : <div className="flex items-center gap-2">
+                  <input type="number" min={0} value={sizeSqm} onChange={e => setSizeSqm(e.target.value)} placeholder="e.g. 185" className={`${inp} w-28`} />
+                  {sizeSqm && <span className="text-xs text-[#666]">sqm</span>}
+                </div>
           }
         />
 
@@ -839,6 +853,17 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
               'Lobby in Building', "Children's Pool", 'WiFi',
             ] as const).map(name => {
               const checked = amenities.includes(name);
+              if (isReadOnly) {
+                if (!checked) return null;
+                return (
+                  <span
+                    key={name}
+                    className="inline-flex items-center px-2.5 py-1 rounded-md border border-[#c9a84c]/50 bg-[#c9a84c]/8 text-[#c9a84c] text-[11px] font-medium"
+                  >
+                    {name}
+                  </span>
+                );
+              }
               return (
                 <button
                   key={name}
@@ -900,16 +925,21 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
                   </svg>
                 </a>
               )}
-              <input
-                type="url"
-                placeholder="Paste Google Maps URL…"
-                value={locationMapUrl}
-                onChange={e => setLocationMapUrl(e.target.value)}
-                className={`${inp} font-mono text-xs text-[#888888]`}
-              />
-              {locationMapUrl && !isValidUrl(locationMapUrl) && (
-                <span className="text-[11px] text-red-400">Invalid URL — must start with https://</span>
+              {!isReadOnly && (
+                <>
+                  <input
+                    type="url"
+                    placeholder="Paste Google Maps URL…"
+                    value={locationMapUrl}
+                    onChange={e => setLocationMapUrl(e.target.value)}
+                    className={`${inp} font-mono text-xs text-[#888888]`}
+                  />
+                  {locationMapUrl && !isValidUrl(locationMapUrl) && (
+                    <span className="text-[11px] text-red-400">Invalid URL — must start with https://</span>
+                  )}
+                </>
               )}
+              {isReadOnly && !locationMapUrl && <span className="text-sm text-[#555]">—</span>}
             </div>
           }
         />
@@ -935,16 +965,21 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
                   </svg>
                 </a>
               )}
-              <input
-                type="url"
-                placeholder="Paste Dropbox, Google Drive, or OneDrive URL…"
-                value={mediaUrl}
-                onChange={e => setMediaUrl(e.target.value)}
-                className={`${inp} font-mono text-xs text-[#888888]`}
-              />
-              {mediaUrl && !isValidUrl(mediaUrl) && (
-                <span className="text-[11px] text-red-400">Invalid URL — must start with https://</span>
+              {!isReadOnly && (
+                <>
+                  <input
+                    type="url"
+                    placeholder="Paste Dropbox, Google Drive, or OneDrive URL…"
+                    value={mediaUrl}
+                    onChange={e => setMediaUrl(e.target.value)}
+                    className={`${inp} font-mono text-xs text-[#888888]`}
+                  />
+                  {mediaUrl && !isValidUrl(mediaUrl) && (
+                    <span className="text-[11px] text-red-400">Invalid URL — must start with https://</span>
+                  )}
+                </>
               )}
+              {isReadOnly && !mediaUrl && <span className="text-sm text-[#555]">—</span>}
             </div>
           }
         />

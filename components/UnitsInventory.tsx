@@ -297,7 +297,7 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDupl
       className="fixed z-50 w-56 bg-[#1a1a1a] rounded-xl shadow-[0_8px_40px_-4px_rgba(0,0,0,0.7)] border border-[#2d2d2d] py-1.5 overflow-hidden"
       role="menu"
     >
-      {!isAgent && item(<IconEye />,  'View Details', () => onViewDetails(menu.unit), 'text-slate-200 font-medium', '#22d3ee')}
+      {item(<IconEye />,  'View Details', () => onViewDetails(menu.unit), 'text-slate-200 font-medium', '#22d3ee')}
       {!isAgent && item(<IconEdit />, 'Edit Unit',    () => onViewDetails(menu.unit), 'text-slate-300',             '#c9a84c')}
       {!isAgent && item(<IconCopy />, 'Duplicate',    () => onDuplicate(menu.unit),   'text-slate-300',             '#a78bfa')}
       {item(
@@ -964,8 +964,8 @@ export default function UnitsInventory({
                   paginatedUnits.map((unit) => (
                     <tr
                       key={unit.id}
-                      onClick={() => { if (!isAgent) handleViewDetails(unit); }}
-                      className={`border-b border-[#222222] last:border-0 hover:bg-[#1e1e1e] transition-colors ${isAgent ? 'cursor-default' : 'cursor-pointer'}`}
+                      onClick={() => handleViewDetails(unit)}
+                      className="border-b border-[#222222] last:border-0 hover:bg-[#1e1e1e] transition-colors cursor-pointer"
                     >
                       {/* Realtor — hidden for agents */}
                       {!isAgent && (
