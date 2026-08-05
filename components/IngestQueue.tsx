@@ -83,7 +83,7 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
   async function discardSelected() {
     if (selectedIds.size === 0 || discarding) return;
     setDiscarding(true);
-    const ids = [...selectedIds];
+    const ids = Array.from(selectedIds);
     try {
       const res = await authedFetch('/api/ingest/discard', {
         method: 'POST',
