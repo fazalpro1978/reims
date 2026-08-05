@@ -201,7 +201,7 @@ const NAV_SECTIONS = [
       { id: 'dashboard',     label: 'Dashboard',           href: '/',              icon: 'chart',     soon: false },
       { id: 'inventory',     label: 'Units Inventory',     href: '/inventory',     icon: 'grid',      soon: false },
       { id: 'properties',    label: 'Properties',          href: '/properties',    icon: 'building',  soon: false },
-      { id: 'tenants',       label: 'Tenants',             href: '/tenants',       icon: 'users',     soon: true  },
+      { id: 'tenants',       label: 'Tenants',             href: '/tenants',       icon: 'users',     soon: true,  roles: ['superuser','administrator','staff'] },
       { id: 'code-registry', label: 'Code Registry',       href: '/code-registry', icon: 'hash',      soon: false, roles: ['superuser','administrator','staff'] },
       { id: 'realtors',      label: 'Realtor Information', href: '/realtors', icon: 'briefcase', soon: false, roles: ['superuser','administrator','staff'] },
       { id: 'zones',         label: 'Zone / District',     href: '/zones',    icon: 'mappin',    soon: false, roles: ['superuser','administrator','staff'] },
@@ -219,7 +219,7 @@ const NAV_SECTIONS = [
     items: [
       { id: 'contracts',  label: 'Contracts & Legal', href: '/contracts',  icon: 'document', soon: false, roles: ['superuser','administrator'] },
       { id: 'financials', label: 'Financials',        href: '/financials', icon: 'chart',    soon: true,  roles: ['superuser','administrator'] },
-      { id: 'reports',    label: 'Reports',           href: '/reports',    icon: 'report',   soon: true  },
+      { id: 'reports',    label: 'Reports',           href: '/reports',    icon: 'report',   soon: true,  roles: ['superuser','administrator','staff'] },
     ],
   },
   {
