@@ -12,14 +12,22 @@ export function generateShareText(unit: UnitListing): string {
 }
 
 export function generatePublicShareText(unit: UnitListing): string {
+  const hasAlias = Boolean(unit.aliasCode);
   return [
     `Connecting you with property, the Privé way`,
     ``,
     `PROPERTY DETAILS`,
-    `  Property         ${unit.property}`,
-    `  Unit No          ${unit.unitNo}`,
-    `  District / Area  ${unit.zone}`,
-    `  Zone Code        Zone ${unit.zoneCode}`,
+    ...(hasAlias
+      ? [
+          `  Reference        ${unit.aliasCode}`,
+          `  District / Area  ${unit.zone}`,
+        ]
+      : [
+          `  Property         ${unit.property}`,
+          `  Unit No          ${unit.unitNo}`,
+          `  District / Area  ${unit.zone}`,
+          `  Zone Code        Zone ${unit.zoneCode}`,
+        ]),
     ``,
     `CLASSIFICATION`,
     `  Type             ${unit.type}`,

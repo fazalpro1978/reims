@@ -544,6 +544,7 @@ function mapDbRowToUnit(row: any): UnitListing {
     mediaUrl:            row.media_url              ?? '',
     listedDate:          row.listed_date            ?? '',
     lastUpdated:         row.updated_at             ?? '',
+    aliasCode:           row.alias_code             ?? undefined,
   };
 }
 
@@ -980,8 +981,10 @@ function MatchingGrid({ inquiryId, clientEmail }: {
     if (!unitId) return;
     const unit = await fetchUnit(unitId);
     if (!unit) return;
-    const subject = encodeURIComponent(`Property Details: ${unit.property} – Unit ${unit.unitNo}`);
-    const body    = encodeURIComponent(generatePublicShareText(unit));
+    const subject = unit.aliasCode
+      ? encodeURIComponent(`Match Found — Ref ${unit.aliasCode} · Privé Group Real Estate`)
+      : encodeURIComponent(`Property Details: ${unit.property} – Unit ${unit.unitNo}`);
+    const body = encodeURIComponent(generatePublicShareText(unit));
     window.open(`mailto:?subject=${subject}&body=${body}`);
   };
 

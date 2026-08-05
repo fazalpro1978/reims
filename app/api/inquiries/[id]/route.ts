@@ -10,7 +10,7 @@ const admin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-const UNIT_JOIN = '*, assigned_unit:units!assigned_unit_id(id, unit_code, unit_no, property), assigned_unit2:units!assigned_unit_id_2(id, unit_code, unit_no, property), assigned_unit3:units!assigned_unit_id_3(id, unit_code, unit_no, property)';
+const UNIT_JOIN = '*, assigned_unit:units!assigned_unit_id(id, unit_code, unit_no, property, alias_code, zone, type, config, furnishing, rent), assigned_unit2:units!assigned_unit_id_2(id, unit_code, unit_no, property, alias_code), assigned_unit3:units!assigned_unit_id_3(id, unit_code, unit_no, property, alias_code)';
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const { data, error } = await admin
@@ -188,6 +188,102 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 </body>
 </html>`,
         }).catch(() => { /* non-critical — don't fail the PATCH if email errors */ });
+      }
+    }
+
+    // ── Requester "match found" email ────────────────────────────────────────
+    // Fires when a primary unit is assigned and the requester has an email.
+    const newUnitId = allowed['assigned_unit_id'];
+    if (newUnitId && typeof newUnitId === 'string' && process.env.RESEND_API_KEY) {
+      const inq = data as Record<string, unknown>;
+      const clientEmail = inq.client_email as string | null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const unit = (inq.assigned_unit as any) ?? null;
+
+      if (clientEmail && unit) {
+        const aliasCode  = unit.alias_code as string | null;
+        const displayId  = aliasCode ?? `${unit.property} – Unit ${unit.unit_no}`;
+        const zone       = unit.zone  as string ?? '';
+        const type       = unit.type  as string ?? '';
+        const config     = unit.config as string ?? '';
+        const furnishing = unit.furnishing as string ?? '';
+        const rent       = Number(unit.rent ?? 0);
+        const fmt        = (n: number) => n.toLocaleString('en-QA');
+        const refNo      = inq.ref_no as string ?? '';
+        const appUrl     = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
+
+        const logoBuf = fs.readFileSync(path.join(process.cwd(), 'public/brand/logo-email.png'));
+        const resend  = new Resend(process.env.RESEND_API_KEY);
+
+        await resend.emails.send({
+          from: `Privé Group Real Estate <${process.env.RESEND_FROM ?? 'noreply@privegroupre.com'}>`,
+          to:   clientEmail,
+          subject: aliasCode
+            ? `Match Found — Ref ${aliasCode} · Privé Group Real Estate`
+            : `We Found a Match for You · Privé Group Real Estate`,
+          attachments: [{ filename: 'logo.png', content: logoBuf, contentType: 'image/png', contentId: 'logo-prive' }],
+          html: `
+<!DOCTYPE html>
+<html lang="en">
+<body style="margin:0;padding:0;background:#f0ece4;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0ece4;">
+  <tr>
+    <td align="center" style="padding:32px 16px;">
+      <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:#1a1a1a;padding:28px 28px 24px;">
+            <img src="cid:logo-prive" alt="Privé Group Real Estate" style="height:48px;width:auto;display:block;margin-bottom:18px;" />
+            ${refNo ? `<p style="margin:0 0 6px;font-size:10px;font-family:monospace;color:#888;letter-spacing:1px;">${refNo}</p>` : ''}
+            <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;line-height:1.3;">We&rsquo;ve found a property match for you</h1>
+          </td>
+        </tr>
+
+        <!-- Alias / Reference -->
+        <tr>
+          <td style="padding:24px 28px 0;">
+            <p style="margin:0 0 2px;font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Property Reference</p>
+            <p style="margin:0;font-size:22px;font-weight:800;color:#c9a84c;font-family:monospace;letter-spacing:1px;">${displayId}</p>
+          </td>
+        </tr>
+
+        <!-- Details -->
+        <tr>
+          <td style="padding:20px 28px 0;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              ${zone       ? `<tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:12px;color:#999;width:38%;">District / Area</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#222;">${zone}</td></tr>` : ''}
+              ${type       ? `<tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:12px;color:#999;">Property Type</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#222;">${type}</td></tr>` : ''}
+              ${config     ? `<tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:12px;color:#999;">Configuration</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#c9a84c;font-weight:600;">${config}</td></tr>` : ''}
+              ${furnishing ? `<tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:12px;color:#999;">Furnishing</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#222;">${furnishing}</td></tr>` : ''}
+              ${rent       ? `<tr><td style="padding:10px 0;font-size:12px;color:#999;">Monthly Rent</td><td style="padding:10px 0;font-size:14px;color:#2a7a3b;font-weight:700;">QAR ${fmt(rent)} / month</td></tr>` : ''}
+            </table>
+          </td>
+        </tr>
+
+        <!-- CTA -->
+        <tr>
+          <td style="padding:24px 28px;">
+            <p style="margin:0 0 16px;font-size:13px;color:#555;line-height:1.6;">Our team will be in touch shortly to arrange a viewing. If you have any questions in the meantime, please don&rsquo;t hesitate to reach out.</p>
+            <a href="mailto:admin@privegroupre.com" style="display:inline-block;background:#c9a84c;color:#fff;font-size:12px;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:8px;letter-spacing:0.5px;">Contact Us</a>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:16px 28px 24px;border-top:1px solid #f0f0f0;text-align:center;">
+            <p style="margin:0 0 3px;font-size:11px;color:#bbb;">Privé Group Real Estate &middot; Brokerage Licence 773 &middot; CR 187753</p>
+            <p style="margin:0;font-size:11px;color:#bbb;">Tel / WhatsApp: +974 7707 5959 &middot; admin@privegroupre.com</p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`,
+        }).catch(() => { /* non-critical */ });
       }
     }
 

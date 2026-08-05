@@ -7,7 +7,7 @@ const admin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-const UNIT_JOIN = '*, assigned_unit:units!assigned_unit_id(id, unit_code, unit_no, property), assigned_unit2:units!assigned_unit_id_2(id, unit_code, unit_no, property), assigned_unit3:units!assigned_unit_id_3(id, unit_code, unit_no, property)';
+const UNIT_JOIN = '*, assigned_unit:units!assigned_unit_id(id, unit_code, unit_no, property, alias_code), assigned_unit2:units!assigned_unit_id_2(id, unit_code, unit_no, property, alias_code), assigned_unit3:units!assigned_unit_id_3(id, unit_code, unit_no, property, alias_code)';
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
