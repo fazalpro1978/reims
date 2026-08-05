@@ -237,9 +237,10 @@ interface ContextMenuProps {
   onDuplicate: (unit: UnitListing) => void;
   onDelete: (unit: UnitListing) => void;
   onCopy: (unit: UnitListing) => void;
+  isAgent?: boolean;
 }
 
-function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDuplicate, onDelete, onCopy }: ContextMenuProps) {
+function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDuplicate, onDelete, onCopy, isAgent }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -296,9 +297,9 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDupl
       className="fixed z-50 w-56 bg-[#1a1a1a] rounded-xl shadow-[0_8px_40px_-4px_rgba(0,0,0,0.7)] border border-[#2d2d2d] py-1.5 overflow-hidden"
       role="menu"
     >
-      {item(<IconEye />,  'View Details', () => onViewDetails(menu.unit),                              'text-slate-200 font-medium', '#22d3ee')}
-      {item(<IconEdit />, 'Edit Unit',    () => onViewDetails(menu.unit),                              'text-slate-300',             '#c9a84c')}
-      {item(<IconCopy />, 'Duplicate',    () => onDuplicate(menu.unit),                                'text-slate-300',             '#a78bfa')}
+      {!isAgent && item(<IconEye />,  'View Details', () => onViewDetails(menu.unit), 'text-slate-200 font-medium', '#22d3ee')}
+      {!isAgent && item(<IconEdit />, 'Edit Unit',    () => onViewDetails(menu.unit), 'text-slate-300',             '#c9a84c')}
+      {!isAgent && item(<IconCopy />, 'Duplicate',    () => onDuplicate(menu.unit),   'text-slate-300',             '#a78bfa')}
       {item(
         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -326,12 +327,12 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDupl
         <span style={{ color: '#25D366' }}><IconWhatsApp /></span>
         WhatsApp
       </button>
-      {item(<IconPDF />,  'PDF Report', () => window.open(`/report/${menu.unit.uuid}`, '_blank'), 'text-slate-300', '#fb923c')}
-      {item(<IconMail />, 'Email',      () => onEmail(menu.unit),                                 'text-slate-300', '#38bdf8')}
+      {!isAgent && item(<IconPDF />, 'PDF Report', () => window.open(`/report/${menu.unit.uuid}`, '_blank'), 'text-slate-300', '#fb923c')}
+      {item(<IconMail />, 'Email', () => onEmail(menu.unit), 'text-slate-300', '#38bdf8')}
 
-      <div className="my-1 mx-1 border-t border-[#2a2a2a]" />
+      {!isAgent && <div className="my-1 mx-1 border-t border-[#2a2a2a]" />}
 
-      {item(
+      {!isAgent && item(
         <IconTrash />,
         'Delete',
         () => onDelete(menu.unit),
@@ -936,7 +937,7 @@ export default function UnitsInventory({
                     ['Furnishing',     'text-left'],
                     ['Rent (QAR/mo)',  'text-right'],
                     ['Status',         'text-left'],
-                    !isAgent && ['',   'text-center'],
+                    ['',               'text-center'],
                   ].filter(Boolean) as [string, string][]).map(([col, align], i) => (
                     <th key={i} className={`px-2.5 py-2.5 text-[10px] font-semibold text-[#888888] uppercase tracking-wider whitespace-nowrap ${align}`}>
                       {col}
@@ -947,7 +948,7 @@ export default function UnitsInventory({
               <tbody>
                 {paginatedUnits.length === 0 ? (
                   <tr>
-                    <td colSpan={isAgent ? 9 : 11} className="px-4 py-14 text-center">
+                    <td colSpan={isAgent ? 10 : 11} className="px-4 py-14 text-center">
                       <p className="text-[#888888] text-sm">No units match the current filter combination.</p>
                       {hasActiveFilters && (
                         <button onClick={clearFilters} className="mt-2 text-sm text-[#c9a84c] underline underline-offset-2 hover:no-underline">
@@ -960,8 +961,8 @@ export default function UnitsInventory({
                   paginatedUnits.map((unit) => (
                     <tr
                       key={unit.id}
-                      onClick={() => handleViewDetails(unit)}
-                      className="border-b border-[#222222] last:border-0 hover:bg-[#1e1e1e] transition-colors cursor-pointer"
+                      onClick={() => { if (!isAgent) handleViewDetails(unit); }}
+                      className={`border-b border-[#222222] last:border-0 hover:bg-[#1e1e1e] transition-colors ${isAgent ? 'cursor-default' : 'cursor-pointer'}`}
                     >
                       {/* Realtor — hidden for agents */}
                       {!isAgent && (
@@ -1026,22 +1027,20 @@ export default function UnitsInventory({
                         </span>
                       </td>
 
-                      {/* Actions — hidden for agents */}
-                      {!isAgent && (
-                        <td className="px-2 py-2.5 text-center w-8">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleEllipsisClick(e, unit); }}
-                            aria-label={`Actions for ${unit.unitNo}`}
-                            className={`w-6 h-6 rounded-md flex items-center justify-center text-base leading-none transition-colors mx-auto ${
-                              contextMenu?.unit.id === unit.id
-                                ? 'bg-[#c9a84c] text-[#0f0f0f]'
-                                : 'text-[#505050] hover:text-[#c9a84c] hover:bg-[#2a2a2a]'
-                            }`}
-                          >
-                            ⋮
-                          </button>
-                        </td>
-                      )}
+                      {/* Actions */}
+                      <td className="px-2 py-2.5 text-center w-8">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleEllipsisClick(e, unit); }}
+                          aria-label={`Actions for ${unit.unitNo}`}
+                          className={`w-6 h-6 rounded-md flex items-center justify-center text-base leading-none transition-colors mx-auto ${
+                            contextMenu?.unit.id === unit.id
+                              ? 'bg-[#c9a84c] text-[#0f0f0f]'
+                              : 'text-[#505050] hover:text-[#c9a84c] hover:bg-[#2a2a2a]'
+                          }`}
+                        >
+                          ⋮
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -1121,6 +1120,7 @@ export default function UnitsInventory({
           onDuplicate={handleDuplicate}
           onDelete={handleDeleteRequest}
           onCopy={handleCopyUnit}
+          isAgent={isAgent}
         />
       )}
 

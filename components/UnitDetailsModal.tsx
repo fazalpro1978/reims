@@ -11,7 +11,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase/client';
 import { logEvent } from '../lib/auditLog';
 import { DurationUnit, parseLegalDuration, calcEndDate, calcDurationFromDates } from '../lib/legalDuration';
-import { generateInternalCopyText, generatePublicShareText } from '../lib/shareUtils';
+import { generateInternalCopyText, generatePublicShareText, generateAgentShareText } from '../lib/shareUtils';
 import { UNIT_CONFIGS_FULL } from '../lib/propertySchema';
 import DocUploadRow from './DocUploadRow';
 import CommDocRow, { DocEntry } from './CommDocRow';
@@ -2358,7 +2358,8 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
 
   // Build share payload
   const handleCopy = () => {
-    navigator.clipboard.writeText(generateInternalCopyText(unit, copyFocal)).then(() => {
+    const text = isAgent ? generateAgentShareText(unit) : generateInternalCopyText(unit, copyFocal);
+    navigator.clipboard.writeText(text).then(() => {
       setCopyToast(true);
       setTimeout(() => setCopyToast(false), 2500);
       setInternalToast(true);
@@ -2366,12 +2367,14 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
     });
   };
 
-  const handleWhatsApp = () =>
-    window.open(`https://wa.me/?text=${encodeURIComponent(generatePublicShareText(unit))}`, '_blank');
+  const handleWhatsApp = () => {
+    const text = isAgent ? generateAgentShareText(unit) : generatePublicShareText(unit);
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
 
   const handleEmail = () => {
     const subject = encodeURIComponent(`Property Details: ${unit.property} – Unit ${unit.unitNo}`);
-    const body = encodeURIComponent(generatePublicShareText(unit));
+    const body = encodeURIComponent(isAgent ? generateAgentShareText(unit) : generatePublicShareText(unit));
     window.open(`mailto:?subject=${subject}&body=${body}`);
   };
 
@@ -2435,35 +2438,37 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
             </svg>
             WhatsApp
           </button>
-          {/* PDF Report — inline style bypasses [data-theme] CSS override */}
-          <button
-            onClick={() => { if (unitUuid) window.open(`/report/${unitUuid}`, '_blank'); }}
-            disabled={!unitUuid}
-            title={unitUuid ? 'Open printable PDF report in new tab' : 'Loading unit data…'}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '6px 14px',
-              background: unitUuid ? '#c9a84c' : '#2a2a2a',
-              color: unitUuid ? '#0f0f0f' : '#555555',
-              border: 'none',
-              borderRadius: 8,
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: unitUuid ? 'pointer' : 'not-allowed',
-              whiteSpace: 'nowrap',
-              opacity: unitUuid ? 1 : 0.55,
-              transition: 'background 150ms, opacity 150ms',
-              flexShrink: 0,
-            }}
-            onMouseEnter={e => { if (unitUuid) (e.currentTarget as HTMLButtonElement).style.background = '#dfc070'; }}
-            onMouseLeave={e => { if (unitUuid) (e.currentTarget as HTMLButtonElement).style.background = '#c9a84c'; }}
-          >
-            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-              <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
-            </svg>
-            {unitUuid ? 'PDF Report' : 'Loading…'}
-          </button>
+          {/* PDF Report — hidden for agents */}
+          {!isAgent && (
+            <button
+              onClick={() => { if (unitUuid) window.open(`/report/${unitUuid}`, '_blank'); }}
+              disabled={!unitUuid}
+              title={unitUuid ? 'Open printable PDF report in new tab' : 'Loading unit data…'}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '6px 14px',
+                background: unitUuid ? '#c9a84c' : '#2a2a2a',
+                color: unitUuid ? '#0f0f0f' : '#555555',
+                border: 'none',
+                borderRadius: 8,
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: unitUuid ? 'pointer' : 'not-allowed',
+                whiteSpace: 'nowrap',
+                opacity: unitUuid ? 1 : 0.55,
+                transition: 'background 150ms, opacity 150ms',
+                flexShrink: 0,
+              }}
+              onMouseEnter={e => { if (unitUuid) (e.currentTarget as HTMLButtonElement).style.background = '#dfc070'; }}
+              onMouseLeave={e => { if (unitUuid) (e.currentTarget as HTMLButtonElement).style.background = '#c9a84c'; }}
+            >
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+              </svg>
+              {unitUuid ? 'PDF Report' : 'Loading…'}
+            </button>
+          )}
           <button
             onClick={handleEmail}
             className="flex items-center gap-2 px-3.5 py-1.5 text-[#0f172a] text-xs font-semibold rounded-lg transition-colors whitespace-nowrap"
