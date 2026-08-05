@@ -127,6 +127,49 @@ export function generateInternalCopyText(unit: UnitListing, focal?: FocalData): 
   ].join('\n');
 }
 
+export function generateAgentShareText(unit: UnitListing): string {
+  return [
+    `⚠ FOR AGENT USE ONLY — PRIVÉ GROUP REAL ESTATE ⚠`,
+    `Unit Code         ${unit.id}`,
+    `Contract Status   ${unit.mociContractStatus ?? 'null'}`,
+    ``,
+    `IDENTIFICATION`,
+    `  Property          ${unit.property}`,
+    `  Unit No           ${unit.unitNo}`,
+    `  District / Area   ${unit.zone}`,
+    `  Zone Code         Zone ${unit.zoneCode}`,
+    ``,
+    `CLASSIFICATION`,
+    `  Type              ${unit.type}`,
+    `  Configuration     ${unit.config}`,
+    `  Furnishing        ${unit.furnishing}`,
+    `  Kitchen           ${unit.kitchen}`,
+    `  Parking           ${unit.parking ? 'Yes' : 'No'}`,
+    `  Status            ${unit.status.replace(/_/g, ' ')}`,
+    ``,
+    `FINANCIALS`,
+    `  Monthly Rent      QAR ${unit.rent.toLocaleString()}`,
+    `  Service Charges   QAR ${unit.serviceCharges.toLocaleString()}`,
+    `  Deposit           QAR ${unit.depositAmount.toLocaleString()}`,
+    `  Agency Fee        QAR ${unit.agencyFee.toLocaleString()}`,
+    ``,
+    `SERVICE & UTILITY DEPOSITS`,
+    `  Kahramaa Deposit   QAR ${unit.kahramaaAmount.toLocaleString()}`,
+    `  Qatar Cool Deposit QAR ${unit.qatarCoolAmount.toLocaleString()}`,
+    `  Marafeq Deposit    QAR ${unit.marafeqAmount.toLocaleString()}`,
+    ...(unit.mediaUrl ? [
+      ``,
+      `LINKS`,
+      `  Media             ${unit.mediaUrl}`,
+    ] : []),
+    ``,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `Privé Group Real Estate — CONFIDENTIAL`,
+    `Tel / WhatsApp: +974 7707 5959 | admin@privegroupre.com`,
+    `Brokerage Licence 773 | CR 187753`,
+  ].join('\n');
+}
+
 export function generateEmailBody(unit: UnitListing): string {
   return [
     `Property Listing Enquiry — Privé Group Real Estate`,

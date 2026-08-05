@@ -26,7 +26,7 @@ import {
   ContextMenuPosition,
 } from '../types/inventory';
 import { supabase } from '../lib/supabase/client';
-import { formatQAR, generateShareText, generateEmailBody, generatePublicShareText, generateInternalCopyText } from '../lib/shareUtils';
+import { formatQAR, generateShareText, generateEmailBody, generatePublicShareText, generateInternalCopyText, generateAgentShareText } from '../lib/shareUtils';
 import { useAuth } from '../contexts/AuthContext';
 import UnitDetailsModal from './UnitDetailsModal';
 import TopBar from './TopBar';
@@ -579,16 +579,17 @@ export default function UnitsInventory({
   // ── Share handlers ─────────────────────────────────────────────────────────
 
   const handleWhatsApp = useCallback((unit: UnitListing) => {
-    window.open(`https://wa.me/?text=${encodeURIComponent(generateInternalCopyText(unit))}`, '_blank');
-  }, []);
+    const text = isAgent ? generateAgentShareText(unit) : generateInternalCopyText(unit);
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  }, [isAgent]);
 
   const handleEmail = useCallback((unit: UnitListing) => {
     const subject = encodeURIComponent(
       `Property Enquiry — ${unit.property} ${unit.config} | ${unit.id}`
     );
-    const body = encodeURIComponent(generatePublicShareText(unit));
+    const body = encodeURIComponent(isAgent ? generateAgentShareText(unit) : generatePublicShareText(unit));
     window.open(`mailto:?subject=${subject}&body=${body}`);
-  }, []);
+  }, [isAgent]);
 
   const handleDuplicate = useCallback(async (unit: UnitListing) => {
     if (!unit.uuid) {
@@ -621,16 +622,22 @@ export default function UnitsInventory({
   }, []);
 
   const handleCopyUnit = useCallback(async (unit: UnitListing) => {
-    let focal = { name: '', phone: '', email: '', operatorRemarks: '' };
-    if (unit.uuid) {
-      const { data } = await supabase.from('unit_operational').select('focal_point_name,focal_point_phone,focal_point_email,operator_remarks').eq('unit_id', unit.uuid).single();
-      if (data) focal = { name: data.focal_point_name ?? '', phone: data.focal_point_phone ?? '', email: data.focal_point_email ?? '', operatorRemarks: data.operator_remarks ?? '' };
+    let text: string;
+    if (isAgent) {
+      text = generateAgentShareText(unit);
+    } else {
+      let focal = { name: '', phone: '', email: '', operatorRemarks: '' };
+      if (unit.uuid) {
+        const { data } = await supabase.from('unit_operational').select('focal_point_name,focal_point_phone,focal_point_email,operator_remarks').eq('unit_id', unit.uuid).single();
+        if (data) focal = { name: data.focal_point_name ?? '', phone: data.focal_point_phone ?? '', email: data.focal_point_email ?? '', operatorRemarks: data.operator_remarks ?? '' };
+      }
+      text = generateInternalCopyText(unit, focal);
     }
-    navigator.clipboard.writeText(generateInternalCopyText(unit, focal)).then(() => {
-      setToast({ type: 'error', msg: '⚠ FOR INTERNAL USE ONLY' });
+    navigator.clipboard.writeText(text).then(() => {
+      setToast({ type: 'error', msg: isAgent ? '⚠ FOR AGENT USE ONLY' : '⚠ FOR INTERNAL USE ONLY' });
       setTimeout(() => setToast(null), 3500);
     });
-  }, []);
+  }, [isAgent]);
 
   const handleDeleteRequest = useCallback((unit: UnitListing) => {
     setDeleteTarget(unit);
@@ -919,7 +926,7 @@ export default function UnitsInventory({
               <thead>
                 <tr className="bg-[#111111] border-b border-[#252525]">
                   {([
-                    ['Realtor',       'text-left'],
+                    !isAgent && ['Realtor',       'text-left'],
                     ['Property / Unit','text-left'],
                     ['Zone / District','text-left'],
                     ['Type · Config',  'text-left'],
@@ -929,8 +936,8 @@ export default function UnitsInventory({
                     ['Furnishing',     'text-left'],
                     ['Rent (QAR/mo)',  'text-right'],
                     ['Status',         'text-left'],
-                    ['',               'text-center'],
-                  ] as [string, string][]).map(([col, align], i) => (
+                    !isAgent && ['',   'text-center'],
+                  ].filter(Boolean) as [string, string][]).map(([col, align], i) => (
                     <th key={i} className={`px-2.5 py-2.5 text-[10px] font-semibold text-[#888888] uppercase tracking-wider whitespace-nowrap ${align}`}>
                       {col}
                     </th>
@@ -940,7 +947,7 @@ export default function UnitsInventory({
               <tbody>
                 {paginatedUnits.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-4 py-14 text-center">
+                    <td colSpan={isAgent ? 9 : 11} className="px-4 py-14 text-center">
                       <p className="text-[#888888] text-sm">No units match the current filter combination.</p>
                       {hasActiveFilters && (
                         <button onClick={clearFilters} className="mt-2 text-sm text-[#c9a84c] underline underline-offset-2 hover:no-underline">
@@ -956,11 +963,13 @@ export default function UnitsInventory({
                       onClick={() => handleViewDetails(unit)}
                       className="border-b border-[#222222] last:border-0 hover:bg-[#1e1e1e] transition-colors cursor-pointer"
                     >
-                      {/* Realtor */}
-                      <td className="px-2.5 py-2.5 whitespace-nowrap max-w-[130px]" title={unit.realtorName}>
-                        <span className="text-xs text-[#888888] truncate block">{unit.realtorName}</span>
-                        <span className="text-[10px] font-mono text-[#888888]">{unit.realtorMOCI}</span>
-                      </td>
+                      {/* Realtor — hidden for agents */}
+                      {!isAgent && (
+                        <td className="px-2.5 py-2.5 whitespace-nowrap max-w-[130px]" title={unit.realtorName}>
+                          <span className="text-xs text-[#888888] truncate block">{unit.realtorName}</span>
+                          <span className="text-[10px] font-mono text-[#888888]">{unit.realtorMOCI}</span>
+                        </td>
+                      )}
 
                       {/* Property / Unit — combined */}
                       <td className="px-2.5 py-2.5 max-w-[180px]" title={unit.property}>
@@ -1017,20 +1026,22 @@ export default function UnitsInventory({
                         </span>
                       </td>
 
-                      {/* Actions */}
-                      <td className="px-2 py-2.5 text-center w-8">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleEllipsisClick(e, unit); }}
-                          aria-label={`Actions for ${unit.unitNo}`}
-                          className={`w-6 h-6 rounded-md flex items-center justify-center text-base leading-none transition-colors mx-auto ${
-                            contextMenu?.unit.id === unit.id
-                              ? 'bg-[#c9a84c] text-[#0f0f0f]'
-                              : 'text-[#505050] hover:text-[#c9a84c] hover:bg-[#2a2a2a]'
-                          }`}
-                        >
-                          ⋮
-                        </button>
-                      </td>
+                      {/* Actions — hidden for agents */}
+                      {!isAgent && (
+                        <td className="px-2 py-2.5 text-center w-8">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleEllipsisClick(e, unit); }}
+                            aria-label={`Actions for ${unit.unitNo}`}
+                            className={`w-6 h-6 rounded-md flex items-center justify-center text-base leading-none transition-colors mx-auto ${
+                              contextMenu?.unit.id === unit.id
+                                ? 'bg-[#c9a84c] text-[#0f0f0f]'
+                                : 'text-[#505050] hover:text-[#c9a84c] hover:bg-[#2a2a2a]'
+                            }`}
+                          >
+                            ⋮
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
