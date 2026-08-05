@@ -438,12 +438,13 @@ export default function UnitsInventory({
   const [dbRealtors, setDbRealtors] = useState<string[]>([]);
 
   useEffect(() => {
+    if (isAgent) return;
     async function fetchRealtors() {
       const { data, error } = await supabase.from('realtors').select('name').order('name');
       if (!error && data) setDbRealtors(data.map((r) => r.name));
     }
     fetchRealtors();
-  }, [refreshKey]);
+  }, [isAgent, refreshKey]);
 
   // ── Modal / context menu / settings state ────────────────────────────────
   const [selectedUnit, setSelectedUnit] = useState<UnitListing | null>(null);
@@ -506,14 +507,14 @@ export default function UnitsInventory({
       !_q ||
       u.property.toLowerCase().includes(_q) ||
       u.unitNo.toLowerCase().includes(_q) ||
-      u.realtorName.toLowerCase().includes(_q) ||
-      (u.realtorMOCI ?? '').toLowerCase().includes(_q);
+      (!isAgent && u.realtorName.toLowerCase().includes(_q)) ||
+      (!isAgent && (u.realtorMOCI ?? '').toLowerCase().includes(_q));
     const matchStatus     = statusFilter     === 'All' || u.status      === statusFilter;
     const matchFurnishing = furnishingFilter  === 'All' || u.furnishing  === furnishingFilter;
     const matchZone       = zoneFilter        === 'All' || u.zone        === zoneFilter;
     const matchType       = typeFilter        === 'All' || u.type        === typeFilter;
     const matchConfig     = configFilter      === 'All' || u.config      === configFilter;
-    const matchRealtor    = realtorFilter     === 'All' || u.realtorName === realtorFilter;
+    const matchRealtor    = isAgent || realtorFilter === 'All' || u.realtorName === realtorFilter;
     const matchMinRent    = _minR === null || u.rent >= _minR;
     const matchMaxRent    = _maxR === null || u.rent <= _maxR;
     return matchSearch && matchStatus && matchFurnishing && matchZone &&
@@ -774,7 +775,7 @@ export default function UnitsInventory({
               </span>
               <input
                 type="text"
-                placeholder="Search code, realtor, zone…"
+                placeholder={isAgent ? 'Search property, unit, zone…' : 'Search code, realtor, zone…'}
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); resetPage(); }}
                 className="w-full pl-9 pr-3 py-2 text-sm bg-[#1e1e1e] text-white border border-[#2a2a2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a84c]/40 focus:border-[#c9a84c] placeholder:text-[#505050]"
@@ -829,17 +830,19 @@ export default function UnitsInventory({
               ))}
             </select>
 
-            {/* Realtor */}
-            <select
-              value={realtorFilter}
-              onChange={(e) => { setRealtorFilter(e.target.value); resetPage(); }}
-              className="py-2 px-3 text-sm bg-[#1e1e1e] text-[#d0d0d0] border border-[#2a2a2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a84c]/40 focus:border-[#c9a84c] cursor-pointer min-w-[130px]"
-            >
-              <option value="All">All Realtors</option>
-              {allRealtors.map((r) => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
+            {/* Realtor — hidden for agents */}
+            {!isAgent && (
+              <select
+                value={realtorFilter}
+                onChange={(e) => { setRealtorFilter(e.target.value); resetPage(); }}
+                className="py-2 px-3 text-sm bg-[#1e1e1e] text-[#d0d0d0] border border-[#2a2a2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a84c]/40 focus:border-[#c9a84c] cursor-pointer min-w-[130px]"
+              >
+                <option value="All">All Realtors</option>
+                {allRealtors.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            )}
 
             {/* District / Zone */}
             <select
