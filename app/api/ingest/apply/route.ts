@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
       try {
         const ackRes = await fetch(`${INGEST_URL}/api/export/acknowledge`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-api-key': INGEST_KEY },
           body: JSON.stringify({ ids }),
         });
         if (ackRes.ok) {
