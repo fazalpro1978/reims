@@ -10,7 +10,7 @@ const admin = createClient(
 
 // GET /api/aliases/[code] — resolve a single alias and return its unit
 export async function GET(req: NextRequest, { params }: { params: { code: string } }) {
-  const auth = await requireAuth(req, ['superuser', 'administrator']);
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
   if (!auth.ok) return auth.response;
 
   const code = params.code.toUpperCase();

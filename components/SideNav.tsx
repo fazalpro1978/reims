@@ -235,7 +235,7 @@ const NAV_SECTIONS = [
     label: 'Administration',
     items: [
       { id: 'admin-users',     label: 'User Management', href: '/admin/users',    icon: 'users',   soon: false, roles: ['superuser','administrator'] },
-      { id: 'alias-registry',  label: 'Alias Registry',  href: '/admin/aliases',  icon: 'shield',  soon: false, roles: ['superuser','administrator'] },
+      { id: 'alias-registry',  label: 'Alias Registry',  href: '/admin/aliases',  icon: 'shield',  soon: false, roles: ['superuser','administrator','staff'] },
     ],
   },
 ];

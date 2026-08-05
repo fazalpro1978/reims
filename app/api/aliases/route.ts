@@ -10,7 +10,7 @@ const admin = createClient(
 
 // GET /api/aliases — list all aliases with unit info
 export async function GET(req: NextRequest) {
-  const auth = await requireAuth(req, ['superuser', 'administrator']);
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
   if (!auth.ok) return auth.response;
 
   const { searchParams } = req.nextUrl;
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/aliases — generate alias for a unit
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth(req, ['superuser', 'administrator']);
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
   if (!auth.ok) return auth.response;
 
   const { unitId } = await req.json() as { unitId?: string };
