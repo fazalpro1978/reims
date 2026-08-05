@@ -238,9 +238,10 @@ interface ContextMenuProps {
   onDelete: (unit: UnitListing) => void;
   onCopy: (unit: UnitListing) => void;
   isAgent?: boolean;
+  canDuplicate?: boolean;
 }
 
-function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDuplicate, onDelete, onCopy, isAgent }: ContextMenuProps) {
+function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDuplicate, onDelete, onCopy, isAgent, canDuplicate }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -299,7 +300,7 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDupl
     >
       {item(<IconEye />,  'View Details', () => onViewDetails(menu.unit), 'text-slate-200 font-medium', '#22d3ee')}
       {!isAgent && item(<IconEdit />, 'Edit Unit',    () => onViewDetails(menu.unit), 'text-slate-300',             '#c9a84c')}
-      {!isAgent && item(<IconCopy />, 'Duplicate',    () => onDuplicate(menu.unit),   'text-slate-300',             '#a78bfa')}
+      {canDuplicate && item(<IconCopy />, 'Duplicate',    () => onDuplicate(menu.unit),   'text-slate-300',             '#a78bfa')}
       {item(
         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -356,6 +357,7 @@ export default function UnitsInventory({
 }) {
   const { role: userRole, can } = useAuth();
   const isAgent = userRole === 'agent';
+  const canAddUnit = can('units.add');
 
   // ── Filter state ──────────────────────────────────────────────────────────
   const [search, setSearch] = useState('');
@@ -1124,6 +1126,7 @@ export default function UnitsInventory({
           onDelete={handleDeleteRequest}
           onCopy={handleCopyUnit}
           isAgent={isAgent}
+          canDuplicate={canAddUnit}
         />
       )}
 

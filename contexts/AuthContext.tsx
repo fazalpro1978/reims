@@ -27,7 +27,7 @@ const PERMISSIONS: Record<string, UserRole[]> = {
   'units.view_all':          ['superuser','administrator','staff'],   // agent=available only
   'units.view_financials':   ['superuser','administrator','staff'],
   'units.view_remarks':      ['superuser','administrator','staff'],
-  'units.add':               ['superuser','administrator','staff'],
+  'units.add':               ['superuser','administrator'],
   'units.edit':              ['superuser','administrator','staff'],
   'units.delete':            ['superuser','administrator'],
   'units.bulk_edit':         ['superuser','administrator','staff'],

@@ -8,7 +8,7 @@ const admin = createClient(
 );
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
+  const auth = await requireAuth(req, ['superuser', 'administrator']);
   if (!auth.ok) return auth.response;
 
   try {
