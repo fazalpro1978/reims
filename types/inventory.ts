@@ -95,6 +95,7 @@ export interface UnitListing {
   views?: string[];      // View descriptors, e.g. ["Sea View", "City View"]
   notes?: string;        // General freeform notes
   mociStatus?: string;   // MOCI registration status label, e.g. "REGISTERED"
+  aliasCode?: string;    // Public alias code, e.g. "WB61-023" — hides property identity from prospects
 
   // ── Metadata ──────────────────────────────────────────────────────────────
   listedDate: string;    // ISO 8601 date string

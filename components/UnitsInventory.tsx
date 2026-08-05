@@ -383,7 +383,7 @@ export default function UnitsInventory({
       setLoading(true);
       const { data, error } = await supabase
         .from('units')
-        .select('*, unit_operational(maintenance_notes, access_lockbox)')
+        .select('*, unit_operational(maintenance_notes, access_lockbox), alias_code')
         .order('unit_code');
       if (error) { setDbError(error.message); setLoading(false); return; }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -429,6 +429,7 @@ export default function UnitsInventory({
         mediaUrl:            row.media_url ?? '',
         listedDate:          row.listed_date ?? '',
         lastUpdated:         row.updated_at ?? '',
+        aliasCode:           row.alias_code ?? undefined,
       }));
       setUnits(mapped);
       setLoading(false);
@@ -977,10 +978,19 @@ export default function UnitsInventory({
                         </td>
                       )}
 
-                      {/* Property / Unit — combined */}
-                      <td className="px-2.5 py-2.5 max-w-[180px]" title={unit.property}>
-                        <span className="block text-xs font-semibold text-white leading-snug truncate">{unit.property}</span>
-                        <span className="block text-[10px] font-mono text-[#888888] mt-0.5">{unit.unitNo}</span>
+                      {/* Property / Unit — combined; agents see alias code to hide building identity */}
+                      <td className="px-2.5 py-2.5 max-w-[180px]" title={isAgent && unit.aliasCode ? unit.aliasCode : unit.property}>
+                        {isAgent && unit.aliasCode ? (
+                          <>
+                            <span className="block text-xs font-semibold font-mono text-[#c9a84c] leading-snug">{unit.aliasCode}</span>
+                            <span className="block text-[10px] text-[#555] mt-0.5">—</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="block text-xs font-semibold text-white leading-snug truncate">{unit.property}</span>
+                            <span className="block text-[10px] font-mono text-[#888888] mt-0.5">{unit.unitNo}</span>
+                          </>
+                        )}
                       </td>
 
                       {/* Zone / District — combined */}

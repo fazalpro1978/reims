@@ -129,6 +129,13 @@ function IcMapPin() {
     </svg>
   );
 }
+function IcShield() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px] shrink-0">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
 function IcPlus() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" className="w-[13px] h-[13px]">
@@ -175,6 +182,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   help:       <IcHelp />,
   briefcase:  <IcBriefcase />,
   mappin:     <IcMapPin />,
+  shield:     <IcShield />,
 };
 
 const NAV_ICON_COLOR: Record<string, string> = {
@@ -191,6 +199,7 @@ const NAV_ICON_COLOR: Record<string, string> = {
   help:       '#86efac',
   briefcase:  '#fbbf24',
   mappin:     '#34d399',
+  shield:     '#818cf8',
 };
 
 const NAV_SECTIONS = [
@@ -225,7 +234,8 @@ const NAV_SECTIONS = [
   {
     label: 'Administration',
     items: [
-      { id: 'admin-users', label: 'User Management', href: '/admin/users', icon: 'users', soon: false, roles: ['superuser','administrator'] },
+      { id: 'admin-users',     label: 'User Management', href: '/admin/users',    icon: 'users',   soon: false, roles: ['superuser','administrator'] },
+      { id: 'alias-registry',  label: 'Alias Registry',  href: '/admin/aliases',  icon: 'shield',  soon: false, roles: ['superuser','administrator'] },
     ],
   },
 ];

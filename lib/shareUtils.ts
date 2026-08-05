@@ -128,16 +128,26 @@ export function generateInternalCopyText(unit: UnitListing, focal?: FocalData): 
 }
 
 export function generateAgentShareText(unit: UnitListing): string {
+  const hasAlias = Boolean(unit.aliasCode);
   return [
     `⚠ FOR AGENT USE ONLY — PRIVÉ GROUP REAL ESTATE ⚠`,
     `Unit Code         ${unit.id}`,
+    ...(hasAlias ? [`Alias Code        ${unit.aliasCode}`] : []),
     `Contract Status   ${unit.mociContractStatus ?? 'null'}`,
     ``,
     `IDENTIFICATION`,
-    `  Property          ${unit.property}`,
-    `  Unit No           ${unit.unitNo}`,
-    `  District / Area   ${unit.zone}`,
-    `  Zone Code         Zone ${unit.zoneCode}`,
+    ...(hasAlias
+      ? [
+          `  Alias Code        ${unit.aliasCode}`,
+          `  District / Area   ${unit.zone}`,
+          `  Zone Code         Zone ${unit.zoneCode}`,
+        ]
+      : [
+          `  Property          ${unit.property}`,
+          `  Unit No           ${unit.unitNo}`,
+          `  District / Area   ${unit.zone}`,
+          `  Zone Code         Zone ${unit.zoneCode}`,
+        ]),
     ``,
     `CLASSIFICATION`,
     `  Type              ${unit.type}`,
