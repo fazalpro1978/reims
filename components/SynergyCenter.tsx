@@ -98,6 +98,11 @@ interface AgentProfile {
   full_name: string;
 }
 
+interface StaffProfile {
+  email: string;
+  full_name: string | null;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmt = (n: number) => n.toLocaleString('en-QA');
@@ -307,6 +312,92 @@ function AgentSearch({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Staff Search (handler assignment for admins) ────────────────────────────
+
+function StaffSearch({
+  value, staffName, onSelect,
+}: {
+  value: string;
+  staffName: string | null;
+  onSelect: (email: string, name: string) => void;
+}) {
+  const [open,  setOpen]  = useState(false);
+  const [q,     setQ]     = useState('');
+  const [staff, setStaff] = useState<StaffProfile[]>([]);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    authedFetch('/api/admin/users').then(r => r.json()).then(d => {
+      setStaff((d.users ?? []).filter((u: { role: string; is_active: boolean }) => u.role === 'staff' && u.is_active));
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const filtered = q
+    ? staff.filter(s =>
+        (s.full_name ?? '').toLowerCase().includes(q.toLowerCase()) ||
+        s.email.toLowerCase().includes(q.toLowerCase()))
+    : staff;
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => { setQ(''); setOpen(true); }}
+        className="w-full flex items-center gap-2 px-2 py-1 rounded-lg bg-[#0f0f0f] border border-[#1e1e1e] hover:border-[#c9a84c44] transition-colors text-left"
+      >
+        {value ? (
+          <>
+            <div className="w-5 h-5 rounded-full bg-[#c9a84c22] border border-[#c9a84c44] flex items-center justify-center shrink-0">
+              <span className="text-[8px] font-bold text-[#c9a84c]">S</span>
+            </div>
+            <span className="text-xs text-[#ccc] truncate">{staffName ?? value}</span>
+          </>
+        ) : (
+          <span className="text-[11px] text-[#444]">Assign handler…</span>
+        )}
+      </button>
+    );
+  }
+
+  return (
+    <div ref={ref} className="border border-[#333] rounded-lg bg-[#0a0a0a] overflow-hidden">
+      <input
+        autoFocus
+        value={q}
+        onChange={e => setQ(e.target.value)}
+        placeholder="Search staff…"
+        className="w-full px-3 py-2 bg-transparent text-xs text-[#e0e0e0] outline-none border-b border-[#1a1a1a] placeholder-[#444]"
+      />
+      <div className="max-h-32 overflow-y-auto">
+        {filtered.length === 0 ? (
+          <p className="text-[11px] text-[#444] px-3 py-2">No staff found</p>
+        ) : filtered.map(s => (
+          <button
+            key={s.email}
+            onClick={() => { onSelect(s.email, s.full_name ?? s.email); setOpen(false); setQ(''); }}
+            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#111] text-left transition-colors"
+          >
+            <div className="w-5 h-5 rounded-full bg-[#c9a84c22] border border-[#c9a84c44] flex items-center justify-center shrink-0">
+              <span className="text-[8px] font-bold text-[#c9a84c]">S</span>
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-[#ccc] truncate">{s.full_name ?? s.email}</p>
+              <p className="text-[10px] text-[#555] truncate">{s.email}</p>
+            </div>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1086,11 +1177,16 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
   agents: AgentProfile[];
   onAgentAdded: (a: AgentProfile) => void;
 }) {
+  const { role } = useAuth();
+  const isAdmin  = role === 'superuser' || role === 'administrator';
+
   const [tab, setTab]               = useState<'matches' | 'details'>('matches');
   const [status,        setStatus]  = useState(inquiry.status);
   const [pendingStatus, setPending] = useState(inquiry.status);
   const [saving, setSaving]         = useState(false);
   const [agentCode, setAgentCode]         = useState(inquiry.assigned_agent ?? '');
+  const [staffEmail,      setStaffEmail]      = useState(inquiry.staff_email     ?? '');
+  const [staffName,       setStaffName]       = useState<string | null>(inquiry.staff_name ?? null);
   const [assignedUnit1, setAssignedUnit1] = useState<AssignedUnit | null>(inquiry.assigned_unit  ?? null);
   const [assignedUnit2, setAssignedUnit2] = useState<AssignedUnit | null>(inquiry.assigned_unit2 ?? null);
   const [assignedUnit3, setAssignedUnit3] = useState<AssignedUnit | null>(inquiry.assigned_unit3 ?? null);
@@ -1126,6 +1222,13 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
     const result = await patch({ [field]: unit?.id ?? null });
     if (result.inquiry?.[respKey]) setFn(result.inquiry[respKey]);
     else if (!unit) setFn(null);
+  };
+
+  const assignHandler = async (email: string, name: string) => {
+    setStaffEmail(email);
+    setStaffName(name || null);
+    const now = email ? new Date().toISOString() : null;
+    await patch({ staff_email: email || null, staff_name: name || null, staff_assigned_at: now });
   };
 
   const sm = STATUS_META[status] ?? STATUS_META.new;
@@ -1216,15 +1319,17 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
                   <span className="font-mono text-[9px] font-bold text-[#22c55e]">{a.agent_code}</span>
                 </div>
                 <span className="text-xs text-[#ccc] truncate flex-1">{a.full_name}</span>
-                <button
-                  onClick={() => assignAgent('')}
-                  className="text-[10px] text-[#555] hover:text-[#f43f5e] transition-colors px-2 py-1 shrink-0"
-                >
-                  Reassign
-                </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => assignAgent('')}
+                    className="text-[10px] text-[#555] hover:text-[#f43f5e] transition-colors px-2 py-1 shrink-0"
+                  >
+                    Reassign
+                  </button>
+                )}
               </div>
             );
-          })() : (
+          })() : isAdmin ? (
             <div className="flex-1">
               <AgentSearch
                 agents={agents}
@@ -1233,6 +1338,44 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
                 onNewAgent={a => { onAgentAdded(a); assignAgent(a.agent_code); }}
               />
             </div>
+          ) : (
+            <span className="text-[11px] text-[#444]">—</span>
+          )}
+        </div>
+
+        {/* Persistent handler strip */}
+        <div className="px-5 py-2.5 border-b border-[#1a1a1a] shrink-0 flex items-center gap-3">
+          <span className="text-[10px] text-[#555] uppercase tracking-wider shrink-0 w-[72px]">Handler</span>
+          {isAdmin ? (
+            staffEmail ? (
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="w-6 h-6 rounded-full bg-[#c9a84c22] border border-[#c9a84c44] flex items-center justify-center shrink-0">
+                  <span className="font-mono text-[9px] font-bold text-[#c9a84c]">S</span>
+                </div>
+                <span className="text-xs text-[#ccc] truncate flex-1">{staffName ?? staffEmail}</span>
+                <button
+                  onClick={() => assignHandler('', '')}
+                  className="text-[10px] text-[#555] hover:text-[#f43f5e] transition-colors px-2 py-1 shrink-0"
+                >
+                  Unassign
+                </button>
+              </div>
+            ) : (
+              <div className="flex-1">
+                <StaffSearch value={staffEmail} staffName={staffName} onSelect={assignHandler} />
+              </div>
+            )
+          ) : (
+            staffEmail ? (
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-6 h-6 rounded-full bg-[#c9a84c22] border border-[#c9a84c44] flex items-center justify-center shrink-0">
+                  <span className="font-mono text-[9px] font-bold text-[#c9a84c]">S</span>
+                </div>
+                <span className="text-xs text-[#ccc] truncate">{staffName ?? staffEmail}</span>
+              </div>
+            ) : (
+              <span className="text-[11px] text-[#444]">—</span>
+            )
           )}
         </div>
 
