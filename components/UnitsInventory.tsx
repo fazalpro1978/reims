@@ -312,7 +312,7 @@ function ContextMenu({ menu, onClose, onViewDetails, onWhatsApp, onEmail, onDupl
 
       <div className="my-1 mx-1 border-t border-[#2a2a2a]" />
 
-      {linkItem(<IconMap />,   'Maps',  menu.unit.locationMapUrl, '#4ade80')}
+      {!isAgent && linkItem(<IconMap />, 'Maps', menu.unit.locationMapUrl, '#4ade80')}
       {linkItem(<IconMedia />, 'Media', menu.unit.mediaUrl,       '#60a5fa')}
 
       <div className="my-1 mx-1 border-t border-[#2a2a2a]" />
