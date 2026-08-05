@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { authedFetch } from '@/lib/authedFetch';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useRouter } from 'next/navigation';
+import { authedFetch } from '../../../lib/authedFetch';
+import TopBar from '../../../components/TopBar';
+import { useNav } from '../../../components/AppShell';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -49,16 +52,16 @@ function StatusPill({ s }: { s: string }) {
 // ── Resolution Panel ──────────────────────────────────────────────────────────
 
 function ResolutionPanel() {
-  const [input, setInput]   = useState('');
+  const [input,   setInput]   = useState('');
   const [loading, setLoading] = useState(false);
-  const [result, setResult]   = useState<{ resolution: { aliasCode: string; zoneCode: number; zoneIndex: number; createdAt: string }; unit: ResolvedUnit } | null>(null);
-  const [err, setErr]         = useState('');
+  const [result,  setResult]  = useState<{ resolution: { aliasCode: string; zoneCode: number; zoneIndex: number; createdAt: string }; unit: ResolvedUnit } | null>(null);
+  const [err,     setErr]     = useState('');
 
   async function resolve() {
     const code = input.trim().toUpperCase();
     if (!code) return;
     setLoading(true); setErr(''); setResult(null);
-    const res = await authedFetch(`/api/aliases/${encodeURIComponent(code)}`);
+    const res  = await authedFetch(`/api/aliases/${encodeURIComponent(code)}`);
     const json = await res.json();
     setLoading(false);
     if (!res.ok) { setErr(json.error ?? 'Not found'); return; }
@@ -116,10 +119,10 @@ function ResolutionPanel() {
   );
 }
 
-// ── Generate Alias Button ─────────────────────────────────────────────────────
+// ── Generate Panel ────────────────────────────────────────────────────────────
 
 function GeneratePanel({ onGenerated }: { onGenerated: () => void }) {
-  const [unitId, setUnitId] = useState('');
+  const [unitId,  setUnitId]  = useState('');
   const [loading, setLoading] = useState(false);
   const [result,  setResult]  = useState('');
   const [err,     setErr]     = useState('');
@@ -176,19 +179,10 @@ function GeneratePanel({ onGenerated }: { onGenerated: () => void }) {
 
 function RegistryTable({ aliases, loading }: { aliases: AliasRow[]; loading: boolean }) {
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-32 text-[#444] text-sm">
-        Loading registry…
-      </div>
-    );
+    return <div className="flex items-center justify-center h-32 text-[#444] text-sm">Loading registry…</div>;
   }
-
   if (!aliases.length) {
-    return (
-      <div className="flex items-center justify-center h-32 text-[#444] text-sm">
-        No alias records found.
-      </div>
-    );
+    return <div className="flex items-center justify-center h-32 text-[#444] text-sm">No alias records found.</div>;
   }
 
   return (
@@ -228,17 +222,22 @@ function RegistryTable({ aliases, loading }: { aliases: AliasRow[]; loading: boo
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+// ── Inner page (after auth check) ─────────────────────────────────────────────
 
-export default function AliasRegistryPage() {
-  const { role } = useAuth();
-  const isAdmin = role === 'superuser' || role === 'administrator';
+function AliasRegistryInner() {
+  const { can, loading } = useAuth();
+  const router           = useRouter();
+  const { openNav }      = useNav();
 
-  const [aliases,  setAliases]  = useState<AliasRow[]>([]);
-  const [total,    setTotal]    = useState(0);
-  const [loading,  setLoading]  = useState(true);
-  const [search,   setSearch]   = useState('');
+  const [aliases,         setAliases]         = useState<AliasRow[]>([]);
+  const [total,           setTotal]           = useState(0);
+  const [registryLoading, setRegistryLoading] = useState(true);
+  const [search,          setSearch]          = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    if (!loading && !can('admin.aliases')) router.replace('/');
+  }, [loading, can, router]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 350);
@@ -246,33 +245,28 @@ export default function AliasRegistryPage() {
   }, [search]);
 
   const fetchAliases = useCallback(async () => {
-    setLoading(true);
-    const qs = debouncedSearch ? `?q=${encodeURIComponent(debouncedSearch)}` : '';
+    setRegistryLoading(true);
+    const qs  = debouncedSearch ? `?q=${encodeURIComponent(debouncedSearch)}` : '';
     const res  = await authedFetch(`/api/aliases${qs}`);
     const json = await res.json();
-    setLoading(false);
+    setRegistryLoading(false);
     if (res.ok) { setAliases(json.aliases); setTotal(json.total); }
   }, [debouncedSearch]);
 
   useEffect(() => { fetchAliases(); }, [fetchAliases]);
 
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <p className="text-[#555] text-sm">Access restricted to Administrators.</p>
-      </div>
-    );
-  }
+  if (loading || !can('admin.aliases')) return null;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#e0e0e0]">
-      <div className="max-w-6xl mx-auto px-5 py-8 space-y-6">
+    <div className="min-h-screen bg-[#0a0a0a]">
+      <TopBar onMenuClick={openNav} />
+      <main className="max-w-screen-xl mx-auto px-4 sm:px-6 py-8 space-y-6">
 
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-white tracking-tight">Alias Registry</h1>
-            <p className="text-[12px] text-[#555] mt-1">
+            <h1 className="text-xl font-bold text-[#e0e0e0] tracking-tight">Alias Registry</h1>
+            <p className="text-sm text-[#555] mt-1">
               Public alias codes that hide building identity from prospects. Admins resolve codes to real units.
             </p>
           </div>
@@ -299,10 +293,14 @@ export default function AliasRegistryPage() {
               className="flex-1 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-3 py-1.5 text-xs text-[#e0e0e0] placeholder-[#444] focus:outline-none focus:border-[#818cf8] font-mono max-w-[280px]"
             />
           </div>
-          <RegistryTable aliases={aliases} loading={loading} />
+          <RegistryTable aliases={aliases} loading={registryLoading} />
         </div>
 
-      </div>
+      </main>
     </div>
   );
+}
+
+export default function AliasRegistryPage() {
+  return <AliasRegistryInner />;
 }

@@ -51,6 +51,7 @@ const PERMISSIONS: Record<string, UserRole[]> = {
   // Admin
   'admin.access':            ['superuser','administrator'],
   'admin.users':             ['superuser','administrator'],
+  'admin.aliases':           ['superuser','administrator'],
   'admin.settings':          ['superuser'],
   // dInges (server-side gate — these are checked in dInges middleware too)
   'dinges.access':           ['superuser','administrator'],
