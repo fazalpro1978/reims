@@ -17,10 +17,12 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get('status');
   const agent  = searchParams.get('agent');
 
-  // All-record aggregate stats (always full dataset — used for dashboard tiles)
-  const { data: allRows } = await admin
-    .from('inquiries')
-    .select('id, status, match_count');
+  // Aggregate stats — scoped to the caller's own records for staff
+  let statsQuery = admin.from('inquiries').select('id, status, match_count');
+  if (auth.auth.role === 'staff') {
+    statsQuery = statsQuery.eq('staff_email', auth.auth.email);
+  }
+  const { data: allRows } = await statsQuery;
   const allStats = {
     total:   allRows?.length ?? 0,
     new:     allRows?.filter(i => i.status === 'new').length ?? 0,
