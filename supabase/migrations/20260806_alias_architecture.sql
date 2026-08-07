@@ -186,6 +186,10 @@ CREATE TABLE IF NOT EXISTS public.alias_registry (
 CREATE INDEX IF NOT EXISTS idx_alias_registry_unit  ON public.alias_registry (unit_id);
 CREATE INDEX IF NOT EXISTS idx_alias_registry_zone  ON public.alias_registry (zone_code);
 
+ALTER TABLE public.alias_registry
+  ADD CONSTRAINT fk_alias_registry_zone_tag
+  FOREIGN KEY (zone_code) REFERENCES public.alias_zone_tags(zone_code);
+
 GRANT SELECT ON public.alias_registry TO authenticated, anon;
 GRANT ALL    ON public.alias_registry TO service_role;
 
