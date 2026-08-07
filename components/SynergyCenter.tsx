@@ -905,6 +905,14 @@ function MatchingGrid({ inquiryId, clientEmail }: {
   inquiryId:   string;
   clientEmail?: string;
 }) {
+  const { role: userRole, can } = useAuth();
+  const extRole     = userRole ?? 'staff';
+  const isExt       = ['agent','broker','third_party'].includes(extRole);
+  const isTP        = extRole === 'third_party';
+  const canRerun    = can('synergy.rerun');
+  const canReasons  = can('synergy.reasons');
+  const canUnitCode = can('synergy.unit_code');
+
   const [matches,     setMatches]     = useState<InquiryMatch[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [running,     setRunning]     = useState(false);
@@ -1026,13 +1034,15 @@ function MatchingGrid({ inquiryId, clientEmail }: {
               </button>
             ))}
           </div>
-          <button onClick={rerun} disabled={running}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a1a1a] border border-[#333] text-[#aaa] text-xs rounded-lg hover:border-[#f43f5e] hover:text-[#f43f5e] transition-colors disabled:opacity-40">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`w-3.5 h-3.5 ${running ? 'animate-spin' : ''}`}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            {running ? 'Running…' : 'Re-run'}
-          </button>
+          {canRerun && (
+            <button onClick={rerun} disabled={running}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a1a1a] border border-[#333] text-[#aaa] text-xs rounded-lg hover:border-[#f43f5e] hover:text-[#f43f5e] transition-colors disabled:opacity-40">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`w-3.5 h-3.5 ${running ? 'animate-spin' : ''}`}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              {running ? 'Running…' : 'Re-run'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -1065,7 +1075,9 @@ function MatchingGrid({ inquiryId, clientEmail }: {
                         className="text-[10px] font-bold px-1.5 py-0.5 rounded" title={tier.title}>
                         {tier.label}
                       </span>
-                      <span className="text-xs font-mono text-[#c9a84c]">{m.unit_code}</span>
+                      <span className="text-xs font-mono text-[#c9a84c]">
+                        {canUnitCode ? m.unit_code : (snap?.alias_code ?? m.unit_code ?? '—')}
+                      </span>
                       <span className="w-1.5 h-1.5 rounded-full bg-[#4ade80] shrink-0" title="Available" />
                       {showPremium && (
                         <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#c9a84c22] text-[#c9a84c] border border-[#c9a84c44]">
@@ -1073,8 +1085,15 @@ function MatchingGrid({ inquiryId, clientEmail }: {
                         </span>
                       )}
                     </div>
-                    <p className="text-sm font-medium text-[#e0e0e0] truncate">{snap.property} · {snap.unit_no}</p>
-                    <p className="text-xs text-[#666] mt-0.5">{snap.zone} · {snap.type} · {snap.config}</p>
+                    <p className="text-sm font-medium text-[#e0e0e0] truncate">
+                      {canUnitCode
+                        ? `${snap?.property} · ${snap?.unit_no}`
+                        : (snap?.alias_code ?? '—')}
+                    </p>
+                    {snap && <p className="text-xs text-[#666] mt-0.5">{snap.zone} · {snap.type} · {snap.config}</p>}
+                    {!snap && isExt && (
+                      <p className="text-xs text-[#444] mt-0.5 italic">Score below visibility threshold</p>
+                    )}
                     <p className="text-sm font-semibold text-[#c9a84c] mt-1">QAR {fmt(snap.rent)}<span className="text-xs font-normal text-[#555]">/mo</span></p>
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
@@ -1106,19 +1125,23 @@ function MatchingGrid({ inquiryId, clientEmail }: {
 
                 {/* Match reason chips */}
                 <div className="flex gap-1 mt-2 flex-wrap">
-                  {m.match_reasons.budget && (
-                    <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${m.match_reasons.budget === 'exact' ? 'bg-[#4ade8022] text-[#4ade80]' : 'bg-[#fbbf2422] text-[#fbbf24]'}`}>
-                      Budget {m.match_reasons.budget}
-                    </span>
+                  {canReasons && m.match_reasons && (
+                    <>
+                      {m.match_reasons.budget && (
+                        <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${m.match_reasons.budget === 'exact' ? 'bg-[#4ade8022] text-[#4ade80]' : 'bg-[#fbbf2422] text-[#fbbf24]'}`}>
+                          Budget {m.match_reasons.budget}
+                        </span>
+                      )}
+                      {m.match_reasons.zone === 'exact' && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#38bdf822] text-[#38bdf8]">Zone ✓</span>}
+                      {m.match_reasons.type === true      && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#a78bfa22] text-[#a78bfa]">Type ✓</span>}
+                      {m.match_reasons.config === true    && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#fb923c22] text-[#fb923c]">Config ✓</span>}
+                      {m.match_reasons.bathrooms === true && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#e879f922] text-[#e879f9]">Bath ✓</span>}
+                    </>
                   )}
-                  {m.match_reasons.zone === 'exact' && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#38bdf822] text-[#38bdf8]">Zone ✓</span>}
-                  {m.match_reasons.type === true      && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#a78bfa22] text-[#a78bfa]">Type ✓</span>}
-                  {m.match_reasons.config === true    && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#fb923c22] text-[#fb923c]">Config ✓</span>}
-                  {m.match_reasons.bathrooms === true && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#e879f922] text-[#e879f9]">Bath ✓</span>}
                 </div>
 
-                {/* ── Premium action row — score > 80 only ─────────────── */}
-                {showPremium && (
+                {/* ── Premium action row — score > 80, not third_party ── */}
+                {showPremium && !isTP && (
                   <div className="flex items-center gap-1.5 mt-2.5 pt-2.5 border-t border-[#1a1a1a]">
                     <>
                         {/* PDF Report */}

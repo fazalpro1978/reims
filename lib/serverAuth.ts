@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-type Role = 'superuser' | 'administrator' | 'staff' | 'agent' | 'public';
+export type Role = 'superuser' | 'administrator' | 'staff' | 'agent' | 'broker' | 'third_party' | 'public';
+
+export const EXTERNAL_ROLES: Role[] = ['agent', 'broker', 'third_party'];
+export const isExternal   = (role: Role) => EXTERNAL_ROLES.includes(role);
+export const isThirdParty = (role: Role) => role === 'third_party';
 
 export interface AuthResult {
   uid:      string;

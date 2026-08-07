@@ -8,7 +8,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '../lib/supabase/client';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-export type UserRole = 'superuser' | 'administrator' | 'staff' | 'agent' | 'public';
+export type UserRole = 'superuser' | 'administrator' | 'staff' | 'agent' | 'broker' | 'third_party' | 'public';
 
 export interface AuthProfile {
   id:         string;
@@ -20,11 +20,11 @@ export interface AuthProfile {
   isActive:   boolean;
 }
 
-// ── Permission map (mirrors the ACM artifact exactly) ────────────────────────
+// ── Permission map ────────────────────────────────────────────────────────────
 const PERMISSIONS: Record<string, UserRole[]> = {
   // Units Inventory
-  'units.view':              ['superuser','administrator','staff','agent','public'],
-  'units.view_all':          ['superuser','administrator','staff'],   // agent=available only
+  'units.view':              ['superuser','administrator','staff','agent','broker','third_party'],
+  'units.view_all':          ['superuser','administrator','staff'],
   'units.view_financials':   ['superuser','administrator','staff'],
   'units.view_remarks':      ['superuser','administrator','staff'],
   'units.add':               ['superuser','administrator'],
@@ -32,10 +32,15 @@ const PERMISSIONS: Record<string, UserRole[]> = {
   'units.delete':            ['superuser','administrator'],
   'units.bulk_edit':         ['superuser','administrator','staff'],
   // PDF Reports
-  'report.generate':         ['superuser','administrator','staff','agent'],
-  'report.download':         ['superuser','administrator','staff','agent'],
+  'report.generate':         ['superuser','administrator','staff','agent','broker'],
+  'report.download':         ['superuser','administrator','staff','agent','broker'],
   'report.share_internal':   ['superuser','administrator','staff'],
-  'report.share_public':     ['superuser','administrator','staff','agent'],
+  'report.share_public':     ['superuser','administrator','staff','agent','broker'],
+  // Synergy Center
+  'synergy.view':            ['superuser','administrator','staff','agent','broker','third_party'],
+  'synergy.rerun':           ['superuser','administrator','staff','agent','broker'],
+  'synergy.reasons':         ['superuser','administrator','staff','agent','broker'],
+  'synergy.unit_code':       ['superuser','administrator','staff'],
   // Code Registry
   'registry.view':           ['superuser','administrator','staff'],
   'registry.smart_codes':    ['superuser','administrator','staff'],
@@ -46,7 +51,7 @@ const PERMISSIONS: Record<string, UserRole[]> = {
   'registry.zones.write':    ['superuser','administrator'],
   'registry.zones.delete':   ['superuser'],
   // Neighborhood Guide
-  'neighborhood.view':       ['superuser','administrator','staff','agent'],
+  'neighborhood.view':       ['superuser','administrator','staff','agent','broker'],
   'neighborhood.edit':       ['superuser','administrator','staff'],
   // Admin
   'admin.access':            ['superuser','administrator'],
