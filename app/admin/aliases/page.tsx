@@ -161,13 +161,13 @@ function GeneratePanel({ onGenerated }: { onGenerated: () => void }) {
   return (
     <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-5 space-y-4">
       <h2 className="text-xs font-semibold text-[#888] uppercase tracking-wider">Generate Alias</h2>
-      <p className="text-[11px] text-[#555]">Paste a unit UUID to generate its alias code. Already-aliased units return the existing code.</p>
+      <p className="text-[11px] text-[#555]">Enter a unit code (e.g. APFG00-B00-F01-A001) or UUID. Already-aliased units return the existing code.</p>
       <div className="flex gap-2">
         <input
           value={unitId}
           onChange={e => { setUnitId(e.target.value); setErr(''); setResult(''); }}
           onKeyDown={e => e.key === 'Enter' && generate()}
-          placeholder="Unit UUID"
+          placeholder="Unit code or UUID"
           className="flex-1 bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-[#e0e0e0] placeholder-[#444] focus:outline-none focus:border-[#818cf8] font-mono"
         />
         <button onClick={generate} disabled={loading || !unitId.trim()}

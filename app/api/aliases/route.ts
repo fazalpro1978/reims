@@ -52,12 +52,14 @@ export async function POST(req: NextRequest) {
   const { unitId } = await req.json() as { unitId?: string };
   if (!unitId) return NextResponse.json({ error: 'unitId is required' }, { status: 400 });
 
-  // Look up the unit's zone_code
-  const { data: unit, error: unitErr } = await admin
-    .from('units')
-    .select('id, zone_code, alias_code')
-    .eq('id', unitId)
-    .single();
+  const input = unitId.trim();
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input);
+
+  // Accept either UUID (units.id) or unit_code (e.g. APFG00-B00-F01-A001)
+  const query = admin.from('units').select('id, zone_code, alias_code');
+  const { data: unit, error: unitErr } = await (
+    isUuid ? query.eq('id', input) : query.eq('unit_code', input)
+  ).single();
 
   if (unitErr || !unit) return NextResponse.json({ error: 'Unit not found' }, { status: 404 });
 
