@@ -62,12 +62,13 @@ interface InquiryMatch {
   id: string;
   inquiry_id: string;
   unit_id: string;
-  unit_code: string;
+  unit_code: string | null;
   unit_snapshot: {
-    property: string; unit_no: string; zone: string; zone_code: number;
-    type: string; config: string; rent: number; bathrooms: number;
-    furnishing: string; status: string; listing_type: string;
-  };
+    alias_code?: string | null;
+    property?: string; unit_no?: string; zone?: string; zone_code?: number;
+    type?: string; config?: string; rent?: number; bathrooms?: number;
+    furnishing?: string; status?: string; listing_type?: string;
+  } | null;
   match_tier: 1 | 2 | 3;
   match_score: number;
   match_reasons: {
@@ -77,7 +78,7 @@ interface InquiryMatch {
     bathrooms: boolean | null;
     zone: 'exact' | false | null;
     furnishing: boolean | null;
-  };
+  } | null;
   is_shortlisted: boolean;
   shortlisted_at?: string;
   computed_at: string;
@@ -1094,7 +1095,7 @@ function MatchingGrid({ inquiryId, clientEmail }: {
                     {!snap && isExt && (
                       <p className="text-xs text-[#444] mt-0.5 italic">Score below visibility threshold</p>
                     )}
-                    <p className="text-sm font-semibold text-[#c9a84c] mt-1">QAR {fmt(snap.rent)}<span className="text-xs font-normal text-[#555]">/mo</span></p>
+                    {snap?.rent != null && <p className="text-sm font-semibold text-[#c9a84c] mt-1">QAR {fmt(snap.rent)}<span className="text-xs font-normal text-[#555]">/mo</span></p>}
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
                     <div className="flex items-center gap-1">
