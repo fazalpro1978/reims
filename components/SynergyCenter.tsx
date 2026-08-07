@@ -996,6 +996,13 @@ function MatchingGrid({ inquiryId, clientEmail }: {
 
   return (
     <>
+    <style>{`
+      @keyframes premium-flash {
+        0%, 100% { border-color: #c9a84c55; box-shadow: 0 0 0px #c9a84c00; }
+        50%       { border-color: #c9a84c;   box-shadow: 0 0 10px #c9a84c66; }
+      }
+      .premium-tile { animation: premium-flash 2s ease-in-out infinite; }
+    `}</style>
     <div className="flex flex-col h-full">
       {/* Grid header */}
       <div className="flex items-center justify-between mb-4">
@@ -1050,7 +1057,7 @@ function MatchingGrid({ inquiryId, clientEmail }: {
             const isFetching   = fetchingId === m.unit_id;
 
             return (
-              <div key={m.id} className={`border rounded-xl p-3 transition-colors ${m.is_shortlisted ? 'border-[#f43f5e44] bg-[#f43f5e08]' : 'border-[#1e1e1e] bg-[#111] hover:border-[#2a2a2a]'}`}>
+              <div key={m.id} className={`border rounded-xl p-3 transition-colors ${showPremium ? 'premium-tile bg-[#c9a84c08]' : m.is_shortlisted ? 'border-[#f43f5e44] bg-[#f43f5e08]' : 'border-[#1e1e1e] bg-[#111] hover:border-[#2a2a2a]'}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1.5 flex-wrap">
