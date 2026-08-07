@@ -220,7 +220,7 @@ const NAV_SECTIONS = [
     label: 'Ingest',
     items: [
       { id: 'ingest-queue',  label: 'Axiom Queue',         href: '/ingest-queue',  icon: 'ingest',    soon: false, roles: ['superuser','administrator'] },
-      { id: 'synergy',       label: 'Synergy Center',      href: '/synergy',       icon: 'synergy',   soon: false, roles: ['superuser','administrator','staff'] },
+      { id: 'synergy',       label: 'Synergy Center',      href: '/synergy',       icon: 'synergy',   soon: false, roles: ['superuser','administrator','staff','agent','broker','third_party'] },
     ],
   },
   {
@@ -518,10 +518,10 @@ export default function SideNav({ open, onClose }: SideNavProps) {
 
   // Role label / color (same as TopBar)
   const ROLE_LABEL: Record<string, string> = {
-    superuser:'Superuser', administrator:'Administrator', staff:'Staff', agent:'Agent', public:'Public',
+    superuser:'Superuser', administrator:'Administrator', staff:'Staff', agent:'Agent', broker:'Broker', third_party:'Third Party', public:'Public',
   };
   const ROLE_COLOR: Record<string, string> = {
-    superuser:'#c9a84c', administrator:'#3b82f6', staff:'#10b981', agent:'#8b5cf6', public:'#64748b',
+    superuser:'#c9a84c', administrator:'#3b82f6', staff:'#10b981', agent:'#8b5cf6', broker:'#f97316', third_party:'#06b6d4', public:'#64748b',
   };
   const roleColor  = ROLE_COLOR[userRole] ?? '#888';
   const initials   = user?.fullName
