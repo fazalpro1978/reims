@@ -26,9 +26,8 @@ export async function GET(req: NextRequest) {
       zone_code,
       zone_index,
       created_at,
-      created_by,
-      unit:units!unit_id(unit_code, property, unit_no, zone),
-      zone_tag:alias_zone_tags!zone_code(zone_tag, zone_label)
+      unit:units(unit_code, property, unit_no, zone),
+      zone_tag:alias_zone_tags(zone_tag, zone_label)
     `, { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
@@ -40,7 +39,7 @@ export async function GET(req: NextRequest) {
   }
 
   const { data, error, count } = await query;
-  if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ aliases: data ?? [], total: count ?? 0 });
 }
