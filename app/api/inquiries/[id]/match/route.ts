@@ -55,7 +55,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const inqQuery = admin.from('inquiries').select('*').eq('id', params.id);
     const { data: inquiry, error: inqErr } = await (
       isExternal(auth.auth.role)
-        ? inqQuery.eq('created_by', auth.auth.uid)
+        ? inqQuery.eq('staff_email', auth.auth.email)
         : inqQuery
     ).single();
 

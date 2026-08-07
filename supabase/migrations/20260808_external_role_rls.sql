@@ -22,8 +22,7 @@ CREATE POLICY "inquiries_role_access" ON public.inquiries
   FOR ALL TO authenticated
   USING (
     (auth.jwt() -> 'user_metadata' ->> 'role') IN ('superuser','administrator','staff')
-    OR created_by = auth.uid()
-    OR assigned_agent = auth.uid()
+    OR staff_email = auth.email()
   );
 
 -- ── 3. inquiry_matches — follows the parent inquiry ownership ────────────────
@@ -36,7 +35,7 @@ CREATE POLICY "inquiry_matches_role_access" ON public.inquiry_matches
     (auth.jwt() -> 'user_metadata' ->> 'role') IN ('superuser','administrator','staff')
     OR inquiry_id IN (
       SELECT id FROM public.inquiries
-      WHERE created_by = auth.uid() OR assigned_agent = auth.uid()
+      WHERE staff_email = auth.email()
     )
   );
 
