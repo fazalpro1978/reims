@@ -79,8 +79,9 @@ export function runMatchingEngine(inquiry: InquiryPayload, units: UnitRow[]): Ma
     // ── Config matching ───────────────────────────────────────────────────────
     let configMatch: boolean | null = null;
     if (inquiry.config) {
-      const inqConf = inquiry.config.toLowerCase();
-      const uConf   = (unit.config ?? '').toLowerCase();
+      const norm    = (s: string) => s.toLowerCase().replace(/\s+/g, '');
+      const inqConf = norm(inquiry.config);
+      const uConf   = norm(unit.config ?? '');
       configMatch = uConf === inqConf || uConf.includes(inqConf) || inqConf.includes(uConf);
     }
 
@@ -91,10 +92,12 @@ export function runMatchingEngine(inquiry: InquiryPayload, units: UnitRow[]): Ma
     }
 
     // ── Zone matching ─────────────────────────────────────────────────────────
+    // unit.zone may be a slash-separated hierarchy e.g. "Lusail / Jabal Thuaileb / Al Kharayej"
     let zoneMatch: 'exact' | false | null = null;
     if (hasZonePref) {
+      const zoneParts = (unit.zone ?? '').toLowerCase().split(/\s*\/\s*/).map(p => p.trim());
       zoneMatch = (inquiry.preferred_zones ?? [])
-        .some(z => z.toLowerCase() === unit.zone?.toLowerCase())
+        .some(z => zoneParts.includes(z.toLowerCase().trim()))
         ? 'exact'
         : false;
     }

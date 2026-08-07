@@ -1045,7 +1045,7 @@ function MatchingGrid({ inquiryId, clientEmail }: {
             const snap    = m.unit_snapshot;
             const tier    = TIER_META[m.match_tier];
             const score   = Math.round(m.match_score);
-            const showActions  = score > SCORE_THRESHOLD_ACTIONS;
+            const showActions  = score >= SCORE_THRESHOLD_ACTIONS;
             const showPremium  = score > SCORE_THRESHOLD_PREMIUM;
             const isFetching   = fetchingId === m.unit_id;
 
