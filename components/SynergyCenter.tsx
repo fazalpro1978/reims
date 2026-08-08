@@ -454,7 +454,7 @@ function UnitSearch({
       >
         <span className={value ? 'text-[#e0e0e0]' : 'text-[#555]'}>
           {value
-            ? <><span className="font-mono text-[#c9a84c] mr-2">{value.unit_code}</span>{value.unit_no} · {value.property}</>
+            ? <><span className="font-mono text-[#c9a84c] mr-2">{value.alias_code ?? value.unit_code}</span>{value.unit_no} · {value.property}</>
             : 'Search by unit no., code or property…'}
         </span>
         <svg className="w-4 h-4 text-[#555] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -1221,8 +1221,9 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
   agents: AgentProfile[];
   onAgentAdded: (a: AgentProfile) => void;
 }) {
-  const { role } = useAuth();
-  const isAdmin  = role === 'superuser' || role === 'administrator';
+  const { role, can } = useAuth();
+  const isAdmin     = role === 'superuser' || role === 'administrator';
+  const canUnitCode = can('synergy.unit_code');
 
   const [tab, setTab]               = useState<'matches' | 'details'>('matches');
   const [status,        setStatus]  = useState(inquiry.status);
@@ -1459,8 +1460,10 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
                             </svg>
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-[#e0e0e0] truncate">{unit.property} · {unit.unit_no}</p>
-                            <p className="text-[10px] font-mono text-[#c9a84c]">{unit.alias_code ?? unit.unit_code}</p>
+                            <p className="text-sm font-semibold text-[#e0e0e0] truncate">
+                              {canUnitCode ? `${unit.property} · ${unit.unit_no}` : (unit.alias_code ?? unit.unit_code)}
+                            </p>
+                            {canUnitCode && <p className="text-[10px] font-mono text-[#c9a84c]">{unit.unit_code}</p>}
                           </div>
                         </div>
                         <button
@@ -1593,8 +1596,9 @@ function NotificationsPanel() {
 const PIPELINE_STATUSES = ['all', ...STATUSES] as const;
 
 export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick?: () => void; initialRef?: string }) {
-  const { role, user } = useAuth();
-  const isStaff = role === 'staff';
+  const { role, user, can } = useAuth();
+  const isStaff    = role === 'staff';
+  const canUnitCode = can('synergy.unit_code');
 
   const [tab, setTab]                   = useState<'inquiries' | 'notifications'>('inquiries');
   const [inquiries, setInquiries]       = useState<Inquiry[]>([]);
@@ -1844,8 +1848,8 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
                               <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                               <path strokeLinecap="round" strokeLinejoin="round" d="M9 22V12h6v10" />
                             </svg>
-                            <span className="font-mono text-[9px] text-[#c9a84c]">{u.unit_code}</span>
-                            <span className="text-[10px] text-[#666] truncate">{u.unit_no} · {u.property}</span>
+                            <span className="font-mono text-[9px] text-[#c9a84c]">{canUnitCode ? u.unit_code : (u.alias_code ?? u.unit_code)}</span>
+                            {canUnitCode && <span className="text-[10px] text-[#666] truncate">{u.unit_no} · {u.property}</span>}
                           </div>
                         ) : null)}
                       </div>
