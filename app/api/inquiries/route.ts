@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { requireAuth } from '@/lib/serverAuth';
+import { requireAuth, isExternal } from '@/lib/serverAuth';
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -10,15 +10,14 @@ const admin = createClient(
 const UNIT_JOIN = '*, assigned_unit:units!assigned_unit_id(id, unit_code, unit_no, property, alias_code), assigned_unit2:units!assigned_unit_id_2(id, unit_code, unit_no, property, alias_code), assigned_unit3:units!assigned_unit_id_3(id, unit_code, unit_no, property, alias_code)';
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff', 'agent', 'broker', 'third_party']);
   if (!auth.ok) return auth.response;
 
   const { searchParams } = req.nextUrl;
   const status = searchParams.get('status');
   const agent  = searchParams.get('agent');
 
-  // For staff: resolve their agent code from cr_agents so the filter can match
-  // inquiries where they are the consultant (assigned_agent) OR the handler (staff_email).
+  // For staff and external roles: filter to own inquiries only
   let staffOrFilter: string | null = null;
   if (auth.auth.role === 'staff') {
     const { data: agentRow } = await admin
@@ -30,6 +29,8 @@ export async function GET(req: NextRequest) {
     staffOrFilter = code
       ? `staff_email.eq.${auth.auth.email},assigned_agent.eq.${code}`
       : `staff_email.eq.${auth.auth.email}`;
+  } else if (isExternal(auth.auth.role)) {
+    staffOrFilter = `staff_email.eq.${auth.auth.email}`;
   }
 
   // Aggregate stats — scoped to the caller's own records for staff
@@ -59,7 +60,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff', 'agent', 'broker', 'third_party']);
   if (!auth.ok) return auth.response;
 
   try {
@@ -90,8 +91,8 @@ export async function POST(req: NextRequest) {
       notes:              body.notes              || null,
     };
 
-    // Staff inquiries are auto-assigned to the creating user
-    if (auth.auth.role === 'staff') {
+    // All non-admin roles: auto-assign to the creating user for ownership tracking
+    if (auth.auth.role === 'staff' || isExternal(auth.auth.role)) {
       row.staff_email       = auth.auth.email;
       row.staff_name        = auth.auth.fullName;
       row.staff_assigned_at = new Date().toISOString();
