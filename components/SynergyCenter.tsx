@@ -923,25 +923,34 @@ function MatchingGrid({ inquiryId, clientEmail }: {
 
   const unitCache = useRef<Map<string, UnitListing>>(new Map());
 
+  // Authenticated fetch — injects the Supabase session Bearer token on every API call
+  const authFetch = useCallback(async (url: string, init: RequestInit = {}) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers = new Headers(init.headers ?? {});
+    if (session?.access_token) headers.set('Authorization', `Bearer ${session.access_token}`);
+    headers.set('Content-Type', (init.headers as Record<string, string>)?.['Content-Type'] ?? 'application/json');
+    return fetch(url, { ...init, headers });
+  }, []);
+
   const loadMatches = useCallback(async () => {
     setLoading(true);
-    const res  = await fetch(`/api/inquiries/${inquiryId}/match`);
+    const res  = await authFetch(`/api/inquiries/${inquiryId}/match`);
     const data = await res.json();
     setMatches(data.matches ?? []);
     setLoading(false);
-  }, [inquiryId]);
+  }, [inquiryId, authFetch]);
 
   useEffect(() => { loadMatches(); }, [loadMatches]);
 
   const rerun = async () => {
     setRunning(true);
-    await fetch(`/api/inquiries/${inquiryId}/match`, { method: 'POST' });
+    await authFetch(`/api/inquiries/${inquiryId}/match`, { method: 'POST' });
     await loadMatches();
     setRunning(false);
   };
 
   const toggleShortlist = async (match: InquiryMatch) => {
-    const res  = await fetch(`/api/inquiries/${inquiryId}/shortlist`, {
+    const res  = await authFetch(`/api/inquiries/${inquiryId}/shortlist`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ matchId: match.id, shortlisted: !match.is_shortlisted }),
