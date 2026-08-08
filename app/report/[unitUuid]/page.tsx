@@ -49,6 +49,7 @@ interface ReportData {
   operatorRemarks:     string;
   salutation:          string;
   titleOverride:       string;
+  aliasCode:           string;
 }
 
 // ── Supabase ──────────────────────────────────────────────────────────────────
@@ -456,9 +457,9 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
 
       {/* ── 2. Asset Identification Banner ────────────────────────────── */}
       <h1 className="rpt-asset-title">
-        {data.titleOverride
-          ? data.titleOverride
-          : <>{data.propertyName}&nbsp;&bull;&nbsp;CODE:&nbsp;{data.unitCode}&nbsp;|&nbsp;Zone:&nbsp;{data.zoneCode}.&nbsp;{data.zoneName}</>
+        {opts.isExternal
+          ? (data.aliasCode || '—')
+          : (data.titleOverride || <>{data.propertyName}&nbsp;&bull;&nbsp;CODE:&nbsp;{data.unitCode}&nbsp;|&nbsp;Zone:&nbsp;{data.zoneCode}.&nbsp;{data.zoneName}</>)
         }
       </h1>
       {data.salutation && (
@@ -789,6 +790,7 @@ export default function ReportPage() {
           operatorRemarks:     row.operator_remarks  ?? '',
           salutation:          '',
           titleOverride:       '',
+          aliasCode:           row.alias_code        ?? '',
         });
 
         // Fetch neighborhood guide — unit-specific first, zone fallback second
