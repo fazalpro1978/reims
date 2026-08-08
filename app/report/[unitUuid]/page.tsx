@@ -412,6 +412,7 @@ interface ReportOpts {
   showLocationMedia: boolean;
   showImages: boolean;
   showNeighborhood: boolean;
+  isExternal: boolean;
 }
 
 function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighborhood: NGuide | null; opts: ReportOpts }) {
@@ -578,11 +579,11 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
       <p style={{ fontSize: '7.5pt', color: '#94a3b8', marginTop: '4px', marginBottom: '0' }}>* T&amp;C apply.</p>
       </>}
 
-      {/* ── 6. Location & Media Anchors ───────────────────────────────── */}
+      {/* ── 6. Media (Location removed for external roles) ────────────── */}
       {opts.showLocationMedia && <>
-      <p className="rpt-sec-lbl">Location &amp; Media</p>
+      <p className="rpt-sec-lbl">{opts.isExternal ? 'Media' : 'Location & Media'}</p>
       <div className="rpt-links">
-        {data.locationMapUrl ? (
+        {!opts.isExternal && (data.locationMapUrl ? (
           <p>
             <span className="rpt-link-key">Location: </span>
             <a href={data.locationMapUrl} target="_blank" rel="noreferrer">
@@ -591,7 +592,7 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
           </p>
         ) : (
           <p><span className="rpt-link-key">Location: </span>Not provided</p>
-        )}
+        ))}
         {data.mediaUrl ? (
           <p>
             <span className="rpt-link-key">Media Archive: </span>
@@ -704,6 +705,7 @@ export default function ReportPage() {
   const [loading,          setLoading        ] = useState(true);
   const [error,            setError          ] = useState<string | null>(null);
   const [generatedAt]                          = useState(() => formatDateTime(new Date()));
+  const [userRole,         setUserRole       ] = useState<string | null>(null);
 
   // Pre-print editing state
   const [editOpen,            setEditOpen           ] = useState(false);
@@ -730,6 +732,14 @@ export default function ReportPage() {
   useEffect(() => {
     if (!unitUuid) return;
     (async () => {
+      // Resolve role for feature gating
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('profiles').select('role').eq('id', session.user.id).maybeSingle();
+        setUserRole(profile?.role ?? null);
+      }
+
       const [unitRes, commRes] = await Promise.all([
         supabase.from('units').select('*').eq('id', unitUuid).single(),
         supabase.from('unit_commissions')
@@ -808,6 +818,7 @@ export default function ReportPage() {
 
   /* ── Report ──────────────────────────────────────────────────────────────── */
 
+  const isExternal = ['agent', 'broker', 'third_party'].includes(userRole ?? '');
   const numOr = (s: string, fallback: number) => s !== '' ? (Number(s) || 0) : fallback;
 
   const effectiveData: ReportData = {
@@ -827,7 +838,7 @@ export default function ReportPage() {
     marafeqAmount:      numOr(marafeqStr,     data.marafeqAmount),
   };
 
-  const opts: ReportOpts = { showFinancials, showLocationMedia, showImages, showNeighborhood };
+  const opts: ReportOpts = { showFinancials, showLocationMedia, showImages, showNeighborhood, isExternal };
 
   const Toggle = ({ label, active, onToggle }: { label: string; active: boolean; onToggle: () => void }) => (
     <button
@@ -865,101 +876,119 @@ export default function ReportPage() {
         <div className="rpt-edit-panel">
           <p className="rpt-edit-panel-hdr">✎ Edit Report Before Download</p>
 
-          {/* Row 1: Property title + salutation */}
-          <div className="rpt-edit-row">
-            <div className="rpt-edit-field" style={{ flex: 2 }}>
-              <span className="rpt-edit-field-lbl">Property Title Override</span>
-              <input
-                className="rpt-edit-inp"
-                type="text"
-                placeholder={`${data.propertyName} • CODE: ${data.unitCode} | Zone: ${data.zoneCode}. ${data.zoneName}`}
-                value={titleOverride}
-                onChange={e => setTitleOverride(e.target.value)}
-              />
-            </div>
-            <div className="rpt-edit-field" style={{ flex: 2 }}>
-              <span className="rpt-edit-field-lbl">Salutation / Recipient Greeting</span>
-              <input
-                className="rpt-edit-inp"
-                type="text"
-                placeholder="e.g. Dear Mr. / Ms. Al Mansoori — appears below the title"
-                value={salutation}
-                onChange={e => setSalutation(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Row 2: Remarks + booking validity */}
-          <div className="rpt-edit-row">
-            <div className="rpt-edit-field" style={{ flex: 3 }}>
-              <span className="rpt-edit-field-lbl">Operator Remarks Override</span>
-              <textarea
-                className="rpt-edit-inp rpt-edit-textarea"
-                placeholder="Leave blank to use saved remarks. Type here to replace for this print only."
-                value={remarksOverride}
-                onChange={e => setRemarksOverride(e.target.value)}
-              />
-            </div>
-            <div className="rpt-edit-field" style={{ flex: 2 }}>
-              <span className="rpt-edit-field-lbl">Booking Validity Override</span>
-              <input
-                className="rpt-edit-inp"
-                type="text"
-                placeholder={data.bookingValidity || 'e.g. Valid until 31 July 2026'}
-                value={bookingValOverride}
-                onChange={e => setBookingValOverride(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Row 3: Financial overrides grid */}
-          <div className="rpt-edit-row" style={{ flexWrap: 'wrap', gap: '10px 12px' }}>
-            {([
-              ['Monthly Rent (QAR)',       rentStr,       setRentStr,       data.monthlyRent      ],
-              ['Security Deposit (QAR)',   secDepStr,     setSecDepStr,     data.securityDeposit  ],
-              ['Contract Charges (QAR)',   contractStr,   setContractStr,   data.contractCharges  ],
-              ['Additional Charges (QAR)', additionalStr, setAdditionalStr, data.additionalCharges],
-              ['Agency Fee (QAR)',         agencyFeeStr,  setAgencyFeeStr,  data.agencyFeeAmount  ],
-              ['Kahramaa Deposit (QAR)',   kahramaaStr,   setKahramaaStr,   data.kahramaaAmount   ],
-              ['Qatar Cool Deposit (QAR)', qatarCoolStr,  setQatarCoolStr,  data.qatarCoolAmount  ],
-              ['Marafeq Deposit (QAR)',    marafeqStr,    setMarafeqStr,    data.marafeqAmount    ],
-            ] as [string, string, (v: string) => void, number][]).map(([lbl, val, setter, def]) => (
-              <div key={lbl} className="rpt-edit-field" style={{ flex: '1 1 22%', minWidth: 120 }}>
-                <span className="rpt-edit-field-lbl">{lbl}</span>
+          {isExternal ? (
+            /* External roles: salutation only */
+            <div className="rpt-edit-row">
+              <div className="rpt-edit-field">
+                <span className="rpt-edit-field-lbl">Salutation / Recipient Greeting</span>
                 <input
                   className="rpt-edit-inp"
-                  type="number"
-                  min={0}
-                  placeholder={String(def || '—')}
-                  value={val}
-                  onChange={e => setter(e.target.value)}
+                  type="text"
+                  placeholder="e.g. Dear Mr. / Ms. Al Mansoori — appears below the title"
+                  value={salutation}
+                  onChange={e => setSalutation(e.target.value)}
                 />
               </div>
-            ))}
-            <div className="rpt-edit-field" style={{ flex: '1 1 22%', minWidth: 120 }}>
-              <span className="rpt-edit-field-lbl">Electricity &amp; Water</span>
-              <input
-                className="rpt-edit-inp"
-                type="text"
-                placeholder={data.electricityWater || 'e.g. Included / Tenant paid'}
-                value={elecWaterOverride}
-                onChange={e => setElecWaterOverride(e.target.value)}
-              />
             </div>
-          </div>
-
-          {/* Row 4: Section visibility toggles */}
-          <div className="rpt-edit-row">
-            <div className="rpt-edit-field">
-              <span className="rpt-edit-field-lbl">Show / Hide Sections</span>
-              <div className="rpt-edit-toggles">
-                <Toggle label="Financial Summary"  active={showFinancials}     onToggle={() => setShowFinancials(v => !v)} />
-                <Toggle label="Location &amp; Media" active={showLocationMedia} onToggle={() => setShowLocationMedia(v => !v)} />
-                <Toggle label="Photos / Images"    active={showImages}         onToggle={() => setShowImages(v => !v)} />
-                <Toggle label="Neighborhood Guide" active={showNeighborhood}   onToggle={() => setShowNeighborhood(v => !v)} />
+          ) : (
+            <>
+              {/* Row 1: Property title + salutation */}
+              <div className="rpt-edit-row">
+                <div className="rpt-edit-field" style={{ flex: 2 }}>
+                  <span className="rpt-edit-field-lbl">Property Title Override</span>
+                  <input
+                    className="rpt-edit-inp"
+                    type="text"
+                    placeholder={`${data.propertyName} • CODE: ${data.unitCode} | Zone: ${data.zoneCode}. ${data.zoneName}`}
+                    value={titleOverride}
+                    onChange={e => setTitleOverride(e.target.value)}
+                  />
+                </div>
+                <div className="rpt-edit-field" style={{ flex: 2 }}>
+                  <span className="rpt-edit-field-lbl">Salutation / Recipient Greeting</span>
+                  <input
+                    className="rpt-edit-inp"
+                    type="text"
+                    placeholder="e.g. Dear Mr. / Ms. Al Mansoori — appears below the title"
+                    value={salutation}
+                    onChange={e => setSalutation(e.target.value)}
+                  />
+                </div>
               </div>
-            </div>
-          </div>
+
+              {/* Row 2: Remarks + booking validity */}
+              <div className="rpt-edit-row">
+                <div className="rpt-edit-field" style={{ flex: 3 }}>
+                  <span className="rpt-edit-field-lbl">Operator Remarks Override</span>
+                  <textarea
+                    className="rpt-edit-inp rpt-edit-textarea"
+                    placeholder="Leave blank to use saved remarks. Type here to replace for this print only."
+                    value={remarksOverride}
+                    onChange={e => setRemarksOverride(e.target.value)}
+                  />
+                </div>
+                <div className="rpt-edit-field" style={{ flex: 2 }}>
+                  <span className="rpt-edit-field-lbl">Booking Validity Override</span>
+                  <input
+                    className="rpt-edit-inp"
+                    type="text"
+                    placeholder={data.bookingValidity || 'e.g. Valid until 31 July 2026'}
+                    value={bookingValOverride}
+                    onChange={e => setBookingValOverride(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Row 3: Financial overrides grid */}
+              <div className="rpt-edit-row" style={{ flexWrap: 'wrap', gap: '10px 12px' }}>
+                {([
+                  ['Monthly Rent (QAR)',       rentStr,       setRentStr,       data.monthlyRent      ],
+                  ['Security Deposit (QAR)',   secDepStr,     setSecDepStr,     data.securityDeposit  ],
+                  ['Contract Charges (QAR)',   contractStr,   setContractStr,   data.contractCharges  ],
+                  ['Additional Charges (QAR)', additionalStr, setAdditionalStr, data.additionalCharges],
+                  ['Agency Fee (QAR)',         agencyFeeStr,  setAgencyFeeStr,  data.agencyFeeAmount  ],
+                  ['Kahramaa Deposit (QAR)',   kahramaaStr,   setKahramaaStr,   data.kahramaaAmount   ],
+                  ['Qatar Cool Deposit (QAR)', qatarCoolStr,  setQatarCoolStr,  data.qatarCoolAmount  ],
+                  ['Marafeq Deposit (QAR)',    marafeqStr,    setMarafeqStr,    data.marafeqAmount    ],
+                ] as [string, string, (v: string) => void, number][]).map(([lbl, val, setter, def]) => (
+                  <div key={lbl} className="rpt-edit-field" style={{ flex: '1 1 22%', minWidth: 120 }}>
+                    <span className="rpt-edit-field-lbl">{lbl}</span>
+                    <input
+                      className="rpt-edit-inp"
+                      type="number"
+                      min={0}
+                      placeholder={String(def || '—')}
+                      value={val}
+                      onChange={e => setter(e.target.value)}
+                    />
+                  </div>
+                ))}
+                <div className="rpt-edit-field" style={{ flex: '1 1 22%', minWidth: 120 }}>
+                  <span className="rpt-edit-field-lbl">Electricity &amp; Water</span>
+                  <input
+                    className="rpt-edit-inp"
+                    type="text"
+                    placeholder={data.electricityWater || 'e.g. Included / Tenant paid'}
+                    value={elecWaterOverride}
+                    onChange={e => setElecWaterOverride(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Row 4: Section visibility toggles */}
+              <div className="rpt-edit-row">
+                <div className="rpt-edit-field">
+                  <span className="rpt-edit-field-lbl">Show / Hide Sections</span>
+                  <div className="rpt-edit-toggles">
+                    <Toggle label="Financial Summary"    active={showFinancials}     onToggle={() => setShowFinancials(v => !v)} />
+                    <Toggle label="Location &amp; Media" active={showLocationMedia}  onToggle={() => setShowLocationMedia(v => !v)} />
+                    <Toggle label="Photos / Images"      active={showImages}         onToggle={() => setShowImages(v => !v)} />
+                    <Toggle label="Neighborhood Guide"   active={showNeighborhood}   onToggle={() => setShowNeighborhood(v => !v)} />
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
