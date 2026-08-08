@@ -33,6 +33,7 @@ function scrubMatch(m: Record<string, unknown>, role: string) {
     const { property: _p, unit_no: _u, id: _id, ...safeSnap } = snap;
     return {
       id:             m.id,
+      unit_id:        m.unit_id,   // needed for PDF/WA/Email handlers
       match_tier:     m.match_tier,
       match_score:    m.match_score,
       is_shortlisted: m.is_shortlisted,

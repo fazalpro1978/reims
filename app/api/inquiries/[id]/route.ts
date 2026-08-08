@@ -5,6 +5,8 @@ import { Resend } from 'resend';
 import fs from 'fs';
 import path from 'path';
 
+const AGENT_BROKER_PATCHABLE = ['assigned_unit_id', 'assigned_unit_id_2', 'assigned_unit_id_3'];
+
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -24,11 +26,23 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff', 'agent', 'broker']);
   if (!auth.ok) return auth.response;
 
   try {
     const body = await req.json();
+
+    // Agents/brokers: own inquiries only, unit assignment fields only
+    if (auth.auth.role === 'agent' || auth.auth.role === 'broker') {
+      const { data: existing } = await admin
+        .from('inquiries')
+        .select('staff_email')
+        .eq('id', params.id)
+        .single();
+      if (!existing || existing.staff_email !== auth.auth.email) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
 
     // Staff can only patch their own inquiries (as handler OR as consultant)
     if (auth.auth.role === 'staff') {
@@ -62,7 +76,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     ];
     // SU/AD can also reassign the staff owner
     const adminPatchable = [...staffPatchable, 'staff_email', 'staff_name', 'staff_assigned_at'];
-    const patchable = (auth.auth.role === 'staff') ? staffPatchable : adminPatchable;
+    const patchable = (auth.auth.role === 'agent' || auth.auth.role === 'broker')
+      ? AGENT_BROKER_PATCHABLE
+      : (auth.auth.role === 'staff') ? staffPatchable : adminPatchable;
     for (const key of patchable) {
       if (key in body) allowed[key] = body[key] ?? null;
     }

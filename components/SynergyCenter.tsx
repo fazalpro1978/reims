@@ -18,6 +18,7 @@ interface AssignedUnit {
   unit_code: string;
   unit_no: string;
   property: string;
+  alias_code?: string | null;
 }
 
 interface Inquiry {
@@ -434,8 +435,8 @@ function UnitSearch({
       setLoading(true);
       const { data } = await supabase
         .from('units')
-        .select('id, unit_code, unit_no, property')
-        .or(`unit_no.ilike.%${term}%,unit_code.ilike.%${term}%,property.ilike.%${term}%`)
+        .select('id, unit_code, unit_no, property, alias_code')
+        .or(`unit_no.ilike.%${term}%,unit_code.ilike.%${term}%,property.ilike.%${term}%,alias_code.ilike.%${term}%`)
         .eq('status', 'Available')
         .limit(10);
       setResults((data ?? []) as AssignedUnit[]);
@@ -483,7 +484,7 @@ function UnitSearch({
                 onClick={() => { onSelect(u); setOpen(false); setQ(''); }}
                 className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-[#1e1e1e] transition-colors"
               >
-                <span className="font-mono text-xs text-[#c9a84c] shrink-0 w-20 truncate">{u.unit_code}</span>
+                <span className="font-mono text-xs text-[#c9a84c] shrink-0 w-20 truncate">{u.alias_code ?? u.unit_code}</span>
                 <div className="min-w-0">
                   <p className="text-sm text-[#e0e0e0] truncate">{u.unit_no}</p>
                   <p className="text-[10px] text-[#555] truncate">{u.property}</p>
@@ -1459,7 +1460,7 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
                           </div>
                           <div className="min-w-0">
                             <p className="text-sm font-semibold text-[#e0e0e0] truncate">{unit.property} · {unit.unit_no}</p>
-                            <p className="text-[10px] font-mono text-[#c9a84c]">{unit.unit_code}</p>
+                            <p className="text-[10px] font-mono text-[#c9a84c]">{unit.alias_code ?? unit.unit_code}</p>
                           </div>
                         </div>
                         <button
