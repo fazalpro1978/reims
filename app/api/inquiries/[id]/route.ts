@@ -113,29 +113,19 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
       const newStaffEmail = (allowed['staff_email'] as string | null) ?? null;
       if ('staff_email' in allowed && newStaffEmail && newStaffEmail !== prevStaffEmail) {
-        admin.from('notifications').insert({
-          type: 'card_assigned',
-          title: 'Inquiry assigned to you',
-          body: notifBody,
-          inquiry_id: params.id,
-          target_user_email: newStaffEmail,
-        }).then(() => {}).catch(() => {});
+        void (async () => { try { await admin.from('notifications').insert({ type: 'card_assigned', title: 'Inquiry assigned to you', body: notifBody, inquiry_id: params.id, target_user_email: newStaffEmail }); } catch {} })();
       }
 
       const newAgentCode = (allowed['assigned_agent'] as string | null) ?? null;
       if ('assigned_agent' in allowed && newAgentCode && newAgentCode !== prevAgentCode) {
-        admin.from('cr_agents').select('email').eq('agent_code', newAgentCode).maybeSingle()
-          .then(({ data: agentRow }) => {
+        void (async () => {
+          try {
+            const { data: agentRow } = await admin.from('cr_agents').select('email').eq('agent_code', newAgentCode).maybeSingle();
             if (agentRow?.email) {
-              admin.from('notifications').insert({
-                type: 'card_assigned',
-                title: 'Inquiry assigned to you',
-                body: notifBody,
-                inquiry_id: params.id,
-                target_user_email: agentRow.email,
-              }).then(() => {}).catch(() => {});
+              await admin.from('notifications').insert({ type: 'card_assigned', title: 'Inquiry assigned to you', body: notifBody, inquiry_id: params.id, target_user_email: agentRow.email });
             }
-          }).catch(() => {});
+          } catch {}
+        })();
       }
     }
 
