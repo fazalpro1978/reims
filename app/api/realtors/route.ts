@@ -72,6 +72,11 @@ export async function PUT(req: NextRequest) {
   };
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
   if (!name?.trim()) return NextResponse.json({ error: 'name is required' }, { status: 400 });
+
+  // Capture old name before update so we can match units by it
+  const { data: before } = await admin.from('realtors').select('name').eq('id', id).single();
+  const oldName = before?.name ?? null;
+
   const row = {
     name: name.trim(),
     moci_id: moci_id?.trim() || null,
@@ -81,10 +86,19 @@ export async function PUT(req: NextRequest) {
     .from('realtors').update(row).eq('id', id)
     .select('id, name, moci_id, classification').single();
   if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
+
+  // Cascade to all units carrying this realtor's name
+  if (oldName) {
+    await admin.from('units')
+      .update({ realtor_name: row.name, realtor_moci: row.moci_id })
+      .ilike('realtor_name', oldName);
+  }
+
   // Sync update into cr_entity_codes too
   await admin.from('cr_entity_codes')
     .update({ company_name: row.name, classification: row.classification || 'Independent' })
     .ilike('company_name', name.trim());
+
   return NextResponse.json({ realtor: data });
 }
 
@@ -120,9 +134,21 @@ export async function POST(req: NextRequest) {
     : await admin.from('realtors').insert(row).select('id, name, moci_id, classification').single();
   if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
 
-  // Dual-write: sync new realtor into cr_entity_codes for Code Registry
   if (!id) {
+    // New realtor: sync into Code Registry and backfill units already
+    // carrying this realtor name (e.g. imported before the realtor entry existed)
     syncToEntityCodes(data.name, data.classification).catch(() => {});
+    await admin.from('units')
+      .update({ realtor_name: data.name, realtor_moci: data.moci_id ?? null })
+      .ilike('realtor_name', data.name);
+  } else {
+    // Upsert path (id supplied): cascade same as PUT
+    const { data: before } = await admin.from('realtors').select('name').eq('id', id).single();
+    if (before?.name) {
+      await admin.from('units')
+        .update({ realtor_name: data.name, realtor_moci: data.moci_id ?? null })
+        .ilike('realtor_name', before.name);
+    }
   }
 
   return NextResponse.json({ realtor: data });
