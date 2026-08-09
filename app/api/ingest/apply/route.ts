@@ -93,9 +93,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'records[] required' }, { status: 400 });
     }
 
+    // ── 0. Build realtor name → moci_id lookup map ──────────────────────────
+    // Spreadsheets often omit the Realtor MoCI ID column. If a row has
+    // realtor_name but no realtor_moci, we fill it in from the realtors table.
+    const { data: realtorRows } = await admin
+      .from('realtors')
+      .select('name, moci_id');
+    const realtorMociMap = new Map<string, string>(
+      (realtorRows ?? [])
+        .filter((r: { name: string; moci_id: string | null }) => r.name && r.moci_id)
+        .map((r: { name: string; moci_id: string }) => [r.name.toLowerCase().trim(), r.moci_id]),
+    );
+
     // ── 1. Upsert into public.units ─────────────────────────────────────────
     // Strip payload fields that don't exist in the units table before writing
-    const rows = records.map((r) => r.payload);
+    const rows = records.map((r) => {
+      const payload = { ...r.payload };
+      // Auto-fill realtor_moci from realtors table when the column is absent
+      if (!payload.realtor_moci && payload.realtor_name) {
+        const key = String(payload.realtor_name).toLowerCase().trim();
+        const moci = realtorMociMap.get(key);
+        if (moci) payload.realtor_moci = moci;
+      }
+      return payload;
+    });
     const unitCodes = rows
       .map((r) => r.unit_code)
       .filter((c): c is string => typeof c === 'string' && c.trim() !== '');
