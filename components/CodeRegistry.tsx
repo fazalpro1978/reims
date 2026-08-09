@@ -2132,6 +2132,7 @@ function RealtorRegistryTab() {
 
   const [realtors, setRealtors]     = useState<RealtorRow[]>([]);
   const [loading,  setLoading]      = useState(true);
+  const [search,   setSearch]       = useState('');
   const [adding,   setAdding]       = useState(false);
   const [newName,  setNewName]      = useState('');
   const [newClass, setNewClass]     = useState('');
@@ -2287,32 +2288,59 @@ function RealtorRegistryTab() {
         </div>
       )}
 
-      {/* Realtor list */}
-      <div className="rounded-xl border border-[#1e1e1e] overflow-hidden">
-        <div className="bg-[#0d0d0d] border-b border-[#1e1e1e] px-4 py-2.5 grid grid-cols-12 gap-2">
-          <span className="col-span-5 text-[9px] font-bold text-[#555] uppercase tracking-wider">Company Name</span>
-          <span className="col-span-5 text-[9px] font-bold text-[#555] uppercase tracking-wider">Classification</span>
-          <span className="col-span-2 text-[9px] font-bold text-[#555] uppercase tracking-wider">MOCI ID</span>
-        </div>
-        {loading && (
-          <div className="px-4 py-8 text-center text-xs text-[#555]">Loading…</div>
-        )}
-        {!loading && realtors.length === 0 && (
-          <div className="px-4 py-8 text-center text-xs text-[#555]">No realtors registered yet. Add the first one above.</div>
-        )}
-        {realtors.map(r => (
-          <div key={r.id} className="px-4 py-2.5 grid grid-cols-12 gap-2 border-b border-[#1a1a1a] hover:bg-[#111] transition-colors">
-            <span className="col-span-5 text-sm font-medium text-[#e0e0e0] truncate">{r.name}</span>
-            <span className="col-span-5 text-xs truncate" style={{ color: clsColor[r.classification ?? ''] ?? '#888' }}>
-              {r.classification ?? <span className="text-[#333]">—</span>}
-            </span>
-            <span className="col-span-2 text-[11px] font-mono text-[#c9a84c] truncate">{r.moci_id ?? '—'}</span>
-          </div>
-        ))}
+      {/* Search */}
+      <div className="relative">
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#444]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35" strokeLinecap="round"/>
+        </svg>
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search by name or classification…"
+          className="w-full bg-[#141414] border border-[#1e1e1e] rounded-xl pl-9 pr-4 py-2.5 text-sm text-[#e0e0e0] placeholder-[#555] focus:outline-none focus:border-[#c9a84c]/40 transition-colors"
+        />
       </div>
-      {realtors.length > 0 && (
-        <p className="text-[10px] text-[#444] text-right">{realtors.length} realtor{realtors.length !== 1 ? 's' : ''} registered</p>
-      )}
+
+      {/* Realtor list */}
+      {(() => {
+        const filtered = search
+          ? realtors.filter(r =>
+              r.name.toLowerCase().includes(search.toLowerCase()) ||
+              (r.classification ?? '').toLowerCase().includes(search.toLowerCase())
+            )
+          : realtors;
+        return (
+          <>
+            <div className="rounded-xl border border-[#1e1e1e] overflow-hidden">
+              <div className="bg-[#0d0d0d] border-b border-[#1e1e1e] px-4 py-2.5 grid grid-cols-12 gap-2">
+                <span className="col-span-5 text-[9px] font-bold text-[#555] uppercase tracking-wider">Company Name</span>
+                <span className="col-span-5 text-[9px] font-bold text-[#555] uppercase tracking-wider">Classification</span>
+                <span className="col-span-2 text-[9px] font-bold text-[#555] uppercase tracking-wider">MOCI ID</span>
+              </div>
+              {loading && <div className="px-4 py-8 text-center text-xs text-[#555]">Loading…</div>}
+              {!loading && filtered.length === 0 && (
+                <div className="px-4 py-8 text-center text-xs text-[#555]">
+                  {search ? `No results for "${search}"` : 'No realtors registered yet.'}
+                </div>
+              )}
+              {filtered.map(r => (
+                <div key={r.id} className="px-4 py-2.5 grid grid-cols-12 gap-2 border-b border-[#1a1a1a] hover:bg-[#111] transition-colors">
+                  <span className="col-span-5 text-sm font-medium text-[#e0e0e0] truncate">{r.name}</span>
+                  <span className="col-span-5 text-xs truncate" style={{ color: clsColor[r.classification ?? ''] ?? '#888' }}>
+                    {r.classification ?? <span className="text-[#333]">—</span>}
+                  </span>
+                  <span className="col-span-2 text-[11px] font-mono text-[#c9a84c] truncate">{r.moci_id ?? '—'}</span>
+                </div>
+              ))}
+            </div>
+            {realtors.length > 0 && (
+              <p className="text-[10px] text-[#444] text-right">
+                {filtered.length} of {realtors.length} realtor{realtors.length !== 1 ? 's' : ''}
+              </p>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 }
@@ -2330,9 +2358,11 @@ function ZoneRegistryTab() {
   const isReadOnly = role !== 'superuser' && role !== 'administrator';
   const [readOnlyAlert, setReadOnlyAlert] = useState(false);
 
-  const [zones,    setZones]    = useState<Zone[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [adding,   setAdding]   = useState(false);
+  const [zones,      setZones]      = useState<Zone[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [search,     setSearch]     = useState('');
+  const [muniFilter, setMuniFilter] = useState('');
+  const [adding,     setAdding]     = useState(false);
   const [newCode,  setNewCode]  = useState('');
   const [newName,  setNewName]  = useState('');
   const [newMuni,  setNewMuni]  = useState('');
@@ -2477,27 +2507,70 @@ function ZoneRegistryTab() {
         </div>
       )}
 
-      <div className="rounded-xl border border-[#1e1e1e] overflow-hidden">
-        <div className="bg-[#0d0d0d] border-b border-[#1e1e1e] px-4 py-2.5 grid grid-cols-12 gap-2">
-          <span className="col-span-2 text-[9px] font-bold text-[#555] uppercase tracking-wider">Zone #</span>
-          <span className="col-span-5 text-[9px] font-bold text-[#555] uppercase tracking-wider">District / Zone</span>
-          <span className="col-span-5 text-[9px] font-bold text-[#555] uppercase tracking-wider">Municipality</span>
-        </div>
-        {loading && <div className="px-4 py-8 text-center text-xs text-[#555]">Loading…</div>}
-        {!loading && zones.length === 0 && (
-          <div className="px-4 py-8 text-center text-xs text-[#555]">No zones registered yet. Add the first one above.</div>
-        )}
-        {zones.map(z => (
-          <div key={z.zone_code} className="px-4 py-2.5 grid grid-cols-12 gap-2 border-b border-[#1a1a1a] hover:bg-[#111] transition-colors">
-            <span className="col-span-2 text-sm font-mono font-semibold text-[#c9a84c]">{z.zone_code}</span>
-            <span className="col-span-5 text-sm font-medium text-[#e0e0e0] truncate">{z.district_name}</span>
-            <span className="col-span-5 text-xs text-[#666] truncate">{z.municipality ?? '—'}</span>
-          </div>
-        ))}
-      </div>
-      {zones.length > 0 && (
-        <p className="text-[10px] text-[#444] text-right">{zones.length} zone{zones.length !== 1 ? 's' : ''} registered</p>
-      )}
+      {/* Search + municipality filter */}
+      {(() => {
+        const muniOptions = Array.from(new Set(zones.map(z => z.municipality).filter(Boolean))).sort();
+        const filtered = zones.filter(z => {
+          const matchText = !search || (
+            `Zone ${z.zone_code} — ${z.district_name}`.toLowerCase().includes(search.toLowerCase()) ||
+            String(z.zone_code).includes(search) ||
+            (z.municipality ?? '').toLowerCase().includes(search.toLowerCase())
+          );
+          const matchMuni = !muniFilter || z.municipality === muniFilter;
+          return matchText && matchMuni;
+        });
+        return (
+          <>
+            <div className="flex gap-3">
+              <div className="relative flex-1">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#444]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35" strokeLinecap="round"/>
+                </svg>
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search by zone name or number…"
+                  className="w-full bg-[#141414] border border-[#1e1e1e] rounded-xl pl-9 pr-4 py-2.5 text-sm text-[#e0e0e0] placeholder-[#555] focus:outline-none focus:border-[#c9a84c]/40 transition-colors"
+                />
+              </div>
+              <select
+                value={muniFilter}
+                onChange={e => setMuniFilter(e.target.value)}
+                className="bg-[#141414] border border-[#1e1e1e] rounded-xl px-3 py-2.5 text-sm text-[#888] focus:outline-none focus:border-[#c9a84c]/40 transition-colors"
+              >
+                <option value="">All municipalities</option>
+                {muniOptions.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+
+            <div className="rounded-xl border border-[#1e1e1e] overflow-hidden">
+              <div className="bg-[#0d0d0d] border-b border-[#1e1e1e] px-4 py-2.5 grid grid-cols-12 gap-2">
+                <span className="col-span-2 text-[9px] font-bold text-[#555] uppercase tracking-wider">Zone #</span>
+                <span className="col-span-5 text-[9px] font-bold text-[#555] uppercase tracking-wider">District / Zone</span>
+                <span className="col-span-5 text-[9px] font-bold text-[#555] uppercase tracking-wider">Municipality</span>
+              </div>
+              {loading && <div className="px-4 py-8 text-center text-xs text-[#555]">Loading…</div>}
+              {!loading && filtered.length === 0 && (
+                <div className="px-4 py-8 text-center text-xs text-[#555]">
+                  {search || muniFilter ? 'No zones match the current filter.' : 'No zones registered yet.'}
+                </div>
+              )}
+              {filtered.map(z => (
+                <div key={z.zone_code} className="px-4 py-2.5 grid grid-cols-12 gap-2 border-b border-[#1a1a1a] hover:bg-[#111] transition-colors">
+                  <span className="col-span-2 text-sm font-mono font-semibold text-[#c9a84c]">{z.zone_code}</span>
+                  <span className="col-span-5 text-sm font-medium text-[#e0e0e0] truncate">{z.district_name}</span>
+                  <span className="col-span-5 text-xs text-[#666] truncate">{z.municipality ?? '—'}</span>
+                </div>
+              ))}
+            </div>
+            {zones.length > 0 && (
+              <p className="text-[10px] text-[#444] text-right">
+                {filtered.length} of {zones.length} zone{zones.length !== 1 ? 's' : ''}
+              </p>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 }
