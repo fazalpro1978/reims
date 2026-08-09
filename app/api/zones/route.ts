@@ -39,6 +39,14 @@ export async function PUT(req: NextRequest) {
     .select('zone_code, district_name, municipality')
     .single();
   if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
+
+  // Cascade to units.zone so the matching engine, PDF reports, and
+  // Synergy Center cards all reflect the updated zone name immediately.
+  await admin
+    .from('units')
+    .update({ zone: districtName })
+    .eq('zone_code', zoneCode);
+
   return NextResponse.json({ zone: data });
 }
 
