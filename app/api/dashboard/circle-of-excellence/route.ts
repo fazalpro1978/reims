@@ -2,10 +2,28 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireAuth } from '@/lib/serverAuth';
 
+const BUCKET  = 'circle-of-excellence';
+const VIEW_TTL = 60 * 60 * 24; // 24 h
+
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
+
+async function signPath(path: string | null): Promise<string | null> {
+  if (!path) return null;
+  const { data } = await admin.storage.from(BUCKET).createSignedUrl(path, VIEW_TTL);
+  return data?.signedUrl ?? null;
+}
+
+// Attach photo_signed_url / cert_signed_url without touching the stored paths
+async function hydrate(row: Record<string, unknown>) {
+  const [photoSigned, certSigned] = await Promise.all([
+    signPath(row.photo_url as string | null),
+    signPath(row.certificate_url as string | null),
+  ]);
+  return { ...row, photo_signed_url: photoSigned, cert_signed_url: certSigned };
+}
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
@@ -18,7 +36,8 @@ export async function GET(req: NextRequest) {
     .limit(1)
     .maybeSingle();
 
-  return NextResponse.json({ spotlight: data });
+  if (!data) return NextResponse.json({ spotlight: null });
+  return NextResponse.json({ spotlight: await hydrate(data) });
 }
 
 export async function PATCH(req: NextRequest) {
@@ -34,6 +53,7 @@ export async function PATCH(req: NextRequest) {
     .limit(1)
     .maybeSingle();
 
+  // photo_url / certificate_url are PATHS (e.g. "photo/uuid.png"), not URLs
   const payload = {
     employee_name:    body.employee_name    ?? '',
     employee_title:   body.employee_title   ?? null,
@@ -64,5 +84,5 @@ export async function PATCH(req: NextRequest) {
   }
 
   if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
-  return NextResponse.json({ spotlight: result.data });
+  return NextResponse.json({ spotlight: await hydrate(result.data) });
 }

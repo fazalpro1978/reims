@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { requireAuth } from '@/lib/serverAuth';
 
 const BUCKET = 'circle-of-excellence';
+const PREVIEW_TTL = 60 * 60; // 1 h — enough for the admin to finish editing
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,16 +32,21 @@ export async function POST(req: NextRequest) {
   const buffer   = Buffer.from(await file.arrayBuffer());
   const fileType = file.type === 'application/pdf' ? 'pdf' : 'image';
 
-  // Ensure bucket exists (idempotent)
-  await admin.storage.createBucket(BUCKET, { public: true }).catch(() => {});
-
+  // Bucket must be PRIVATE — created manually in Supabase dashboard
   const { error } = await admin.storage
     .from(BUCKET)
     .upload(path, buffer, { contentType: file.type, upsert: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const { data } = admin.storage.from(BUCKET).getPublicUrl(path);
+  // Short-lived signed URL for the in-editor preview only — never stored in DB
+  const { data: signed } = await admin.storage
+    .from(BUCKET)
+    .createSignedUrl(path, PREVIEW_TTL);
 
-  return NextResponse.json({ url: data.publicUrl, fileType });
+  return NextResponse.json({
+    path,                              // stored in DB
+    previewUrl: signed?.signedUrl ?? '', // used by the edit form preview only
+    fileType,
+  });
 }
