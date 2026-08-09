@@ -590,9 +590,11 @@ export default function UnitsInventory({
 
   const handleEmail = useCallback((unit: UnitListing) => {
     const subject = encodeURIComponent(
-      `Property Enquiry — ${unit.property} ${unit.config} | ${unit.id}`
+      isAgent
+        ? `Property Enquiry — ${unit.property} ${unit.config} | ${unit.id}`
+        : `[INTERNAL] ${unit.id} — ${unit.property} ${unit.config} (${unit.status})`
     );
-    const body = encodeURIComponent(isAgent ? generateAgentShareText(unit) : generatePublicShareText(unit));
+    const body = encodeURIComponent(isAgent ? generateAgentShareText(unit) : generateInternalCopyText(unit));
     window.open(`mailto:?subject=${subject}&body=${body}`);
   }, [isAgent]);
 
