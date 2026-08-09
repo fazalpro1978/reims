@@ -170,15 +170,15 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
             <div className="relative">
               <style>{`
                 @keyframes bell-ring {
-                  0%        { transform: rotate(0deg); }
-                  6%        { transform: rotate(20deg); }
-                  12%       { transform: rotate(-18deg); }
-                  18%       { transform: rotate(15deg); }
-                  24%       { transform: rotate(-12deg); }
-                  30%       { transform: rotate(8deg); }
-                  36%       { transform: rotate(-5deg); }
-                  42%       { transform: rotate(2deg); }
-                  48%, 100% { transform: rotate(0deg); }
+                  0%        { transform: rotate(0deg);   color: #555555; }
+                  6%        { transform: rotate(20deg);  color: #f59e0b; }
+                  12%       { transform: rotate(-18deg); color: #c9a84c; }
+                  18%       { transform: rotate(15deg);  color: #f59e0b; }
+                  24%       { transform: rotate(-12deg); color: #c9a84c; }
+                  30%       { transform: rotate(8deg);   color: #f59e0b; }
+                  36%       { transform: rotate(-5deg);  color: #c9a84c; }
+                  42%       { transform: rotate(2deg);   color: #f59e0b; }
+                  48%, 100% { transform: rotate(0deg);   color: #555555; }
                 }
                 .bell-ringing {
                   transform-origin: 50% 4%;
