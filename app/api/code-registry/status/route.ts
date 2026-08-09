@@ -15,7 +15,7 @@ const H = (extra?: Record<string, string>) => ({
 const VALID = new Set(['Active', 'Closed', 'Cancelled', 'Archived']);
 
 export async function PATCH(req: NextRequest) {
-  const auth = await requireAuth(req, ['superuser', 'administrator']);
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
   if (!auth.ok) return auth.response;
   const { id, smartCode, fromStatus, toStatus, changedBy, notes } = await req.json();
 

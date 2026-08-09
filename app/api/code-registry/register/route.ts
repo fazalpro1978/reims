@@ -11,7 +11,7 @@ const H = () => ({
 });
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth(req, ['superuser', 'administrator']);
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
   if (!auth.ok) return auth.response;
   const { typeCode, entityCode, agentCode, zoneCode, buildingName, floorRef, unitRef, notes } =
     await req.json();

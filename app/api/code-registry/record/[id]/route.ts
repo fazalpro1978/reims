@@ -13,7 +13,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const auth = await requireAuth(req, ['superuser', 'administrator']);
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
   if (!auth.ok) return auth.response;
   const { id } = params;
 

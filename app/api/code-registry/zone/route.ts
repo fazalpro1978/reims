@@ -12,7 +12,7 @@ const H = () => ({
 });
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth(req, ['superuser', 'administrator']);
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
   if (!auth.ok) return auth.response;
   const { zoneCode, districtName, municipality } = await req.json();
 
