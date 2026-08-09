@@ -168,6 +168,23 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
           {/* Notifications bell — internal roles only */}
           {isInternal && (
             <div className="relative">
+              <style>{`
+                @keyframes bell-ring {
+                  0%        { transform: rotate(0deg); }
+                  6%        { transform: rotate(20deg); }
+                  12%       { transform: rotate(-18deg); }
+                  18%       { transform: rotate(15deg); }
+                  24%       { transform: rotate(-12deg); }
+                  30%       { transform: rotate(8deg); }
+                  36%       { transform: rotate(-5deg); }
+                  42%       { transform: rotate(2deg); }
+                  48%, 100% { transform: rotate(0deg); }
+                }
+                .bell-ringing {
+                  transform-origin: 50% 4%;
+                  animation: bell-ring 2.8s ease-in-out infinite;
+                }
+              `}</style>
               <button
                 ref={notifBtnRef}
                 onClick={openNotif}
@@ -179,7 +196,7 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                     : 'bg-[#1a1a1a] hover:bg-[#242424] border-[#222222] text-[#444444] hover:text-[#c9a84c]'
                 }`}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className={`w-4 h-4${unreadCount > 0 ? ' bell-ringing' : ''}`}>
                   <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
                 </svg>
                 {unreadCount > 0 && (
