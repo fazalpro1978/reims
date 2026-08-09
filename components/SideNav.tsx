@@ -212,8 +212,8 @@ const NAV_SECTIONS = [
       { id: 'properties',    label: 'Properties',          href: '/properties',    icon: 'building',  soon: false },
       { id: 'tenants',       label: 'Tenants',             href: '/tenants',       icon: 'users',     soon: true,  roles: ['superuser','administrator','staff'] },
       { id: 'code-registry', label: 'Code Registry',       href: '/code-registry', icon: 'hash',      soon: false, roles: ['superuser','administrator','staff'] },
-      { id: 'realtors',      label: 'Realtor Information', href: '/realtors', icon: 'briefcase', soon: false, roles: ['superuser','administrator'] },
-      { id: 'zones',         label: 'Zone / District',     href: '/zones',    icon: 'mappin',    soon: false, roles: ['superuser','administrator'] },
+      { id: 'realtors',      label: 'Realtor Information', href: '/realtors', icon: 'briefcase', soon: false, roles: ['superuser','administrator','staff'] },
+      { id: 'zones',         label: 'Zone / District',     href: '/zones',    icon: 'mappin',    soon: false, roles: ['superuser','administrator','staff'] },
     ],
   },
   {
