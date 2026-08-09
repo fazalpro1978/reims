@@ -83,6 +83,20 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       if (key in body) allowed[key] = body[key] ?? null;
     }
 
+    // Capture existing assignment values before update to detect changes
+    let prevStaffEmail: string | null = null;
+    let prevAgentCode: string | null = null;
+    const trackingAssignment = 'staff_email' in allowed || 'assigned_agent' in allowed;
+    if (trackingAssignment) {
+      const { data: prev } = await admin
+        .from('inquiries')
+        .select('staff_email, assigned_agent')
+        .eq('id', params.id)
+        .single();
+      prevStaffEmail = prev?.staff_email ?? null;
+      prevAgentCode  = prev?.assigned_agent ?? null;
+    }
+
     const { data, error } = await admin
       .from('inquiries')
       .update(allowed)
@@ -91,6 +105,39 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       .single();
 
     if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
+
+    // Insert in-app bell notifications for assignment changes
+    if (trackingAssignment && data) {
+      const inq = data as Record<string, unknown>;
+      const notifBody = `${inq.ref_no ?? ''} — ${inq.client_name ?? ''}`.trim().replace(/^—\s*/, '').replace(/\s*—\s*$/, '');
+
+      const newStaffEmail = (allowed['staff_email'] as string | null) ?? null;
+      if ('staff_email' in allowed && newStaffEmail && newStaffEmail !== prevStaffEmail) {
+        admin.from('notifications').insert({
+          type: 'card_assigned',
+          title: 'Inquiry assigned to you',
+          body: notifBody,
+          inquiry_id: params.id,
+          target_user_email: newStaffEmail,
+        }).then(() => {}).catch(() => {});
+      }
+
+      const newAgentCode = (allowed['assigned_agent'] as string | null) ?? null;
+      if ('assigned_agent' in allowed && newAgentCode && newAgentCode !== prevAgentCode) {
+        admin.from('cr_agents').select('email').eq('agent_code', newAgentCode).maybeSingle()
+          .then(({ data: agentRow }) => {
+            if (agentRow?.email) {
+              admin.from('notifications').insert({
+                type: 'card_assigned',
+                title: 'Inquiry assigned to you',
+                body: notifBody,
+                inquiry_id: params.id,
+                target_user_email: agentRow.email,
+              }).then(() => {}).catch(() => {});
+            }
+          }).catch(() => {});
+      }
+    }
 
     // Send assignment email if assigned_agent changed to a non-null value
     const newAgent = allowed['assigned_agent'];

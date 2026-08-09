@@ -25,7 +25,7 @@ const INTERNAL_ROLES = new Set(['superuser', 'administrator', 'staff']);
 
 const NOTIF_LS_KEY = 'reims_notif_last_seen';
 
-type BellItemType = 'pipeline_done' | 'pipeline_failed' | 'pipeline_killed' | 'expiry_critical' | 'expiry_soon';
+type BellItemType = 'pipeline_done' | 'pipeline_failed' | 'pipeline_killed' | 'expiry_critical' | 'expiry_soon' | 'card_assigned';
 interface BellItem { id: string; type: BellItemType; title: string; body: string; created_at: string; }
 
 function timeAgo(iso: string): string {
@@ -42,6 +42,7 @@ const TYPE_META: Record<BellItemType, { icon: string; color: string }> = {
   pipeline_killed:  { icon: '—', color: '#6b7280' },
   expiry_critical:  { icon: '!', color: '#ef4444' },
   expiry_soon:      { icon: '!', color: '#f59e0b' },
+  card_assigned:    { icon: '→', color: '#c9a84c' },
 };
 
 export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {

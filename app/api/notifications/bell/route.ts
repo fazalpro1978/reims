@@ -15,7 +15,8 @@ export type BellItemType =
   | 'pipeline_failed'
   | 'pipeline_killed'
   | 'expiry_critical'
-  | 'expiry_soon';
+  | 'expiry_soon'
+  | 'card_assigned';
 
 export interface BellItem {
   id:         string;
@@ -41,6 +42,16 @@ export async function GET(req: NextRequest) {
     .in('phase', ['done', 'failed', 'killed'])
     .gte('done_at', ago48h)
     .order('done_at', { ascending: false })
+    .limit(20);
+
+  // Personal card_assigned notifications for the authenticated user (last 48 h)
+  const { data: assignments } = await sb
+    .from('notifications')
+    .select('id, title, body, created_at, inquiry_id')
+    .eq('type', 'card_assigned')
+    .eq('target_user_email', auth.auth.email)
+    .gte('created_at', ago48h)
+    .order('created_at', { ascending: false })
     .limit(20);
 
   // Leased units with contract end dates for expiry alerts
@@ -93,6 +104,16 @@ export async function GET(req: NextRequest) {
       title: `${expiring30.length} lease${expiring30.length !== 1 ? 's' : ''} expiring within 30 days`,
       body:  expiring30.slice(0, 3).join(', ') + (expiring30.length > 3 ? ` +${expiring30.length - 3} more` : ''),
       created_at: now.toISOString(),
+    });
+  }
+
+  for (const a of assignments ?? []) {
+    items.push({
+      id:         a.id,
+      type:       'card_assigned',
+      title:      a.title ?? 'Inquiry assigned to you',
+      body:       a.body ?? '',
+      created_at: a.created_at,
     });
   }
 
