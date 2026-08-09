@@ -5,7 +5,7 @@ const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
+  const auth = await requireAuth(req, ['superuser', 'administrator']);
   if (!auth.ok) return auth.response;
 
   const prefix = req.nextUrl.searchParams.get('prefix');

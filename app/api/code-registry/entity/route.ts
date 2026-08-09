@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/serverAuth';
 
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -39,6 +40,8 @@ async function generateCode(name: string): Promise<string> {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req, ['superuser', 'administrator']);
+  if (!auth.ok) return auth.response;
   const { companyName, classification } = await req.json();
   if (!companyName?.trim()) {
     return NextResponse.json({ error: 'Company name required' }, { status: 400 });

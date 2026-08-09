@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/serverAuth';
 
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -45,6 +46,8 @@ async function generateAgentCode(fullName: string): Promise<string> {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req, ['superuser', 'administrator']);
+  if (!auth.ok) return auth.response;
   const { fullName, email } = await req.json();
   if (!fullName?.trim()) {
     return NextResponse.json({ error: 'Agent full name required' }, { status: 400 });

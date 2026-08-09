@@ -14,7 +14,7 @@ async function getAll(path: string) {
 }
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
+  const auth = await requireAuth(req, ['superuser', 'administrator']);
   if (!auth.ok) return auth.response;
   const [configs, entities, agents, zones] = await Promise.all([
     getAll('cr_property_type_configs?select=*&order=core_type,sub_type,configuration'),

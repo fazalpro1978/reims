@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/serverAuth';
 
 const SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -14,6 +15,8 @@ const H = (extra?: Record<string, string>) => ({
 const VALID = new Set(['Active', 'Closed', 'Cancelled', 'Archived']);
 
 export async function PATCH(req: NextRequest) {
+  const auth = await requireAuth(req, ['superuser', 'administrator']);
+  if (!auth.ok) return auth.response;
   const { id, smartCode, fromStatus, toStatus, changedBy, notes } = await req.json();
 
   if (!id || !smartCode || !toStatus) {
