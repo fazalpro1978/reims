@@ -99,11 +99,11 @@ function Select({
 }
 
 function Input({
-  value, onChange, placeholder, mono,
-}: { value: string; onChange: (v: string) => void; placeholder?: string; mono?: boolean }) {
+  value, onChange, placeholder, mono, type = 'text',
+}: { value: string; onChange: (v: string) => void; placeholder?: string; mono?: boolean; type?: string }) {
   return (
     <input
-      type="text"
+      type={type}
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
@@ -2317,11 +2317,196 @@ function RealtorRegistryTab() {
   );
 }
 
+// ── Zone Registry Tab ─────────────────────────────────────────────────────────
+
+const MUNICIPALITIES = [
+  'Al Daayen Municipality', 'Al Khor and Al Thakhira Municipality',
+  'Al Rayyan Municipality', 'Al Shamal Municipality', 'Al Wakrah Municipality',
+  'Doha Municipality', 'Umm Slal Municipality', 'Al Shahaniya Municipality',
+];
+
+function ZoneRegistryTab() {
+  const { role } = useAuth();
+  const isReadOnly = role !== 'superuser' && role !== 'administrator';
+  const [readOnlyAlert, setReadOnlyAlert] = useState(false);
+
+  const [zones,    setZones]    = useState<Zone[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [adding,   setAdding]   = useState(false);
+  const [newCode,  setNewCode]  = useState('');
+  const [newName,  setNewName]  = useState('');
+  const [newMuni,  setNewMuni]  = useState('');
+  const [saving,   setSaving]   = useState(false);
+  const [err,      setErr]      = useState('');
+  const [toast,    setToast]    = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+
+  useEffect(() => {
+    authedFetch('/api/zones')
+      .then(r => r.json())
+      .then(d => setZones(d.zones ?? []))
+      .catch(() => setErr('Failed to load zones.'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function saveZone() {
+    if (isReadOnly) { setReadOnlyAlert(true); return; }
+    const code = Number(newCode);
+    if (!Number.isInteger(code) || code <= 0) { setErr('Zone number must be a positive integer.'); return; }
+    if (!newName.trim()) { setErr('District / Zone name is required.'); return; }
+    if (!newMuni) { setErr('Municipality is required.'); return; }
+    if (zones.some(z => z.zone_code === code)) { setErr(`Zone code ${code} is already registered.`); return; }
+    const cleanName = newName.trim().replace(/^zone\s*\d+\s*[-–—]\s*/i, '').trim();
+    if (zones.some(z => z.district_name.toLowerCase() === cleanName.toLowerCase())) {
+      setErr(`"${cleanName}" is already registered under a different zone code.`); return;
+    }
+    setSaving(true); setErr('');
+    try {
+      const res = await authedFetch('/api/zones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ zone_code: code, district_name: cleanName, municipality: newMuni }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(typeof json.error === 'string' ? json.error : 'Failed to save');
+      const z: Zone = json.zone;
+      setZones(prev => [...prev, z].sort((a, b) => a.zone_code - b.zone_code));
+      setAdding(false);
+      setNewCode(''); setNewName(''); setNewMuni('');
+      setToast({ msg: `Zone ${z.zone_code} — ${z.district_name} registered`, type: 'success' });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      {toast && <Toast message={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
+
+      {readOnlyAlert && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-sm mx-4 bg-[#181818] border border-[#2a2a2a] rounded-2xl shadow-2xl overflow-hidden">
+            <div className="px-5 py-4 bg-[#111] border-b border-[#2a2a2a] flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-[#e0e0e0]">Read-Only Access</p>
+                <p className="text-[11px] text-[#555] mt-0.5">Code Registry — Zone / District</p>
+              </div>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <p className="text-sm text-[#aaa] leading-relaxed">
+                You have <span className="text-[#e0e0e0] font-semibold">view-only</span> access to the Zone Registry. Add, edit, and delete actions are restricted to Administrators.
+              </p>
+              <p className="text-[12px] text-[#666]">
+                To create, modify, or remove a zone record, please contact your Administrator to process the request.
+              </p>
+              <button
+                onClick={() => setReadOnlyAlert(false)}
+                className="w-full py-2 text-sm font-bold text-[#0f0f0f] bg-[#c9a84c] hover:bg-[#dfc070] rounded-lg transition-colors"
+              >
+                Understood
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-bold text-[#e0e0e0]">Zone / District Registry</h2>
+          <p className="text-[11px] text-[#555] mt-0.5">Shared zone registry — used across Units Inventory, Axiom Pipeline, and Smart Code generation</p>
+        </div>
+        {isReadOnly ? (
+          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1a1a1a] border border-[#2a2a2a] text-xs text-[#555] font-medium">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+            </svg>
+            View Only
+          </span>
+        ) : (
+          <button
+            onClick={() => { setAdding(a => !a); setErr(''); setNewCode(''); setNewName(''); setNewMuni(''); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#c9a84c] hover:bg-[#dfc070] text-[#0f0f0f] text-xs font-bold rounded-lg transition-colors"
+          >
+            <span className="text-base leading-none">+</span> Add Zone
+          </button>
+        )}
+      </div>
+
+      {adding && !isReadOnly && (
+        <div className="rounded-xl border border-[#c9a84c]/20 bg-[#c9a84c]/5 p-5 space-y-4">
+          <p className="text-[10px] font-bold text-[#c9a84c] uppercase tracking-widest">Register New Zone</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <FieldLabel>Zone Number *</FieldLabel>
+              <Input type="number" value={newCode} onChange={setNewCode} placeholder="e.g. 61" />
+            </div>
+            <div>
+              <FieldLabel>District / Zone Name *</FieldLabel>
+              <Input value={newName} onChange={setNewName} placeholder="e.g. West Bay" />
+            </div>
+            <div>
+              <FieldLabel>Municipality *</FieldLabel>
+              <Select value={newMuni} onChange={setNewMuni}>
+                <option value="">Select…</option>
+                {MUNICIPALITIES.map(m => <option key={m}>{m}</option>)}
+              </Select>
+            </div>
+          </div>
+          {err && <p className="text-[11px] text-[#ef4444]">{err}</p>}
+          <div className="flex gap-2">
+            <button
+              onClick={saveZone}
+              disabled={saving || !newCode || !newName.trim() || !newMuni}
+              className="flex-1 bg-[#c9a84c] hover:bg-[#dfc070] disabled:opacity-40 text-[#0f0f0f] text-sm font-bold py-2 rounded-lg transition-colors"
+            >
+              {saving ? 'Registering…' : 'Register Zone'}
+            </button>
+            <button
+              onClick={() => { setAdding(false); setErr(''); }}
+              className="px-4 text-[#888] hover:text-[#e0e0e0] text-sm border border-[#2a2a2a] rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-xl border border-[#1e1e1e] overflow-hidden">
+        <div className="bg-[#0d0d0d] border-b border-[#1e1e1e] px-4 py-2.5 grid grid-cols-12 gap-2">
+          <span className="col-span-2 text-[9px] font-bold text-[#555] uppercase tracking-wider">Zone #</span>
+          <span className="col-span-5 text-[9px] font-bold text-[#555] uppercase tracking-wider">District / Zone</span>
+          <span className="col-span-5 text-[9px] font-bold text-[#555] uppercase tracking-wider">Municipality</span>
+        </div>
+        {loading && <div className="px-4 py-8 text-center text-xs text-[#555]">Loading…</div>}
+        {!loading && zones.length === 0 && (
+          <div className="px-4 py-8 text-center text-xs text-[#555]">No zones registered yet. Add the first one above.</div>
+        )}
+        {zones.map(z => (
+          <div key={z.zone_code} className="px-4 py-2.5 grid grid-cols-12 gap-2 border-b border-[#1a1a1a] hover:bg-[#111] transition-colors">
+            <span className="col-span-2 text-sm font-mono font-semibold text-[#c9a84c]">{z.zone_code}</span>
+            <span className="col-span-5 text-sm font-medium text-[#e0e0e0] truncate">{z.district_name}</span>
+            <span className="col-span-5 text-xs text-[#666] truncate">{z.municipality ?? '—'}</span>
+          </div>
+        ))}
+      </div>
+      {zones.length > 0 && (
+        <p className="text-[10px] text-[#444] text-right">{zones.length} zone{zones.length !== 1 ? 's' : ''} registered</p>
+      )}
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function CodeRegistry({ onMenuClick }: { onMenuClick?: () => void }) {
   const [options,    setOptions]    = useState<Options | null>(null);
-  const [activeTab,  setActiveTab]  = useState<'register' | 'search' | 'realtors'>('register');
+  const [activeTab,  setActiveTab]  = useState<'register' | 'search' | 'realtors' | 'zones'>('register');
   const [loadError,  setLoadError]  = useState(false);
 
   useEffect(() => {
@@ -2377,17 +2562,17 @@ export default function CodeRegistry({ onMenuClick }: { onMenuClick?: () => void
             <p className="text-[11px] text-[#555] mt-0.5">14-Digit Smart Serial Code Generator by Vanguard REOS</p>
           </div>
           <div className="flex items-center gap-1 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg p-1">
-            {(['register', 'search', 'realtors'] as const).map(tab => (
+            {(['register', 'search', 'realtors', 'zones'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all capitalize ${
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
                   activeTab === tab
                     ? 'bg-[#c9a84c] text-[#0f0f0f]'
                     : 'text-[#888] hover:text-[#e0e0e0]'
                 }`}
               >
-                {tab === 'register' ? 'Register' : tab === 'search' ? 'Search Registry' : 'Realtors'}
+                {tab === 'register' ? 'Register' : tab === 'search' ? 'Search Registry' : tab === 'realtors' ? 'Realtors' : 'Zone / District'}
               </button>
             ))}
           </div>
@@ -2400,7 +2585,9 @@ export default function CodeRegistry({ onMenuClick }: { onMenuClick?: () => void
           ? <RegisterTab options={options} onEntityAdded={handleEntityAdded} onConfigAdded={handleConfigAdded} onAgentAdded={handleAgentAdded} onZoneAdded={handleZoneAdded} />
           : activeTab === 'search'
           ? <SearchTab options={options} />
-          : <RealtorRegistryTab />
+          : activeTab === 'realtors'
+          ? <RealtorRegistryTab />
+          : <ZoneRegistryTab />
         }
       </div>
     </div>
