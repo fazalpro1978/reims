@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { useAuth } from './AuthContext';
 import {
   Theme,
   ThemeId,
@@ -56,30 +57,37 @@ function applyTheme(id: ThemeId, tokens: ThemeTokens, layout: LayoutMode) {
   root.style.setProperty('--text-dimmest',    tokens.textDimmest);
 }
 
-// ── Persistence key ──────────────────────────────────────────────────────────
+// ── Persistence key — scoped to authenticated user ID ────────────────────────
 
-const STORAGE_KEY = 'prive-ims-theme';
+function storageKey(userId: string | undefined): string {
+  return `prive-ims-theme:${userId ?? '__guest__'}`;
+}
 
 // ── Provider ─────────────────────────────────────────────────────────────────
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const userId = user?.id;
+
   const [themeId, setThemeId] = useState<ThemeId>(DEFAULT_THEME_ID);
 
+  // Reload theme whenever the authenticated identity changes (login / logout / switch)
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY) as ThemeId | null;
+    const key = storageKey(userId);
+    const stored = localStorage.getItem(key) as ThemeId | null;
     const id: ThemeId =
       stored && THEMES.some(t => t.id === stored) ? stored : DEFAULT_THEME_ID;
     setThemeId(id);
     const t = getTheme(id);
     applyTheme(id, t.tokens, t.layoutMode ?? 'default');
-  }, []);
+  }, [userId]);
 
   const setTheme = useCallback((id: ThemeId) => {
     setThemeId(id);
-    localStorage.setItem(STORAGE_KEY, id);
+    localStorage.setItem(storageKey(userId), id);
     const t = getTheme(id);
     applyTheme(id, t.tokens, t.layoutMode ?? 'default');
-  }, []);
+  }, [userId]);
 
   const layoutMode: LayoutMode = getTheme(themeId).layoutMode ?? 'default';
 

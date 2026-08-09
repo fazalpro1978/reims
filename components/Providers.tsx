@@ -7,11 +7,11 @@ import UnixShellOverlay from './UnixShellOverlay';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider>
-      <AuthProvider>
+    <AuthProvider>
+      <ThemeProvider>
         {children}
-      </AuthProvider>
-      <UnixShellOverlay />
-    </ThemeProvider>
+        <UnixShellOverlay />
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
