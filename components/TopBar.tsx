@@ -1,9 +1,12 @@
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { ThemePanel } from './ThemeSwitcher';
 import { useAuth } from '../contexts/AuthContext';
 import { authedFetch } from '../lib/authedFetch';
+
+const RegistrationApprovalPanel = dynamic(() => import('./RegistrationApprovalPanel'), { ssr: false });
 
 const ROLE_LABEL: Record<string, string> = {
   superuser:     'Superuser',
@@ -25,7 +28,7 @@ const INTERNAL_ROLES = new Set(['superuser', 'administrator', 'staff']);
 
 const NOTIF_LS_KEY = 'reims_notif_last_seen';
 
-type BellItemType = 'pipeline_done' | 'pipeline_failed' | 'pipeline_killed' | 'expiry_critical' | 'expiry_soon' | 'card_assigned';
+type BellItemType = 'pipeline_done' | 'pipeline_failed' | 'pipeline_killed' | 'expiry_critical' | 'expiry_soon' | 'card_assigned' | 'registration_pending';
 interface BellItem { id: string; type: BellItemType; title: string; body: string; created_at: string; }
 
 function timeAgo(iso: string): string {
@@ -37,22 +40,24 @@ function timeAgo(iso: string): string {
 }
 
 const TYPE_META: Record<BellItemType, { icon: string; color: string }> = {
-  pipeline_done:    { icon: '✓', color: '#10b981' },
-  pipeline_failed:  { icon: '✕', color: '#ef4444' },
-  pipeline_killed:  { icon: '—', color: '#6b7280' },
-  expiry_critical:  { icon: '!', color: '#ef4444' },
-  expiry_soon:      { icon: '!', color: '#f59e0b' },
-  card_assigned:    { icon: '→', color: '#c9a84c' },
+  pipeline_done:        { icon: '✓', color: '#10b981' },
+  pipeline_failed:      { icon: '✕', color: '#ef4444' },
+  pipeline_killed:      { icon: '—', color: '#6b7280' },
+  expiry_critical:      { icon: '!', color: '#ef4444' },
+  expiry_soon:          { icon: '!', color: '#f59e0b' },
+  card_assigned:        { icon: '→', color: '#c9a84c' },
+  registration_pending: { icon: '★', color: '#f59e0b' },
 };
 
 export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { user, signOut } = useAuth();
 
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [notifOpen,    setNotifOpen]    = useState(false);
-  const [notifItems,   setNotifItems]   = useState<BellItem[]>([]);
-  const [notifLoading, setNotifLoading] = useState(false);
+  const [settingsOpen,     setSettingsOpen    ] = useState(false);
+  const [userMenuOpen,     setUserMenuOpen    ] = useState(false);
+  const [notifOpen,        setNotifOpen       ] = useState(false);
+  const [notifItems,       setNotifItems      ] = useState<BellItem[]>([]);
+  const [notifLoading,     setNotifLoading    ] = useState(false);
+  const [approvalPanelOpen, setApprovalPanelOpen] = useState(false);
   const [lastSeen,     setLastSeen]     = useState<Date>(() => {
     try { const s = localStorage.getItem(NOTIF_LS_KEY); return s ? new Date(s) : new Date(0); } catch { return new Date(0); }
   });
@@ -127,6 +132,7 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   const roleColor = ROLE_COLOR[user?.role ?? ''] ?? '#888';
 
   return (
+    <>
     <header className="bg-[#0d0d0d] sticky top-0 z-30 border-b border-[#1e1e1e]">
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -226,12 +232,14 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                       </div>
                     ) : (
                       notifItems.map(item => {
-                        const meta = TYPE_META[item.type];
+                        const meta  = TYPE_META[item.type];
                         const isNew = new Date(item.created_at) > lastSeen;
+                        const clickable = item.type === 'registration_pending';
                         return (
                           <div
                             key={item.id}
-                            className={`px-4 py-3 border-b border-[#1e1e1e] last:border-0 ${isNew ? 'bg-[#ffffff06]' : ''}`}
+                            onClick={clickable ? () => { setNotifOpen(false); setApprovalPanelOpen(true); } : undefined}
+                            className={`px-4 py-3 border-b border-[#1e1e1e] last:border-0 ${isNew ? 'bg-[#ffffff06]' : ''}${clickable ? ' cursor-pointer hover:bg-[#ffffff08]' : ''}`}
                           >
                             <div className="flex items-start gap-3">
                               <span
@@ -338,5 +346,13 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
         </div>
       </div>
     </header>
+
+    {approvalPanelOpen && (
+      <RegistrationApprovalPanel
+        onClose={() => setApprovalPanelOpen(false)}
+        onResolved={() => { setApprovalPanelOpen(false); fetchNotifs(); }}
+      />
+    )}
+  </>
   );
 }

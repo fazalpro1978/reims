@@ -16,7 +16,8 @@ export type BellItemType =
   | 'pipeline_killed'
   | 'expiry_critical'
   | 'expiry_soon'
-  | 'card_assigned';
+  | 'card_assigned'
+  | 'registration_pending';
 
 export interface BellItem {
   id:         string;
@@ -35,31 +36,56 @@ export async function GET(req: NextRequest) {
   const now    = new Date();
   const ago48h = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString();
 
-  // Pipeline completions from ingest.batch_logs (last 48 h)
-  const { data: batches } = await ingest
-    .from('batch_logs')
-    .select('batch_id, file_name, phase, done_at, total_rows, error_rows')
-    .in('phase', ['done', 'failed', 'killed'])
-    .gte('done_at', ago48h)
-    .order('done_at', { ascending: false })
-    .limit(20);
+  // Fire all queries in parallel
+  const [
+    { data: batches },
+    { data: assignments },
+    { data: units },
+  ] = await Promise.all([
+    ingest
+      .from('batch_logs')
+      .select('batch_id, file_name, phase, done_at, total_rows, error_rows')
+      .in('phase', ['done', 'failed', 'killed'])
+      .gte('done_at', ago48h)
+      .order('done_at', { ascending: false })
+      .limit(20),
+    sb
+      .from('notifications')
+      .select('id, title, body, created_at, inquiry_id')
+      .eq('type', 'card_assigned')
+      .eq('target_user_email', auth.auth.email)
+      .gte('created_at', ago48h)
+      .order('created_at', { ascending: false })
+      .limit(20),
+    sb
+      .from('units')
+      .select('unit_code, contract_end_date')
+      .eq('status', 'Leased')
+      .not('contract_end_date', 'is', null),
+  ]);
 
-  // Personal card_assigned notifications for the authenticated user (last 48 h)
-  const { data: assignments } = await sb
-    .from('notifications')
-    .select('id, title, body, created_at, inquiry_id')
-    .eq('type', 'card_assigned')
-    .eq('target_user_email', auth.auth.email)
-    .gte('created_at', ago48h)
-    .order('created_at', { ascending: false })
-    .limit(20);
+  const items: BellItem[] = [];
 
-  // Leased units with contract end dates for expiry alerts
-  const { data: units } = await sb
-    .from('units')
-    .select('unit_code, contract_end_date')
-    .eq('status', 'Leased')
-    .not('contract_end_date', 'is', null);
+  // Pending registration requests (superuser/admin only, no time limit)
+  if (['superuser', 'administrator'].includes(auth.auth.role)) {
+    const { data: pendingRegs } = await sb
+      .from('profiles')
+      .select('id, full_name, email, created_at')
+      .eq('registration_status', 'pending')
+      .order('created_at', { ascending: true });
+
+    if (pendingRegs && pendingRegs.length > 0) {
+      const names = pendingRegs.slice(0, 2).map((r: { full_name: string | null; email: string }) => r.full_name ?? r.email.split('@')[0]);
+      const label = names.join(', ') + (pendingRegs.length > 2 ? ` +${pendingRegs.length - 2} more` : '');
+      items.push({
+        id:         'registration_pending',
+        type:       'registration_pending',
+        title:      `${pendingRegs.length} access request${pendingRegs.length !== 1 ? 's' : ''} pending`,
+        body:       label,
+        created_at: pendingRegs[0].created_at ?? now.toISOString(),
+      });
+    }
+  }
 
   const expiring7:  string[] = [];
   const expiring30: string[] = [];
@@ -68,8 +94,6 @@ export async function GET(req: NextRequest) {
     if (days >= 0 && days <= 7)       expiring7.push(u.unit_code);
     else if (days > 7 && days <= 30)  expiring30.push(u.unit_code);
   }
-
-  const items: BellItem[] = [];
 
   for (const b of batches ?? []) {
     const name = b.file_name ? b.file_name.replace(/\.[^.]+$/, '') : 'Batch';
