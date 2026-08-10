@@ -9,7 +9,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 );
 
-type Mode = 'login' | 'register';
+type Mode = 'login' | 'register' | 'forgot';
 
 interface PwStrength { len: boolean; upper: boolean; num: boolean; special: boolean; }
 
@@ -50,7 +50,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const reason       = searchParams.get('reason');
 
-  const [mode,     setMode    ] = useState<Mode>('login');
+  const [mode,     setMode    ] = useState<Mode>(() => reason === 'reset' ? 'login' : 'login');
 
   // Login state
   const [email,    setEmail   ] = useState('');
@@ -58,6 +58,12 @@ function LoginForm() {
   const [loginBusy, setLoginBusy] = useState(false);
   const [loginErr, setLoginErr] = useState('');
   const [showPw,   setShowPw  ] = useState(false);
+
+  // Forgot password state
+  const [forgotEmail,   setForgotEmail  ] = useState('');
+  const [forgotBusy,    setForgotBusy   ] = useState(false);
+  const [forgotErr,     setForgotErr    ] = useState('');
+  const [forgotSent,    setForgotSent   ] = useState(false);
 
   // Register state
   const [regEmail,   setRegEmail  ] = useState('');
@@ -123,6 +129,18 @@ function LoginForm() {
     setRegBusy(false);
   }
 
+  async function handleForgot(e: FormEvent) {
+    e.preventDefault();
+    setForgotErr('');
+    setForgotBusy(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim().toLowerCase(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setForgotBusy(false);
+    if (error) setForgotErr(error.message);
+    else setForgotSent(true);
+  }
+
   const fieldCls = 'w-full bg-[#0d0d0d] border border-[#2a2a2a] rounded-lg px-3.5 py-2.5 text-sm text-[#e0e0e0] placeholder-[#333] outline-none focus:border-[#c9a84c] focus:ring-1 focus:ring-[#c9a84c]/20 transition-colors';
   const labelCls = 'block text-[10px] font-bold text-[#555] uppercase tracking-[0.14em] mb-1.5';
 
@@ -151,6 +169,11 @@ function LoginForm() {
         </div>
 
         {/* Reason banners (login mode only) */}
+        {mode === 'login' && reason === 'reset' && (
+          <div className="mb-4 px-3 py-2.5 rounded-lg border text-xs" style={{ background: '#10b98110', borderColor: '#10b98130', color: '#10b981' }}>
+            Password updated successfully. Please sign in with your new password.
+          </div>
+        )}
         {mode === 'login' && reason === 'inactive' && (
           <div className="mb-4 px-3 py-2.5 rounded-lg bg-red-950/40 border border-red-900/40 text-red-400 text-xs">
             Your account has been deactivated. Contact your administrator.
@@ -204,13 +227,61 @@ function LoginForm() {
                 {loginBusy ? 'Signing in…' : 'Sign In'}
               </button>
 
-              <div className="pt-1 border-t border-[#1a1a1a]">
+              <div className="pt-1 border-t border-[#1a1a1a] space-y-0.5">
+                <button type="button" onClick={() => { setMode('forgot'); setForgotSent(false); setForgotErr(''); setForgotEmail(email); }}
+                  className="w-full text-xs text-[#555] hover:text-[#c9a84c] transition-colors py-1.5 text-center">
+                  Forgot your password?
+                </button>
                 <button type="button" onClick={() => setMode('register')}
                   className="w-full text-xs text-[#555] hover:text-[#c9a84c] transition-colors py-1.5 text-center">
                   Don&apos;t have an account? <span className="font-semibold">Request Access →</span>
                 </button>
               </div>
             </form>
+          )}
+
+          {/* ── FORGOT PASSWORD FORM ── */}
+          {mode === 'forgot' && !forgotSent && (
+            <form onSubmit={handleForgot} className="space-y-4">
+              <div>
+                <p className="text-xs text-[#555] mb-4 leading-relaxed">Enter your registered email address and we&apos;ll send you a secure link to reset your password.</p>
+                <label className={labelCls}>Email Address</label>
+                <input type="email" required autoComplete="email" placeholder="you@privegroupre.com"
+                  value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} className={fieldCls} />
+              </div>
+
+              {forgotErr && (
+                <p className="text-red-400 text-xs bg-red-950/30 border border-red-900/30 rounded-lg px-3 py-2">{forgotErr}</p>
+              )}
+
+              <button type="submit" disabled={forgotBusy}
+                className="w-full bg-[#c9a84c] hover:bg-[#dfc070] disabled:opacity-50 text-[#0f0f0f] font-bold text-sm py-2.5 rounded-lg transition-colors mt-1">
+                {forgotBusy ? 'Sending…' : 'Send Reset Link'}
+              </button>
+
+              <div className="pt-1 border-t border-[#1a1a1a]">
+                <button type="button" onClick={() => setMode('login')}
+                  className="w-full text-xs text-[#555] hover:text-[#c9a84c] transition-colors py-1.5 text-center">
+                  ← Back to Sign In
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* ── FORGOT SUCCESS ── */}
+          {mode === 'forgot' && forgotSent && (
+            <div className="py-4 text-center space-y-4">
+              <div className="w-14 h-14 rounded-full mx-auto flex items-center justify-center text-2xl"
+                style={{ background: '#c9a84c20', border: '1px solid #c9a84c40' }}>✉</div>
+              <div>
+                <p className="text-[#e0e0e0] font-semibold text-sm mb-1">Check your email</p>
+                <p className="text-[#555] text-xs leading-relaxed">
+                  A password reset link has been sent to <strong className="text-[#888]">{forgotEmail}</strong>. It expires in 1 hour.
+                </p>
+              </div>
+              <button type="button" onClick={() => setMode('login')}
+                className="text-xs text-[#c9a84c] hover:underline">← Back to Sign In</button>
+            </div>
           )}
 
           {/* ── REGISTER FORM ── */}

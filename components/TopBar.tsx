@@ -5,8 +5,10 @@ import dynamic from 'next/dynamic';
 import { ThemePanel } from './ThemeSwitcher';
 import { useAuth } from '../contexts/AuthContext';
 import { authedFetch } from '../lib/authedFetch';
+import Avatar from './Avatar';
 
 const RegistrationApprovalPanel = dynamic(() => import('./RegistrationApprovalPanel'), { ssr: false });
+const ProfileModal               = dynamic(() => import('./ProfileModal'),               { ssr: false });
 
 const ROLE_LABEL: Record<string, string> = {
   superuser:     'Superuser',
@@ -58,6 +60,9 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   const [notifItems,       setNotifItems      ] = useState<BellItem[]>([]);
   const [notifLoading,     setNotifLoading    ] = useState(false);
   const [approvalPanelOpen, setApprovalPanelOpen] = useState(false);
+  const [profileModalOpen,  setProfileModalOpen ] = useState(false);
+  const [avatarSignedUrl,   setAvatarSignedUrl  ] = useState<string | null>(null);
+  const [avatarPreset,      setAvatarPreset     ] = useState<string | null>(null);
   const [lastSeen,     setLastSeen]     = useState<Date>(() => {
     try { const s = localStorage.getItem(NOTIF_LS_KEY); return s ? new Date(s) : new Date(0); } catch { return new Date(0); }
   });
@@ -86,6 +91,20 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
 
   // Fetch on mount for badge count
   useEffect(() => { if (isInternal) fetchNotifs(); }, [fetchNotifs, isInternal]);
+
+  // Fetch avatar signed URL when user changes
+  useEffect(() => {
+    if (!user) { setAvatarSignedUrl(null); setAvatarPreset(null); return; }
+    authedFetch('/api/profile')
+      .then(r => r.ok ? r.json() : null)
+      .then(j => {
+        if (j?.profile) {
+          setAvatarSignedUrl(j.profile.avatarSignedUrl ?? null);
+          setAvatarPreset(j.profile.avatar_preset ?? null);
+        }
+      })
+      .catch(() => {});
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close all dropdowns on outside click / Escape
   useEffect(() => {
@@ -300,16 +319,17 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
             <button
               ref={userBtnRef}
               onClick={() => { setUserMenuOpen(v => !v); setSettingsOpen(false); setNotifOpen(false); }}
-              className="w-7 h-7 rounded-full border flex items-center justify-center transition-colors hover:opacity-80"
-              style={{
-                background: `${roleColor}18`,
-                borderColor: `${roleColor}35`,
-              }}
+              className="transition-opacity hover:opacity-80"
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
               title={user?.fullName ?? 'User'}
             >
-              <span className="text-xs font-bold select-none" style={{ color: roleColor }}>
-                {initials}
-              </span>
+              <Avatar
+                size={28}
+                photoUrl={avatarSignedUrl}
+                preset={avatarSignedUrl ? null : avatarPreset}
+                initials={initials}
+                ringColor={roleColor}
+              />
             </button>
 
             {userMenuOpen && (
@@ -329,6 +349,19 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                     {ROLE_LABEL[user?.role ?? ''] ?? ''}
                   </span>
                 </div>
+
+                {/* My Profile */}
+                <button
+                  onClick={() => { setUserMenuOpen(false); setProfileModalOpen(true); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#aaa] hover:text-[#c9a84c] hover:bg-[#c9a84c08] transition-colors text-left"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 shrink-0">
+                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" />
+                  </svg>
+                  My Profile
+                </button>
+
+                <div className="border-t border-[#1e1e1e]" />
 
                 {/* Sign out */}
                 <button
@@ -351,6 +384,16 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
       <RegistrationApprovalPanel
         onClose={() => setApprovalPanelOpen(false)}
         onResolved={() => { setApprovalPanelOpen(false); fetchNotifs(); }}
+      />
+    )}
+
+    {profileModalOpen && (
+      <ProfileModal
+        onClose={() => setProfileModalOpen(false)}
+        onAvatarChange={(signedUrl, preset) => {
+          setAvatarSignedUrl(signedUrl);
+          setAvatarPreset(preset);
+        }}
       />
     )}
   </>
