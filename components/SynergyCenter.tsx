@@ -1615,6 +1615,9 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
   const [unreadCount, setUnreadCount]   = useState(0);
   // Guardrail modal — shown when staff tries to open another staff member's inquiry
   const [guardrail, setGuardrail]       = useState<Inquiry | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId]     = useState<string | null>(null);
+  const isAdmin = role === 'superuser' || role === 'administrator';
 
   const load = async () => {
     setLoading(true);
@@ -1625,6 +1628,19 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
       if (data.allStats) setAllStats(data.allStats);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteInquiry = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await authedFetch(`/api/inquiries/${id}`, { method: 'DELETE' });
+      setInquiries(prev => prev.filter(i => i.id !== id));
+      setAllStats(prev => ({ ...prev, total: Math.max(0, prev.total - 1) }));
+      if (selected?.id === id) setSelected(null);
+    } finally {
+      setDeletingId(null);
+      setConfirmDeleteId(null);
     }
   };
 
@@ -1815,7 +1831,38 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
                         <p className="text-sm font-semibold text-[#e0e0e0] group-hover:text-white">{inq.client_name}</p>
                       </div>
                       <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <div className="flex items-center gap-1.5">
+                        {isAdmin && (
+                          confirmDeleteId === inq.id ? (
+                            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                              <button
+                                disabled={deletingId === inq.id}
+                                onClick={() => handleDeleteInquiry(inq.id)}
+                                className="text-[10px] font-semibold px-2 py-0.5 rounded bg-[#f43f5e] text-white hover:bg-[#e11d48] disabled:opacity-50 transition-colors"
+                              >
+                                {deletingId === inq.id ? '…' : 'Confirm'}
+                              </button>
+                              <button
+                                onClick={() => setConfirmDeleteId(null)}
+                                className="text-[10px] text-[#555] hover:text-[#999] transition-colors px-1"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={e => { e.stopPropagation(); setConfirmDeleteId(inq.id); }}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-[#f43f5e22] text-[#555] hover:text-[#f43f5e]"
+                              title="Delete inquiry"
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3.5 h-3.5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          )
+                        )}
                         <Badge label={sm2.label} color={sm2.color} bg={sm2.bg} />
+                        </div>
                         {inq.assigned_agent && (() => {
                           const a = agents.find(ag => ag.agent_code === inq.assigned_agent);
                           if (!a) return null;

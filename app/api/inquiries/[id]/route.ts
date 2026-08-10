@@ -346,7 +346,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  const auth = await requireAuth(req, ['superuser', 'administrator']);
+  if (!auth.ok) return auth.response;
+
+  // Clean up child records before deleting the inquiry
+  await admin.from('inquiry_matches').delete().eq('inquiry_id', params.id);
+  await admin.from('notifications').delete().eq('inquiry_id', params.id);
+
   const { error } = await admin.from('inquiries').delete().eq('id', params.id);
   if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
   return NextResponse.json({ ok: true });
