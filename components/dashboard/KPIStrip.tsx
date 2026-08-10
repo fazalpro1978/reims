@@ -33,6 +33,8 @@ function KPICard({ label, value, delta, deltaUp, accent }: CardProps) {
         display: 'flex',
         flexDirection: 'column',
         gap: 6,
+        overflow: 'hidden',
+        minWidth: 0,
       }}
     >
       <span
@@ -55,6 +57,10 @@ function KPICard({ label, value, delta, deltaUp, accent }: CardProps) {
           color: '#e2e2ee',
           fontVariantNumeric: 'tabular-nums',
           lineHeight: 1,
+          minWidth: 0,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
         }}
       >
         {value === null ? '—' : value.toLocaleString()}
@@ -97,7 +103,7 @@ export default function KPIStrip() {
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
         gap: 12,
         marginBottom: 24,
       }}

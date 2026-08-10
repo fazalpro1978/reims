@@ -9,7 +9,9 @@
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "axiom:dry-run": "node scripts/axiom-purge.js --dry-run",
+    "axiom:execute": "node scripts/axiom-purge.js --execute --confirm"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",
