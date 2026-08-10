@@ -85,7 +85,8 @@ export default function StatusDonut() {
           <svg width={140} height={140} viewBox="0 0 140 140">
             {/* Track */}
             <circle cx={CX} cy={CY} r={R} fill="none" stroke="#1e1e2e" strokeWidth={STROKE} />
-            {arcs.map(a => (
+            {/* Only render coloured arcs when there is data */}
+            {(data?.total ?? 0) > 0 && arcs.map(a => (
               <circle
                 key={a.key}
                 cx={CX}
@@ -142,7 +143,7 @@ export default function StatusDonut() {
               <span style={{ fontSize: 11, color: '#7878a8', flex: 1, textAlign: 'left' }}>
                 {a.label}
               </span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e2ee', fontVariantNumeric: 'tabular-nums' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: a.count > 0 ? '#e2e2ee' : '#2e2e3e', fontVariantNumeric: 'tabular-nums' }}>
                 {a.count}
               </span>
               <span style={{ fontSize: 10, color: '#44445a', width: 32, textAlign: 'right' }}>
