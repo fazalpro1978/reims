@@ -217,15 +217,15 @@ const NAV_SECTIONS = [
     ],
   },
   {
-    label: 'Ingest',
+    label: 'Axiom',
     items: [
-      { id: 'ingest-queue',  label: 'Axiom Queue',         href: '/ingest-queue',  icon: 'ingest',    soon: false, roles: ['superuser','administrator'] },
-      { id: 'synergy',       label: 'Synergy Center',      href: '/synergy',       icon: 'synergy',   soon: false, roles: ['superuser','administrator','staff','agent','broker','third_party'] },
+      { id: 'ingest-queue', label: 'Axiom Queue', href: '/ingest-queue', icon: 'ingest', soon: false, roles: ['superuser','administrator'] },
     ],
   },
   {
     label: 'Operations',
     items: [
+      { id: 'synergy',    label: 'Synergy Center',    href: '/synergy',    icon: 'synergy',  soon: false, roles: ['superuser','administrator','staff','agent','broker','third_party'] },
       { id: 'contracts',  label: 'Contracts & Legal', href: '/contracts',  icon: 'document', soon: false, roles: ['superuser','administrator'] },
       { id: 'financials', label: 'Financials',        href: '/financials', icon: 'chart',    soon: true,  roles: ['superuser','administrator'] },
       { id: 'reports',    label: 'Reports',           href: '/reports',    icon: 'report',   soon: true,  roles: ['superuser','administrator','staff'] },
