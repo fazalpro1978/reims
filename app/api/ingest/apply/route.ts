@@ -24,11 +24,23 @@ const UNITS_COLUMNS = new Set([
   'moci_contract_number', 'moci_contract_status',
   'legal_duration', 'contract_start_date', 'contract_end_date',
   'location_map_url', 'media_url', 'asset_history_links',
-  'listed_date', 'unit_code', 'amenities', 'view',
+  'listed_date', 'unit_code', 'amenities', 'view', 'view_types',
   'kahramaa_applicable', 'kahramaa_amount',
   'qatar_cool_applicable', 'qatar_cool_amount',
   'marafeq_applicable', 'marafeq_amount',
   'updated_at',
+]);
+
+// Valid REIMS view_types — view values that match these are also appended to view_types[]
+const REIMS_VIEW_TYPES = new Set([
+  'Beach View', 'Canal View', 'City View', 'Clubhouse View', 'Community View',
+  'Countryside View', 'Courtyard View', 'Desert View', 'Downtown View',
+  'Garden View', 'Golf Course View', 'Greenery View', 'Lake View', 'Lagoon View',
+  'Landmark View', 'Main Road View', 'Marina View', 'Mountain View', 'Nature View',
+  'Neighbourhood View', 'Ocean View', 'Open View', 'Panoramic View', 'Park View',
+  'Partial View', 'Playground View', 'Pool View', 'River View', 'Sea View',
+  'Skyline View', 'Sports View', 'Street View', 'Sunrise View', 'Sunset View',
+  'Swimming Pool View', 'Unobstructed View', 'Waterfront View',
 ]);
 
 // Map dInges canonical values → REIMS DB enum values
@@ -123,11 +135,11 @@ export async function POST(req: NextRequest) {
 
     const { data: existing } = await admin
       .from('units')
-      .select('id, unit_code')
+      .select('id, unit_code, view_types')
       .in('unit_code', unitCodes);
 
     const existingMap = new Map(
-      (existing ?? []).map((r: { id: string; unit_code: string }) => [r.unit_code, r.id]),
+      (existing ?? []).map((r: { id: string; unit_code: string; view_types: string[] | null }) => [r.unit_code, r]),
     );
 
     const toInsert: Record<string, unknown>[] = [];
@@ -138,7 +150,16 @@ export async function POST(req: NextRequest) {
       const { __force_delete, ...rawData } = row;
       const data = toUnitRow(rawData);
       const code = data.unit_code as string;
-      const existingId = existingMap.get(code);
+      const existingRow = existingMap.get(code);
+
+      // If view is a valid REIMS view_type, merge it into view_types[]
+      const viewVal = typeof rawData.view === 'string' ? rawData.view.trim() : '';
+      if (viewVal && REIMS_VIEW_TYPES.has(viewVal)) {
+        const existing_vt: string[] = existingRow?.view_types ?? [];
+        data.view_types = existing_vt.includes(viewVal) ? existing_vt : [...existing_vt, viewVal];
+      }
+
+      const existingId = existingRow?.id ?? null;
       if (existingId && __force_delete) {
         toReplace.push({ id: existingId, data });
       } else if (existingId) {
