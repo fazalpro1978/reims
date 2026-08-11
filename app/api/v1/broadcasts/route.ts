@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (bcErr || !broadcast)
-    return NextResponse.json({ error: 'Failed to create broadcast' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to create broadcast', detail: bcErr?.message ?? null }, { status: 500 });
 
   // Fan-out: insert one notification row per recipient
   if (deliveryCount > 0) {

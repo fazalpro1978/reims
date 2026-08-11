@@ -151,8 +151,8 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
         body: JSON.stringify({ title: bcTitle.trim(), body: bcBody.trim(), target_groups: bcGroups }),
       });
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        setBcError((j as { error?: string }).error ?? 'Send failed');
+        const j = await res.json().catch(() => ({})) as { error?: string; detail?: string };
+        setBcError([j.error, j.detail].filter(Boolean).join(' — ') || `HTTP ${res.status}`);
         return;
       }
       setBcSent(true);
