@@ -401,6 +401,7 @@ export default function UnitsInventory({
         bathrooms:           Number(row.bathrooms),
         parking:             row.parking,
         amenities:           row.amenities ?? [],
+        viewTypes:           row.view_types ?? [],
         kitchen:             row.kitchen as KitchenType,
         furnishing:          row.furnishing as Furnishing,
         listingType:         row.listing_type as ListingType,

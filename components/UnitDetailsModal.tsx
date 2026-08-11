@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, { useState, useEffect, useRef } from 'react';
-import { UnitListing, Status, Furnishing, KitchenType, UnitType } from '../types/inventory';
+import { UnitListing, Status, Furnishing, KitchenType, UnitType, ViewType, VIEW_TYPES } from '../types/inventory';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase/client';
 import { logEvent } from '../lib/auditLog';
@@ -44,6 +44,48 @@ interface UnitDetailsModalProps {
   unit: UnitListing;
   onClose: () => void;
 }
+
+// ── View type tooltip descriptions ─────────────────────────────────────────
+
+const VIEW_TYPE_DESCRIPTIONS: Record<string, string> = {
+  'Beach View':         'Direct view of a sandy beach and shoreline',
+  'Canal View':         'View overlooking a canal or navigable waterway',
+  'City View':          'Panoramic view of the city or urban landscape',
+  'Clubhouse View':     'View of a community clubhouse or recreation facility',
+  'Community View':     'View of the surrounding residential community',
+  'Countryside View':   'Open rural or countryside landscape',
+  'Courtyard View':     'View of an enclosed private or shared courtyard',
+  'Desert View':        'View of desert terrain or sand dunes',
+  'Downtown View':      'View of the central business or downtown district',
+  'Garden View':        'View of landscaped gardens or green spaces',
+  'Golf Course View':   'View overlooking a golf course or fairway',
+  'Greenery View':      'View of trees, plants, or lush green surroundings',
+  'Lake View':          'View of a lake or reservoir',
+  'Lagoon View':        'View of a calm lagoon or sheltered coastal bay',
+  'Landmark View':      'View of a notable local or national landmark',
+  'Main Road View':     'Frontage or direct view of a main arterial road',
+  'Marina View':        'View of a yacht marina or boat harbour',
+  'Mountain View':      'View of mountains or elevated terrain',
+  'Nature View':        'View of natural landscapes and wildlife areas',
+  'Neighbourhood View': 'View of the surrounding residential neighbourhood',
+  'Ocean View':         'Expansive view of the open ocean horizon',
+  'Open View':          'Clear, unobstructed open view without close buildings',
+  'Panoramic View':     'Wide-angle or sweeping view from an elevated position',
+  'Park View':          'View of a public park or recreational green space',
+  'Partial View':       'Limited or partially obstructed view of a feature',
+  'Playground View':    'View of a playground or children\'s play area',
+  'Pool View':          'View overlooking a lap pool or recreational pool',
+  'River View':         'View of a river or flowing waterway',
+  'Sea View':           'Direct view of the open sea or coastline',
+  'Skyline View':       'View of the city skyline or architectural skyscape',
+  'Sports View':        'View of a sports facility, court, or stadium',
+  'Street View':        'View of a street or road directly from the unit',
+  'Sunrise View':       'East-facing view ideal for morning sunrise observation',
+  'Sunset View':        'West-facing view ideal for evening sunset observation',
+  'Swimming Pool View': 'Direct view of a communal or private swimming pool',
+  'Unobstructed View':  'Fully open view with no obstructions or blockages',
+  'Waterfront View':    'View along or directly facing a waterfront promenade',
+};
 
 // ── Shared helpers ─────────────────────────────────────────────────────────
 
@@ -183,6 +225,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
   const [locationMapUrl, setLocationMapUrl] = useState(unit.locationMapUrl);
   const [mediaUrl, setMediaUrl] = useState(unit.mediaUrl);
   const [amenities, setAmenities] = useState<string[]>([]);
+  const [viewTypes, setViewTypes] = useState<ViewType[]>(unit.viewTypes ?? []);
   const [floor, setFloor] = useState<string>(unit.floor !== undefined ? String(unit.floor) : '');
   const [sizeSqm, setSizeSqm] = useState<string>(unit.size !== undefined ? String(unit.size) : '');
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
@@ -299,7 +342,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
   useEffect(() => {
     if (!unitUuid) return;
     supabase.from('units')
-      .select('realtor_name,realtor_moci,property,unit_no,zone,zone_code,type,config,parking,kitchen,furnishing,status,location_map_url,media_url,amenities,floor,size_sqm')
+      .select('realtor_name,realtor_moci,property,unit_no,zone,zone_code,type,config,parking,kitchen,furnishing,status,location_map_url,media_url,amenities,view_types,floor,size_sqm')
       .eq('id', unitUuid).single()
       .then(({ data }) => {
         if (!data) return;
@@ -324,6 +367,11 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
         }
         if (data.floor != null) setFloor(String(data.floor));
         if (data.size_sqm != null) setSizeSqm(String(data.size_sqm));
+        const rawVT = data.view_types;
+        if (Array.isArray(rawVT)) setViewTypes(rawVT as ViewType[]);
+        else if (typeof rawVT === 'string') {
+          try { setViewTypes(JSON.parse(rawVT)); } catch { /* leave empty */ }
+        }
       });
   }, [unitUuid]);
 
@@ -378,11 +426,11 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
       return;
     }
 
-    // Amenities saved separately — column may not exist in all environments; never blocks main save
+    // Amenities + view_types saved separately — fire-and-forget; never blocks main save
     authedFetch('/api/save-unit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ unitUuid, fields: { amenities } }),
+      body: JSON.stringify({ unitUuid, fields: { amenities, view_types: viewTypes } }),
     }).catch(() => {});
 
     await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'property', payload: { realtorName, zone, unitType, config, furnishing, status } });
@@ -896,6 +944,76 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
                   </span>
                   {name}
                 </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* View Types */}
+        <div className="pt-3 pb-1">
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-[10px] font-bold text-[#555555] uppercase tracking-[0.18em]">View Types</span>
+            {viewTypes.length > 0 && (
+              <span className="text-[10px] font-semibold text-[#3daee9] bg-[#3daee9]/8 border border-[#3daee9]/20 px-2 py-0.5 rounded-full">
+                {viewTypes.length} selected
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {VIEW_TYPES.map(name => {
+              const checked = viewTypes.includes(name);
+              const description = VIEW_TYPE_DESCRIPTIONS[name] ?? '';
+              if (isReadOnly) {
+                if (!checked) return null;
+                return (
+                  <div key={name} className="relative group/vt">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-md border border-[#3daee9]/40 bg-[#3daee9]/8 text-[#3daee9] text-[11px] font-medium cursor-default">
+                      {name}
+                    </span>
+                    {description && (
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-[#1a1a1a] border border-[#2e2e2e] rounded-lg text-[10px] text-[#b0b0b0] whitespace-nowrap opacity-0 group-hover/vt:opacity-100 pointer-events-none z-30 transition-opacity duration-150 shadow-lg">
+                        {description}
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-[#2e2e2e]" />
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+              return (
+                <div key={name} className="relative group/vt">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setViewTypes(prev =>
+                        checked ? prev.filter(v => v !== name) : [...prev, name] as ViewType[]
+                      )
+                    }
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[11px] font-medium transition-all select-none ${
+                      checked
+                        ? 'border-[#3daee9]/40 bg-[#3daee9]/8 text-[#3daee9]'
+                        : 'border-[#2a2a2a] text-[#555555] hover:border-[#444444] hover:text-[#888888]'
+                    }`}
+                  >
+                    <span
+                      className={`w-3 h-3 rounded-sm border flex items-center justify-center shrink-0 transition-colors ${
+                        checked ? 'bg-[#3daee9] border-[#3daee9]' : 'border-[#333333] bg-[#111111]'
+                      }`}
+                    >
+                      {checked && (
+                        <svg className="w-2 h-2" viewBox="0 0 10 8" fill="none">
+                          <path d="M1 4l3 3 5-6" stroke="#0f0f0f" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </span>
+                    {name}
+                  </button>
+                  {description && (
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-[#1a1a1a] border border-[#2e2e2e] rounded-lg text-[10px] text-[#b0b0b0] whitespace-nowrap opacity-0 group-hover/vt:opacity-100 pointer-events-none z-30 transition-opacity duration-150 shadow-lg">
+                      {description}
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-[#2e2e2e]" />
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>

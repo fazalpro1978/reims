@@ -70,7 +70,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     // Load all Available units — include alias_code
     const { data: units, error: unitsErr } = await admin
       .from('units')
-      .select('id, unit_code, property, unit_no, zone, zone_code, type, config, rent, bathrooms, furnishing, status, listing_type, alias_code')
+      .select('id, unit_code, property, unit_no, zone, zone_code, type, config, rent, bathrooms, furnishing, status, listing_type, alias_code, view_types')
       .eq('status', 'Available');
 
     if (unitsErr) return NextResponse.json({ error: unitsErr.message }, { status: 500 });

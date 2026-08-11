@@ -520,6 +520,7 @@ function mapDbRowToUnit(row: any): UnitListing {
     bathrooms:           Number(row.bathrooms)    || 0,
     parking:             row.parking              ?? false,
     amenities:           row.amenities            ?? [],
+    viewTypes:           row.view_types           ?? [],
     kitchen:             (row.kitchen             ?? 'Open') as KitchenType,
     furnishing:          (row.furnishing          ?? 'Unfurnished') as Furnishing,
     listingType:         (row.listing_type        ?? 'Rent') as ListingType,

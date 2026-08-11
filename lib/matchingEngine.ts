@@ -27,6 +27,7 @@ export interface UnitRow {
   furnishing: string;
   status: string;
   listing_type: string;
+  view_types?: string[];
 }
 
 export interface MatchReasons {
@@ -163,6 +164,7 @@ export function runMatchingEngine(inquiry: InquiryPayload, units: UnitRow[]): Ma
         furnishing:   unit.furnishing,
         status:       unit.status,
         listing_type: unit.listing_type,
+        view_types:   unit.view_types ?? [],
       },
       tier,
       score,

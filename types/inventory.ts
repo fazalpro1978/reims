@@ -33,6 +33,27 @@ export enum UnitType {
 
 export type KitchenType = 'Open' | 'Closed' | 'Yes' | 'Pantry';
 
+export type ViewType =
+  | 'Beach View' | 'Canal View' | 'City View' | 'Clubhouse View' | 'Community View'
+  | 'Countryside View' | 'Courtyard View' | 'Desert View' | 'Downtown View'
+  | 'Garden View' | 'Golf Course View' | 'Greenery View' | 'Lake View' | 'Lagoon View'
+  | 'Landmark View' | 'Main Road View' | 'Marina View' | 'Mountain View' | 'Nature View'
+  | 'Neighbourhood View' | 'Ocean View' | 'Open View' | 'Panoramic View' | 'Park View'
+  | 'Partial View' | 'Playground View' | 'Pool View' | 'River View' | 'Sea View'
+  | 'Skyline View' | 'Sports View' | 'Street View' | 'Sunrise View' | 'Sunset View'
+  | 'Swimming Pool View' | 'Unobstructed View' | 'Waterfront View';
+
+export const VIEW_TYPES: ViewType[] = [
+  'Beach View', 'Canal View', 'City View', 'Clubhouse View', 'Community View',
+  'Countryside View', 'Courtyard View', 'Desert View', 'Downtown View',
+  'Garden View', 'Golf Course View', 'Greenery View', 'Lake View', 'Lagoon View',
+  'Landmark View', 'Main Road View', 'Marina View', 'Mountain View', 'Nature View',
+  'Neighbourhood View', 'Ocean View', 'Open View', 'Panoramic View', 'Park View',
+  'Partial View', 'Playground View', 'Pool View', 'River View', 'Sea View',
+  'Skyline View', 'Sports View', 'Street View', 'Sunrise View', 'Sunset View',
+  'Swimming Pool View', 'Unobstructed View', 'Waterfront View',
+];
+
 export type MociContractStatus = 'REGISTERED' | 'PENDING' | 'RENEWAL_DUE' | 'EXPIRED' | 'DRAFT';
 
 export interface UnitListing {
@@ -92,7 +113,7 @@ export interface UnitListing {
   mediaUrl: string;
 
   // ── Optional / Extended ───────────────────────────────────────────────────
-  views?: string[];      // View descriptors, e.g. ["Sea View", "City View"]
+  viewTypes: ViewType[];  // Standardised view classification tags
   notes?: string;        // General freeform notes
   mociStatus?: string;   // MOCI registration status label, e.g. "REGISTERED"
   aliasCode?: string;    // Public alias code, e.g. "WB61-023" — hides property identity from prospects
