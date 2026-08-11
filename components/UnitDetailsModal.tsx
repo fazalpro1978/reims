@@ -902,7 +902,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
               'Shared Pool', 'Study', 'View of Water', 'Security',
               'Concierge', 'Shared Spa', 'Shared Gym', 'Maid Service',
               'Walk-in Closet', 'View of Landmark', "Children's Play Area",
-              'Lobby in Building', "Children's Pool", 'WiFi',
+              'Lobby in Building', "Children's Pool", 'WiFi', 'Office',
             ] as const).map(name => {
               const checked = amenities.includes(name);
               if (isReadOnly) {
