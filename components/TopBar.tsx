@@ -30,7 +30,7 @@ const INTERNAL_ROLES = new Set(['superuser', 'administrator', 'staff']);
 
 const NOTIF_LS_KEY = 'reims_notif_last_seen';
 
-type BellItemType = 'pipeline_done' | 'pipeline_failed' | 'pipeline_killed' | 'expiry_critical' | 'expiry_soon' | 'card_assigned' | 'registration_pending';
+type BellItemType = 'pipeline_done' | 'pipeline_failed' | 'pipeline_killed' | 'expiry_critical' | 'expiry_soon' | 'card_assigned' | 'registration_pending' | 'broadcast';
 interface BellItem { id: string; type: BellItemType; title: string; body: string; created_at: string; }
 
 function timeAgo(iso: string): string {
@@ -49,6 +49,7 @@ const TYPE_META: Record<BellItemType, { icon: string; color: string }> = {
   expiry_soon:          { icon: '!', color: '#f59e0b' },
   card_assigned:        { icon: '→', color: '#c9a84c' },
   registration_pending: { icon: '★', color: '#f59e0b' },
+  broadcast:            { icon: '▶', color: '#6366f1' },
 };
 
 export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
@@ -63,6 +64,17 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   const [profileModalOpen,  setProfileModalOpen ] = useState(false);
   const [avatarSignedUrl,   setAvatarSignedUrl  ] = useState<string | null>(null);
   const [avatarPreset,      setAvatarPreset     ] = useState<string | null>(null);
+
+  // Broadcast compose state (admin only)
+  const [composeOpen,   setComposeOpen  ] = useState(false);
+  const [bcTitle,       setBcTitle      ] = useState('');
+  const [bcBody,        setBcBody       ] = useState('');
+  const [bcGroups,      setBcGroups     ] = useState<string[]>([]);
+  const [bcSending,     setBcSending    ] = useState(false);
+  const [bcSent,        setBcSent       ] = useState(false);
+  const [bcError,       setBcError      ] = useState<string | null>(null);
+
+  const isAdmin    = user?.role === 'superuser' || user?.role === 'administrator';
   const [lastSeen,     setLastSeen]     = useState<Date>(() => {
     try { const s = localStorage.getItem(NOTIF_LS_KEY); return s ? new Date(s) : new Date(0); } catch { return new Date(0); }
   });
@@ -77,7 +89,7 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   const isInternal = INTERNAL_ROLES.has(user?.role ?? '');
 
   const fetchNotifs = useCallback(async () => {
-    if (!isInternal) return;
+    if (!user) return;
     setNotifLoading(true);
     try {
       const res = await authedFetch('/api/notifications/bell');
@@ -90,7 +102,7 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   }, [isInternal]);
 
   // Fetch on mount for badge count
-  useEffect(() => { if (isInternal) fetchNotifs(); }, [fetchNotifs, isInternal]);
+  useEffect(() => { if (user) fetchNotifs(); }, [fetchNotifs, user]);
 
   // Fetch avatar signed URL when user changes
   useEffect(() => {
@@ -128,6 +140,34 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
     };
   }, [settingsOpen, userMenuOpen, notifOpen]);
 
+  const sendBroadcast = async () => {
+    if (!bcTitle.trim() || !bcBody.trim() || bcGroups.length === 0) return;
+    setBcSending(true);
+    setBcError(null);
+    try {
+      const res = await authedFetch('/api/v1/broadcasts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: bcTitle.trim(), body: bcBody.trim(), target_groups: bcGroups }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setBcError((j as { error?: string }).error ?? 'Send failed');
+        return;
+      }
+      setBcSent(true);
+      setBcTitle(''); setBcBody(''); setBcGroups([]);
+      setTimeout(() => { setBcSent(false); setComposeOpen(false); }, 2000);
+    } catch {
+      setBcError('Network error — try again');
+    } finally {
+      setBcSending(false);
+    }
+  };
+
+  const toggleGroup = (g: string) =>
+    setBcGroups(prev => prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g]);
+
   const openNotif = () => {
     setNotifOpen(v => {
       if (!v) {
@@ -135,6 +175,10 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
         const now = new Date();
         setLastSeen(now);
         try { localStorage.setItem(NOTIF_LS_KEY, now.toISOString()); } catch {}
+      } else {
+        // Reset compose when closing
+        setComposeOpen(false);
+        setBcTitle(''); setBcBody(''); setBcGroups([]); setBcError(null); setBcSent(false);
       }
       return !v;
     });
@@ -190,8 +234,8 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
 
           <div className="hidden md:block w-px h-4 bg-[#222222] mx-1" />
 
-          {/* Notifications bell — internal roles only */}
-          {isInternal && (
+          {/* Notifications bell — all authenticated users */}
+          {user && (
             <div className="relative">
               <style>{`
                 @keyframes bell-ring {
@@ -237,11 +281,95 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                   className="absolute top-full right-0 mt-2 w-80 bg-[#141414] border border-[#2a2a2a] rounded-xl shadow-[0_16px_48px_rgba(0,0,0,0.7)] overflow-hidden"
                   style={{ zIndex: 200 }}
                 >
+                  {/* Panel header */}
                   <div className="px-4 py-3 border-b border-[#222] flex items-center justify-between">
-                    <p className="text-sm font-semibold text-[#e0e0e0]">Notifications</p>
-                    <span className="text-[10px] text-[#555]">Last 48 h</span>
+                    <p className="text-sm font-semibold text-[#e0e0e0]">
+                      {composeOpen ? 'Broadcast Message' : 'Notifications'}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      {isAdmin && !composeOpen && (
+                        <button
+                          onClick={() => { setBcSent(false); setBcError(null); setComposeOpen(true); }}
+                          className="flex items-center gap-1 text-[10px] font-semibold text-[#6366f1] hover:text-[#818cf8] transition-colors"
+                          title="Compose broadcast"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
+                            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                          </svg>
+                          Broadcast
+                        </button>
+                      )}
+                      {composeOpen && (
+                        <button onClick={() => setComposeOpen(false)} className="text-[10px] text-[#555] hover:text-[#999] transition-colors">
+                          ← Back
+                        </button>
+                      )}
+                      {!composeOpen && <span className="text-[10px] text-[#555]">{isInternal ? 'Last 48 h' : 'Last 7 d'}</span>}
+                    </div>
                   </div>
 
+                  {/* Compose panel (admin) */}
+                  {composeOpen ? (
+                    <div className="p-4 space-y-3">
+                      {bcSent ? (
+                        <div className="py-8 flex flex-col items-center gap-2 text-center">
+                          <span className="text-2xl">✓</span>
+                          <p className="text-sm font-semibold text-[#10b981]">Broadcast sent</p>
+                          <p className="text-[11px] text-[#555]">Recipients will see it in their bell.</p>
+                        </div>
+                      ) : (
+                        <>
+                          <div>
+                            <label className="block text-[10px] font-semibold text-[#555] uppercase tracking-wider mb-1">Title</label>
+                            <input
+                              value={bcTitle}
+                              onChange={e => setBcTitle(e.target.value)}
+                              maxLength={160}
+                              placeholder="Announcement subject…"
+                              className="w-full bg-[#0d0d0d] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#e0e0e0] placeholder-[#444] focus:outline-none focus:border-[#6366f1] transition-colors"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-semibold text-[#555] uppercase tracking-wider mb-1">Message</label>
+                            <textarea
+                              value={bcBody}
+                              onChange={e => setBcBody(e.target.value)}
+                              maxLength={2000}
+                              rows={4}
+                              placeholder="Write your message…"
+                              className="w-full bg-[#0d0d0d] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#e0e0e0] placeholder-[#444] focus:outline-none focus:border-[#6366f1] resize-none transition-colors"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-semibold text-[#555] uppercase tracking-wider mb-2">Send to</label>
+                            <div className="flex flex-wrap gap-2">
+                              {(['staff', 'agent', 'broker', 'third_party'] as const).map(g => (
+                                <button
+                                  key={g}
+                                  onClick={() => toggleGroup(g)}
+                                  className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${
+                                    bcGroups.includes(g)
+                                      ? 'bg-[#6366f133] border-[#6366f1] text-[#818cf8]'
+                                      : 'bg-transparent border-[#2a2a2a] text-[#555] hover:border-[#444]'
+                                  }`}
+                                >
+                                  {g === 'third_party' ? 'Third Party' : g.charAt(0).toUpperCase() + g.slice(1)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          {bcError && <p className="text-[10px] text-[#ef4444]">{bcError}</p>}
+                          <button
+                            onClick={sendBroadcast}
+                            disabled={bcSending || !bcTitle.trim() || !bcBody.trim() || bcGroups.length === 0}
+                            className="w-full py-2 rounded-lg text-xs font-bold bg-[#6366f1] text-white hover:bg-[#4f46e5] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          >
+                            {bcSending ? 'Sending…' : 'Send Broadcast'}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ) : (
                   <div className="max-h-80 overflow-y-auto">
                     {notifLoading ? (
                       <div className="px-4 py-6 text-center text-[#555] text-xs">Loading…</div>
@@ -283,6 +411,7 @@ export default function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                       })
                     )}
                   </div>
+                  )}
                 </div>
               )}
             </div>

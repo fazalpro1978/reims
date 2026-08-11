@@ -17,7 +17,8 @@ export type BellItemType =
   | 'expiry_critical'
   | 'expiry_soon'
   | 'card_assigned'
-  | 'registration_pending';
+  | 'registration_pending'
+  | 'broadcast';
 
 export interface BellItem {
   id:         string;
@@ -28,19 +29,46 @@ export interface BellItem {
 }
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
+  // All authenticated roles may fetch the bell; items are filtered by role below
+  const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
+
+  const isInternal = ['superuser', 'administrator', 'staff'].includes(auth.auth.role);
 
   const sb     = adminClient();
   const ingest = adminClient('ingest');
   const now    = new Date();
   const ago48h = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString();
+  const ago7d  = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  // External roles: only need broadcasts — skip heavy internal queries
+  if (!isInternal) {
+    const { data: bcastNotifs } = await sb
+      .from('notifications')
+      .select('id, title, body, created_at, is_read')
+      .eq('type', 'broadcast')
+      .eq('target_user_email', auth.auth.email)
+      .gte('created_at', ago7d)
+      .order('created_at', { ascending: false })
+      .limit(30);
+
+    const items: BellItem[] = (bcastNotifs ?? []).map((n: { id: string; title: string; body: string; created_at: string }) => ({
+      id:         n.id,
+      type:       'broadcast' as BellItemType,
+      title:      n.title,
+      body:       n.body,
+      created_at: n.created_at,
+    }));
+
+    return NextResponse.json({ items });
+  }
 
   // Fire all queries in parallel
   const [
     { data: batches },
     { data: assignments },
     { data: units },
+    { data: bcastNotifs },
   ] = await Promise.all([
     ingest
       .from('batch_logs')
@@ -62,6 +90,14 @@ export async function GET(req: NextRequest) {
       .select('unit_code, contract_end_date')
       .eq('status', 'Leased')
       .not('contract_end_date', 'is', null),
+    sb
+      .from('notifications')
+      .select('id, title, body, created_at')
+      .eq('type', 'broadcast')
+      .eq('target_user_email', auth.auth.email)
+      .gte('created_at', ago7d)
+      .order('created_at', { ascending: false })
+      .limit(10),
   ]);
 
   const items: BellItem[] = [];
@@ -138,6 +174,16 @@ export async function GET(req: NextRequest) {
       title:      a.title ?? 'Inquiry assigned to you',
       body:       a.body ?? '',
       created_at: a.created_at,
+    });
+  }
+
+  for (const b of bcastNotifs ?? []) {
+    items.push({
+      id:         b.id,
+      type:       'broadcast',
+      title:      b.title,
+      body:       b.body ?? '',
+      created_at: b.created_at,
     });
   }
 
