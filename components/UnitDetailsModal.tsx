@@ -470,6 +470,10 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
                 ? <span className="text-sm text-[#d0d0d0]">{realtorName || '—'}</span>
                 : <select value={realtorName} onChange={e => handleRealtorChange(e.target.value)} className={sel}>
                     <option value="">— Select realtor —</option>
+                    {/* Preserve the stored name even if it isn't in the registry yet */}
+                    {realtorName && !realtors.some(r => r.name === realtorName) && (
+                      <option value={realtorName}>{realtorName}</option>
+                    )}
                     {realtors.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
                   </select>
               }
