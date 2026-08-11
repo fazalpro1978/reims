@@ -24,7 +24,7 @@ const UNITS_COLUMNS = new Set([
   'moci_contract_number', 'moci_contract_status',
   'legal_duration', 'contract_start_date', 'contract_end_date',
   'location_map_url', 'media_url', 'asset_history_links',
-  'listed_date', 'unit_code', 'amenities',
+  'listed_date', 'unit_code', 'amenities', 'view',
   'kahramaa_applicable', 'kahramaa_amount',
   'qatar_cool_applicable', 'qatar_cool_amount',
   'marafeq_applicable', 'marafeq_amount',
@@ -171,6 +171,44 @@ export async function POST(req: NextRequest) {
       const { error } = await admin.from('units').update(data).eq('id', id);
       if (error) errors.push(`Update ${data.unit_code}: ${error.message}`);
       else updated++;
+    }
+
+    // ── 1b. Write contact_details → unit_operational ──────────────────────────
+    // contact_details format: "Name Phone" — trailing numeric/+ token is phone, rest is name
+    const contactRows = rows.filter(
+      (r) => typeof r.contact_details === 'string' && (r.contact_details as string).trim(),
+    );
+    if (contactRows.length > 0) {
+      const contactCodes = contactRows
+        .map((r) => r.unit_code)
+        .filter((c): c is string => typeof c === 'string' && c.trim() !== '');
+
+      const { data: unitIdRows } = await admin
+        .from('units')
+        .select('id, unit_code')
+        .in('unit_code', contactCodes);
+
+      const unitIdMap = new Map(
+        (unitIdRows ?? []).map((r: { id: string; unit_code: string }) => [r.unit_code, r.id]),
+      );
+
+      for (const row of contactRows) {
+        const unitId = unitIdMap.get(row.unit_code as string);
+        if (!unitId) continue;
+        const raw = String(row.contact_details).trim();
+        const parts = raw.split(/\s+/);
+        const lastPart = parts[parts.length - 1] ?? '';
+        const isPhone = /^[+\d][\d\s\-.()]{5,}$/.test(lastPart);
+        const focal_point_phone = isPhone ? lastPart : null;
+        const focal_point_name = isPhone ? parts.slice(0, -1).join(' ').trim() : raw;
+        if (!focal_point_name) continue;
+        await admin
+          .from('unit_operational')
+          .upsert(
+            { unit_id: unitId, focal_point_name, focal_point_phone },
+            { onConflict: 'unit_id' },
+          );
+      }
     }
 
     // ── 2. Acknowledge back to dInges ───────────────────────────────────────
