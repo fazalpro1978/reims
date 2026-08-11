@@ -87,5 +87,13 @@ export async function POST(req: NextRequest) {
     .select('zone_code, district_name, municipality')
     .single();
   if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
+
+  // Cascade zone name to all units carrying this zone_code so the
+  // inventory, dashboards, and synergy cards stay consistent.
+  await admin
+    .from('units')
+    .update({ zone: districtName })
+    .eq('zone_code', zoneCode);
+
   return NextResponse.json({ zone: data });
 }
