@@ -41,7 +41,8 @@ export type ViewType =
   | 'Neighbourhood View' | 'Ocean View' | 'Open View' | 'Panoramic View' | 'Park View'
   | 'Partial View' | 'Playground View' | 'Pool View' | 'River View' | 'Sea View'
   | 'Skyline View' | 'Sports View' | 'Street View' | 'Sunrise View' | 'Sunset View'
-  | 'Swimming Pool View' | 'Unobstructed View' | 'Waterfront View';
+  | 'Swimming Pool View' | 'Unobstructed View' | 'Waterfront View'
+  | 'Porto Arabia View';
 
 export const VIEW_TYPES: ViewType[] = [
   'Beach View', 'Canal View', 'City View', 'Clubhouse View', 'Community View',
@@ -49,9 +50,9 @@ export const VIEW_TYPES: ViewType[] = [
   'Garden View', 'Golf Course View', 'Greenery View', 'Lake View', 'Lagoon View',
   'Landmark View', 'Main Road View', 'Marina View', 'Mountain View', 'Nature View',
   'Neighbourhood View', 'Ocean View', 'Open View', 'Panoramic View', 'Park View',
-  'Partial View', 'Playground View', 'Pool View', 'River View', 'Sea View',
-  'Skyline View', 'Sports View', 'Street View', 'Sunrise View', 'Sunset View',
-  'Swimming Pool View', 'Unobstructed View', 'Waterfront View',
+  'Partial View', 'Playground View', 'Pool View', 'Porto Arabia View', 'River View',
+  'Sea View', 'Skyline View', 'Sports View', 'Street View', 'Sunrise View',
+  'Sunset View', 'Swimming Pool View', 'Unobstructed View', 'Waterfront View',
 ];
 
 export type MociContractStatus = 'REGISTERED' | 'PENDING' | 'RENEWAL_DUE' | 'EXPIRED' | 'DRAFT';

@@ -41,6 +41,7 @@ const REIMS_VIEW_TYPES = new Set([
   'Partial View', 'Playground View', 'Pool View', 'River View', 'Sea View',
   'Skyline View', 'Sports View', 'Street View', 'Sunrise View', 'Sunset View',
   'Swimming Pool View', 'Unobstructed View', 'Waterfront View',
+  'Porto Arabia View',
 ]);
 
 // Map dInges canonical values → REIMS DB enum values

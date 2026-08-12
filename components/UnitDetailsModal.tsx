@@ -85,6 +85,7 @@ const VIEW_TYPE_DESCRIPTIONS: Record<string, string> = {
   'Swimming Pool View': 'Direct view of a communal or private swimming pool',
   'Unobstructed View':  'Fully open view with no obstructions or blockages',
   'Waterfront View':    'View along or directly facing a waterfront promenade',
+  'Porto Arabia View':  'View of the Porto Arabia waterfront district in The Pearl',
 };
 
 // ── Shared helpers ─────────────────────────────────────────────────────────
