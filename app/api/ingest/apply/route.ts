@@ -122,6 +122,21 @@ export async function POST(req: NextRequest) {
     // Strip payload fields that don't exist in the units table before writing
     const rows = records.map((r) => {
       const payload = { ...r.payload };
+
+      // Legacy field migration: maid_room and wifi were deprecated standalone
+      // boolean fields; they are now consolidated under amenities[].
+      // Handle any in-flight vetted_records that still carry the old shape.
+      const curAmenities: string[] = Array.isArray(payload.amenities) ? payload.amenities as string[] : [];
+      if (payload.maid_room === true || payload.maid_room === 'true') {
+        if (!curAmenities.includes('Maids Room')) curAmenities.push('Maids Room');
+      }
+      if (payload.wifi === true || payload.wifi === 'true') {
+        if (!curAmenities.includes('WiFi')) curAmenities.push('WiFi');
+      }
+      if (curAmenities.length > 0) payload.amenities = curAmenities;
+      delete payload.maid_room;
+      delete payload.wifi;
+
       // Auto-fill realtor_moci from realtors table when the column is absent
       if (!payload.realtor_moci && payload.realtor_name) {
         const key = String(payload.realtor_name).toLowerCase().trim();

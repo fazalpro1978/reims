@@ -597,6 +597,7 @@ export default function UnitsInventory({
         return parts.join(' ');
       }},
       { header: 'View',                             get: (u) => u.view ?? '' },
+      { header: 'Amenities',                        get: (u) => (u.amenities ?? []).join(' | ') },
     ];
 
     const wb = XLSX.utils.book_new();
@@ -627,6 +628,7 @@ export default function UnitsInventory({
       ['Contact Details','Format: "Name Phone" — parsed into focal point name and phone on import.'],
       ['View',           'Normalised to one of 44 AXIOM VIEW options. Populates view_types in REIMS if it is a REIMS VIEW TYPE.'],
       ['Parking',        '1 = has parking, 0 = no parking'],
+      ['Amenities',      'Pipe-separated list (e.g. "Balcony | Central A/C"). Re-imported as amenities[] in AXIOM. Consolidates the deprecated Maid Room and WiFi columns.'],
       ['Exported',       new Date().toLocaleString()],
       ['Rows',           rows.length],
     ];
