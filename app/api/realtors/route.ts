@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { requireAuth } from '../../../lib/serverAuth';
+import { registry as admin } from '../../../lib/registryClient';
 
 export const dynamic = 'force-dynamic';
-
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
 
 // Generates a unique 3-char entity code for cr_entity_codes sync
 async function generateEntityCode(name: string): Promise<string | null> {
