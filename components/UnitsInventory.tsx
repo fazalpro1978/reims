@@ -12,6 +12,7 @@ import React, {
   useEffect,
   useCallback,
 } from 'react';
+import * as XLSX from 'xlsx';
 import { authedFetch } from '../lib/authedFetch';
 import {
   UnitListing,
@@ -383,7 +384,7 @@ export default function UnitsInventory({
       setLoading(true);
       const { data, error } = await supabase
         .from('units')
-        .select('*, unit_operational(maintenance_notes, access_lockbox), alias_code')
+        .select('*, unit_operational(maintenance_notes, access_lockbox, focal_point_name, focal_point_phone), alias_code')
         .order('unit_code');
       if (error) { setDbError(error.message); setLoading(false); return; }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -425,6 +426,11 @@ export default function UnitsInventory({
         maintenanceNotes:    (row.unit_operational as any)?.[0]?.maintenance_notes ?? '',
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         accessLockbox:       (row.unit_operational as any)?.[0]?.access_lockbox ?? '',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        focalPointName:      (row.unit_operational as any)?.[0]?.focal_point_name ?? '',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        focalPointPhone:     (row.unit_operational as any)?.[0]?.focal_point_phone ?? '',
+        view:                row.view ?? '',
         assetHistoryLinks:   row.asset_history_links ?? [],
         locationMapUrl:      row.location_map_url ?? '',
         mediaUrl:            row.media_url ?? '',
@@ -557,6 +563,80 @@ export default function UnitsInventory({
     setMaxRent('');
     setCurrentPage(1);
   };
+
+  // ── AXIOM INGES export ────────────────────────────────────────────────────
+
+  const generateAxiomExport = useCallback((rows: typeof filteredUnits) => {
+    // Column order exactly mirrors the AXIOM INGES Schema Template:
+    // MASTER_FIELDS → BATCH_FIELDS → EXTENDED_FIELDS
+    const cols: { header: string; get: (u: typeof filteredUnits[number]) => string | number }[] = [
+      { header: 'Property Name [PRIMARY KEY] *',    get: (u) => u.property },
+      { header: 'Property Unit No [PRIMARY KEY] *', get: (u) => u.unitNo },
+      { header: 'Zone Number *',                    get: (u) => u.zoneCode },
+      { header: 'Property Type *',                  get: (u) => u.type },
+      { header: 'Property Subtype *',               get: (u) => u.config },
+      // REIMS 'Fully Furnished' → AXIOM enum 'Furnished'
+      { header: 'Furnishing Status *',              get: (u) => u.furnishing === 'Fully Furnished' ? 'Furnished' : u.furnishing },
+      { header: 'Bathrooms',                        get: (u) => u.bathrooms || '' },
+      { header: 'Kitchen',                          get: (u) => u.kitchen ?? '' },
+      // REIMS parking is boolean; AXIOM template expects numeric (1 / 0)
+      { header: 'Parking',                          get: (u) => u.parking ? 1 : 0 },
+      { header: 'Rent (QAR / Monthly)',             get: (u) => u.rent || '' },
+      // Status normalisation: REIMS enum values → AXIOM equivalents
+      { header: 'Status', get: (u) => {
+        if (u.status === 'Under_Maintenance') return 'Under Preparation';
+        if (u.status === 'Leased') return 'Not Available';
+        return u.status;
+      }},
+      { header: 'Map URL',                          get: (u) => u.locationMapUrl ?? '' },
+      { header: 'Media Storage URL',                get: (u) => u.mediaUrl ?? '' },
+      { header: 'Realtor Name',                     get: (u) => u.realtorName ?? '' },
+      // Extended fields: contact_details = "Name Phone" (AXIOM transit format)
+      { header: 'Contact Details', get: (u) => {
+        const parts = [u.focalPointName, u.focalPointPhone].filter(Boolean);
+        return parts.join(' ');
+      }},
+      { header: 'View',                             get: (u) => u.view ?? '' },
+    ];
+
+    const wb = XLSX.utils.book_new();
+
+    // Data sheet — column headers + one row per unit
+    const wsData = [
+      cols.map((c) => c.header),
+      ...rows.map((u) => cols.map((c) => c.get(u))),
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Column widths for readability
+    ws['!cols'] = [
+      { wch: 28 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 16 },
+      { wch: 16 }, { wch: 10 }, { wch: 10 }, { wch: 8  }, { wch: 16 },
+      { wch: 16 }, { wch: 40 }, { wch: 40 }, { wch: 24 }, { wch: 26 }, { wch: 18 },
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, 'Units');
+
+    // Notes sheet — column legend
+    const notes = [
+      ['Column', 'Notes'],
+      ['[PRIMARY KEY] *', 'Mandatory. Used for entity matching in AXIOM. Missing value auto-rejects the row.'],
+      ['*',              'Required field. Row blocked until value is valid.'],
+      ['(no marker)',    'Optional. Missing value does not block import.'],
+      ['Furnishing Status', 'Accepted: Furnished | Semi-Furnished | Unfurnished'],
+      ['Status',         'Accepted: Available | Not Available | Reserved | Under Preparation'],
+      ['Contact Details','Format: "Name Phone" — parsed into focal point name and phone on import.'],
+      ['View',           'Normalised to one of 44 AXIOM VIEW options. Populates view_types in REIMS if it is a REIMS VIEW TYPE.'],
+      ['Parking',        '1 = has parking, 0 = no parking'],
+      ['Exported',       new Date().toLocaleString()],
+      ['Rows',           rows.length],
+    ];
+    const wsNotes = XLSX.utils.aoa_to_sheet(notes);
+    wsNotes['!cols'] = [{ wch: 20 }, { wch: 80 }];
+    XLSX.utils.book_append_sheet(wb, wsNotes, 'Notes');
+
+    const ts = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '');
+    XLSX.writeFile(wb, `reims-inges-export-${ts}.xlsx`);
+  }, [filteredUnits]);
 
   // ── Context menu positioning ───────────────────────────────────────────────
 
@@ -909,14 +989,29 @@ export default function UnitsInventory({
                 </span>
               )}
             </p>
-            {hasActiveFilters && (
-              <button
-                onClick={clearFilters}
-                className="text-xs text-[#c9a84c] hover:text-[#dfc070] underline underline-offset-2 hover:no-underline transition-colors"
-              >
-                Clear all filters
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="text-xs text-[#c9a84c] hover:text-[#dfc070] underline underline-offset-2 hover:no-underline transition-colors"
+                >
+                  Clear all filters
+                </button>
+              )}
+              {!isAgent && (
+                <button
+                  onClick={() => generateAxiomExport(filteredUnits)}
+                  disabled={filteredUnits.length === 0}
+                  title="Export filtered units in AXIOM INGES template format for bulk re-upload"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-[#1e1e1e] border border-[#3a3a3a] text-[#c9a84c] hover:border-[#c9a84c] hover:bg-[#c9a84c]/10 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg transition-colors whitespace-nowrap"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Export INGES
+                </button>
+              )}
+            </div>
           </div>
 
         </div>

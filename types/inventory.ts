@@ -115,6 +115,9 @@ export interface UnitListing {
 
   // ── Optional / Extended ───────────────────────────────────────────────────
   viewTypes: ViewType[];  // Standardised view classification tags
+  view?: string;         // Raw view descriptor from source import (units.view)
+  focalPointName?: string;  // Watchman / caretaker name (unit_operational)
+  focalPointPhone?: string; // Watchman / caretaker phone (unit_operational)
   notes?: string;        // General freeform notes
   mociStatus?: string;   // MOCI registration status label, e.g. "REGISTERED"
   aliasCode?: string;    // Public alias code, e.g. "WB61-023" — hides property identity from prospects
