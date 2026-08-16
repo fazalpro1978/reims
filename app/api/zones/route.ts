@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await admin
     .from('cr_zone_codes')
-    .select('zone_code, district_name, municipality')
+    .select('zone_code, district_name, municipality, area_km2, population')
     .order('zone_code');
   if (error) return NextResponse.json({ error: 'Failed to load zones' }, { status: 500 });
   return NextResponse.json({ zones: data ?? [] });
@@ -36,7 +36,7 @@ export async function PUT(req: NextRequest) {
     .from('cr_zone_codes')
     .update({ district_name: districtName, municipality })
     .eq('zone_code', zoneCode)
-    .select('zone_code, district_name, municipality')
+    .select('zone_code, district_name, municipality, area_km2, population')
     .single();
   if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
 
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await admin
     .from('cr_zone_codes')
     .upsert(row, { onConflict: 'zone_code' })
-    .select('zone_code, district_name, municipality')
+    .select('zone_code, district_name, municipality, area_km2, population')
     .single();
   if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
 

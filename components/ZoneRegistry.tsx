@@ -11,12 +11,17 @@ const QATAR_MUNICIPALITIES = [
 ];
 
 const MUNI_COLOR: Record<string, string> = {
-  'Doha':       '#3b82f6', 'Al Rayyan': '#f97316', 'Lusail':     '#a855f7',
-  'Al Wakrah':  '#14b8a6', 'Al Khor':  '#fbbf24',  'Al Shamal':  '#f43f5e',
-  'Al Daayen':  '#22d3ee', 'Umm Salal':'#4ade80',
+  'Doha Municipality':        '#3b82f6',
+  'Al Rayyan Municipality':   '#f97316',
+  'Al Wakrah Municipality':   '#14b8a6',
+  'Al Khor Municipality':     '#fbbf24',
+  'Al Shamal Municipality':   '#f43f5e',
+  'Al Daayen Municipality':   '#22d3ee',
+  'Umm Salal Municipality':   '#4ade80',
+  'Al Shahaniya Municipality':'#a855f7',
 };
 
-type Zone = { zone_code: number; district_name: string; municipality: string };
+type Zone = { zone_code: number; district_name: string; municipality: string; area_km2?: number | null; population?: number | null };
 
 function IcEdit() {
   return (
@@ -325,11 +330,13 @@ export default function ZoneRegistry({ onMenuClick }: { onMenuClick?: () => void
         {/* ── Table ── */}
         <div className="rounded-2xl border border-[#1e1e1e] overflow-hidden">
           {/* Header */}
-          <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-[#0d0d0d] border-b border-[#1e1e1e]">
+          <div className="grid grid-cols-12 gap-2 px-4 py-3 bg-[#0d0d0d] border-b border-[#1e1e1e]">
             <span className="col-span-1 text-[9px] font-bold text-[#555] uppercase tracking-wider">Zone</span>
-            <span className="col-span-5 text-[9px] font-bold text-[#555] uppercase tracking-wider">District / Zone Name</span>
-            <span className="col-span-4 text-[9px] font-bold text-[#555] uppercase tracking-wider">Municipality</span>
-            <span className="col-span-2 text-[9px] font-bold text-[#555] uppercase tracking-wider text-right">Actions</span>
+            <span className="col-span-4 text-[9px] font-bold text-[#555] uppercase tracking-wider">District / Zone Name</span>
+            <span className="col-span-3 text-[9px] font-bold text-[#555] uppercase tracking-wider">Municipality</span>
+            <span className="col-span-2 text-[9px] font-bold text-[#555] uppercase tracking-wider text-right">Area (km²)</span>
+            <span className="col-span-1 text-[9px] font-bold text-[#555] uppercase tracking-wider text-right">Pop.</span>
+            <span className="col-span-1 text-[9px] font-bold text-[#555] uppercase tracking-wider text-right">Actions</span>
           </div>
 
           {loading && <div className="px-4 py-12 text-center text-sm text-[#555]">Loading zones…</div>}
@@ -409,18 +416,24 @@ export default function ZoneRegistry({ onMenuClick }: { onMenuClick?: () => void
 
               ) : (
                 /* ── Normal row ── */
-                <div className="group grid grid-cols-12 gap-3 px-4 py-3 hover:bg-[#141414] transition-colors">
+                <div className="group grid grid-cols-12 gap-2 px-4 py-3 hover:bg-[#141414] transition-colors">
                   <span className="col-span-1 text-sm font-mono font-bold text-[#34d399]">{z.zone_code}</span>
-                  <span className="col-span-5 text-sm text-[#e0e0e0] font-medium truncate">
+                  <span className="col-span-4 text-sm text-[#e0e0e0] font-medium truncate" title={`Zone ${z.zone_code} — ${z.district_name}`}>
                     Zone {z.zone_code} — {z.district_name}
                   </span>
-                  <span className="col-span-4 flex items-center gap-1.5 min-w-0">
+                  <span className="col-span-3 flex items-center gap-1.5 min-w-0">
                     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: MUNI_COLOR[z.municipality] ?? '#6b7280' }} />
                     <span className="text-xs truncate" style={{ color: MUNI_COLOR[z.municipality] ?? '#888' }}>{z.municipality}</span>
                   </span>
+                  <span className="col-span-2 text-xs text-[#888] text-right tabular-nums self-center">
+                    {z.area_km2 != null ? z.area_km2.toLocaleString() : '—'}
+                  </span>
+                  <span className="col-span-1 text-xs text-[#666] text-right tabular-nums self-center">
+                    {z.population != null ? z.population.toLocaleString() : '—'}
+                  </span>
                   {/* Action buttons — hidden for read-only roles */}
                   {!isReadOnly && (
-                    <div className="col-span-2 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="col-span-1 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => openEdit(z)}
                         title="Edit"
@@ -437,7 +450,7 @@ export default function ZoneRegistry({ onMenuClick }: { onMenuClick?: () => void
                       </button>
                     </div>
                   )}
-                  {isReadOnly && <div className="col-span-2" />}
+                  {isReadOnly && <div className="col-span-1" />}
                 </div>
               )}
             </div>
