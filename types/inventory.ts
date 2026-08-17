@@ -116,6 +116,7 @@ export interface UnitListing {
   // ── Optional / Extended ───────────────────────────────────────────────────
   viewTypes: ViewType[];  // Standardised view classification tags
   view?: string;         // Raw view descriptor from source import (units.view)
+  designType?: string;   // Layout variant code extracted by AXIOM (e.g. "Type B", "Standard", "Mock up unit")
   focalPointName?: string;  // Watchman / caretaker name (unit_operational)
   focalPointPhone?: string; // Watchman / caretaker phone (unit_operational)
   notes?: string;        // General freeform notes

@@ -437,6 +437,7 @@ export default function UnitsInventory({
         listedDate:          row.listed_date ?? '',
         lastUpdated:         row.updated_at ?? '',
         aliasCode:           row.alias_code ?? undefined,
+        designType:          row.design_type ?? undefined,
       }));
       setUnits(mapped);
       setLoading(false);
@@ -598,7 +599,7 @@ export default function UnitsInventory({
       }},
       { header: 'View',                             get: (u) => u.view ?? '' },
       { header: 'Amenities',                        get: (u) => (u.amenities ?? []).join(' | ') },
-      { header: 'Design Type',                      get: (u) => (u as Record<string, unknown>).design_type as string ?? '' },
+      { header: 'Design Type',                      get: (u) => u.designType ?? '' },
     ];
 
     const wb = XLSX.utils.book_new();
