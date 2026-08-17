@@ -24,7 +24,7 @@ const UNITS_COLUMNS = new Set([
   'moci_contract_number', 'moci_contract_status',
   'legal_duration', 'contract_start_date', 'contract_end_date',
   'location_map_url', 'media_url', 'asset_history_links',
-  'listed_date', 'unit_code', 'amenities', 'view', 'view_types',
+  'listed_date', 'unit_code', 'amenities', 'view', 'view_types', 'design_type',
   'kahramaa_applicable', 'kahramaa_amount',
   'qatar_cool_applicable', 'qatar_cool_amount',
   'marafeq_applicable', 'marafeq_amount',
