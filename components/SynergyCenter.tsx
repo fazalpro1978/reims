@@ -1019,6 +1019,31 @@ function MatchingGrid({ inquiryId, clientEmail }: {
   return (
     <>
     <style>{`
+      /* ── Primary flash: score ≥ 70% — amber/gold pulse ── */
+      @keyframes score-flash {
+        0%, 100% { border-color: #c9a84c44; box-shadow: 0 0 0px  #c9a84c00; }
+        50%       { border-color: #c9a84ccc; box-shadow: 0 0 14px #c9a84c55; }
+      }
+      .score-flash { animation: score-flash 2.2s ease-in-out infinite; }
+
+      /* ── Criteria flash: config + budget both matched — emerald pulse ── */
+      @keyframes criteria-flash {
+        0%, 100% { border-color: #10b98144; box-shadow: 0 0 0px  #10b98100; }
+        50%       { border-color: #10b981cc; box-shadow: 0 0 14px #10b98155; }
+      }
+      .criteria-flash { animation: criteria-flash 2.8s ease-in-out infinite; }
+
+      /* ── Dual flash: score ≥ 70% AND config + budget matched — alternates ── */
+      @keyframes dual-flash {
+        0%   { border-color: #c9a84c66; box-shadow: 0 0 12px #c9a84c44; }
+        45%  { border-color: #10b98166; box-shadow: 0 0 12px #10b98144; }
+        50%  { border-color: #10b981cc; box-shadow: 0 0 20px #10b98166; }
+        95%  { border-color: #c9a84ccc; box-shadow: 0 0 20px #c9a84c66; }
+        100% { border-color: #c9a84c66; box-shadow: 0 0 12px #c9a84c44; }
+      }
+      .dual-flash { animation: dual-flash 3.6s ease-in-out infinite; }
+
+      /* ── Legacy: premium at > 80 — kept for the action row trigger ── */
       @keyframes premium-flash {
         0%, 100% { border-color: #c9a84c55; box-shadow: 0 0 0px #c9a84c00; }
         50%       { border-color: #c9a84c;   box-shadow: 0 0 10px #c9a84c66; }
@@ -1080,8 +1105,30 @@ function MatchingGrid({ inquiryId, clientEmail }: {
             const showPremium  = score > SCORE_THRESHOLD_PREMIUM;
             const isFetching   = fetchingId === m.unit_id;
 
+            // ── Flash indicator conditions ────────────────────────────────────
+            // Primary: strong overall score
+            const showScoreFlash    = score >= 70;
+            // Criteria: Config (exact or partial) AND Budget (exact or flex) both hit
+            const configHit  = m.match_reasons?.config === 'exact' || m.match_reasons?.config === 'partial';
+            const budgetHit  = m.match_reasons?.budget === 'exact' || m.match_reasons?.budget === 'flex';
+            const showCriteriaFlash = configHit && budgetHit;
+            // Dual: both conditions active simultaneously
+            const showDualFlash     = showScoreFlash && showCriteriaFlash;
+
+            const tileClass = showDualFlash
+              ? 'dual-flash bg-[#0b1a10]'
+              : showScoreFlash
+              ? 'score-flash bg-[#c9a84c06]'
+              : showCriteriaFlash
+              ? 'criteria-flash bg-[#10b98106]'
+              : showPremium
+              ? 'premium-tile bg-[#c9a84c08]'
+              : m.is_shortlisted
+              ? 'border-[#f43f5e44] bg-[#f43f5e08]'
+              : 'border-[#1e1e1e] bg-[#111] hover:border-[#2a2a2a]';
+
             return (
-              <div key={m.id} className={`border rounded-xl p-3 transition-colors ${showPremium ? 'premium-tile bg-[#c9a84c08]' : m.is_shortlisted ? 'border-[#f43f5e44] bg-[#f43f5e08]' : 'border-[#1e1e1e] bg-[#111] hover:border-[#2a2a2a]'}`}>
+              <div key={m.id} className={`border rounded-xl p-3 transition-colors ${tileClass}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1.5 flex-wrap">
@@ -1093,7 +1140,29 @@ function MatchingGrid({ inquiryId, clientEmail }: {
                         {canUnitCode ? m.unit_code : (snap?.alias_code ?? m.unit_code ?? '—')}
                       </span>
                       <span className="w-1.5 h-1.5 rounded-full bg-[#4ade80] shrink-0" title="Available" />
-                      {showPremium && (
+                      {/* Flash indicator badges — shown beside tier label */}
+                      {showDualFlash && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border"
+                          style={{ color: '#10b981', background: '#10b98115', borderColor: '#10b98144' }}
+                          title="Top match — score ≥ 70% and Config + Budget both matched">
+                          ★ TOP
+                        </span>
+                      )}
+                      {!showDualFlash && showScoreFlash && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border"
+                          style={{ color: '#c9a84c', background: '#c9a84c15', borderColor: '#c9a84c44' }}
+                          title={`High score match — ${score}%`}>
+                          ★ {score}%
+                        </span>
+                      )}
+                      {!showDualFlash && showCriteriaFlash && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border"
+                          style={{ color: '#10b981', background: '#10b98115', borderColor: '#10b98144' }}
+                          title="Config and Budget criteria both matched">
+                          ✦ KEY
+                        </span>
+                      )}
+                      {showPremium && !showDualFlash && !showScoreFlash && (
                         <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#c9a84c22] text-[#c9a84c] border border-[#c9a84c44]">
                           PREMIUM
                         </span>
