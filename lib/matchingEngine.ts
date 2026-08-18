@@ -1,17 +1,24 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Inquiry Matching Engine — Weighted scoring with neutral-field handling
+// Inquiry Matching Engine — Weighted scoring + strict tie-breaking
 //
-// Field weights (sum to 100):
-//   Budget 35 · Zone 20 · Type 15 · Config 15 · Bathrooms 8 · Furnishing 7
+// PRIMARY CRITERIA (80 pts)
+//   Config         30 — bedroom / layout configuration
+//   Budget Min     20 — rent satisfies client's floor
+//   Zone           20 — preferred zone match
+//   Property Type  10 — apartment / villa / etc.
 //
-// Score interpretation:
-//   ≥ 70  → strong match (T1 when budget is exact)
-//   45–69 → partial match (T2)
-//   < 45  → weak / zone-buffered match (T3)
+// SECONDARY CRITERIA (20 pts)
+//   Bathrooms       8 — meets minimum bathroom count
+//   Furnishing      7 — furnishing preference
+//   Budget Fit      5 — rent within stated ceiling
 //
-// Neutral scoring: when the client did not specify a preference, the field
-// contributes half its weight. This keeps the baseline near 50 when no
-// preferences are set and ensures specified-but-mismatched fields stand out.
+// Neutral scoring: when a preference was not specified, the field contributes
+// half its weight. This keeps the baseline near ~50 and ensures specified-but-
+// mismatched fields visibly drag the score down.
+//
+// Tie-breaking: when two records share the same rounded score%, a numeric
+// priority key breaks the tie using the weighted field order above, with
+// exact matches on Config and Budget Min taking highest precedence.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface InquiryPayload {
@@ -43,34 +50,39 @@ export interface UnitRow {
 }
 
 export interface MatchReasons {
-  budget: 'exact' | 'flex' | false;
-  type: boolean | null;
-  config: 'exact' | 'partial' | false | null;
-  bathrooms: boolean | null;
-  zone: 'exact' | false | null;
+  budget:     'exact' | 'flex' | false;
+  budget_fit: 'within' | 'over' | null;
+  type:       boolean | null;
+  config:     'exact' | 'partial' | false | null;
+  bathrooms:  boolean | null;
+  zone:       'exact' | false | null;
   furnishing: boolean | null;
 }
 
 export interface MatchResult {
-  unitId: string;
-  unitCode: string;
+  unitId:       string;
+  unitCode:     string;
   unitSnapshot: Record<string, unknown>;
-  tier: 1 | 2 | 3;
-  score: number;
-  reasons: MatchReasons;
+  tier:         1 | 2 | 3;
+  score:        number;
+  priority:     number; // tie-break key — higher wins
+  reasons:      MatchReasons;
 }
 
-// Field weights — must stay synchronised with SCORE_WEIGHTS_DOC below
-const W_BUDGET     = 35;
-const W_ZONE       = 20;
-const W_TYPE       = 15;
-const W_CONFIG     = 15;
-const W_BATHROOMS  =  8;
-const W_FURNISHING =  7;
+// ── Field weights (must sum to 100) ──────────────────────────────────────────
+const W_CONFIG      = 30;
+const W_BUDGET_MIN  = 20;
+const W_ZONE        = 20;
+const W_TYPE        = 10;
+const W_BATHROOMS   =  8;
+const W_FURNISHING  =  7;
+const W_BUDGET_FIT  =  5;
 
 // Tier score thresholds
-const TIER1_SCORE = 70; // T1 requires budget=exact AND score ≥ this
-const TIER2_SCORE = 45; // T2 requires score ≥ this
+const TIER1_SCORE = 75;
+const TIER2_SCORE = 45;
+
+// ── Config helpers ────────────────────────────────────────────────────────────
 
 function normConfig(s: string): string {
   return s
@@ -79,8 +91,6 @@ function normConfig(s: string): string {
     .replace(/bedroom(s)?|bhk|br\b/g, '');
 }
 
-// Extract the leading bedroom count digit(s) from a normalised config string.
-// "3" → 3, "studio" → null, "" → null
 function bedroomCount(normed: string): number | null {
   const m = normed.match(/^(\d+)/);
   return m ? parseInt(m[1], 10) : null;
@@ -89,29 +99,60 @@ function bedroomCount(normed: string): number | null {
 function matchConfig(inqConfig: string, unitConfig: string): 'exact' | 'partial' | false {
   const inqN = normConfig(inqConfig);
   const uN   = normConfig(unitConfig);
-
   if (!inqN || !uN) return false;
   if (inqN === uN)  return 'exact';
 
-  // Different bedroom counts → hard mismatch (Studio ≠ 1 BHK ≠ 2 BHK)
+  // Numeric bedroom count must agree — Studio ≠ 1BHK ≠ 2BHK
   const inqBeds = bedroomCount(inqN);
   const uBeds   = bedroomCount(uN);
   if (inqBeds !== null && uBeds !== null && inqBeds !== uBeds) return false;
-  if (inqBeds === null && uBeds !== null) return false; // e.g. Studio vs 1BHK
-  if (inqBeds !== null && uBeds === null) return false;
+  if ((inqBeds === null) !== (uBeds === null)) return false;
 
-  // Same bedroom count, different suffix (e.g. "2BHK" vs "2BHK+Maid") → partial
+  // Same count, different suffix (e.g. "2BHK" vs "2BHK+Maid") → partial
   if (uN.includes(inqN) || inqN.includes(uN)) return 'partial';
-
   return false;
 }
+
+// ── Priority key for tie-breaking ─────────────────────────────────────────────
+// Encodes field match quality into a single integer.
+// Each field occupies a fixed digit band so the comparison is stable.
+//
+// Band allocation (most-significant first):
+//   config exact=3, partial=2, neutral=1, miss=0     × 10^6
+//   budget_min exact=2, flex=1, neutral=1, miss=0    × 10^5
+//   zone exact=2, neutral=1, miss=0                  × 10^4
+//   type match=2, neutral=1, miss=0                  × 10^3
+//   bathrooms match=2, neutral=1, miss=0             × 10^2
+//   furnishing match=2, neutral=1, miss=0            × 10^1
+//   budget_fit within=2, over=1, null=1              × 10^0
+function makePriority(
+  config:     'exact' | 'partial' | false | null,
+  budgetMin:  'exact' | 'flex' | false,
+  zone:       'exact' | false | null,
+  type:       boolean | null,
+  bathrooms:  boolean | null,
+  furnishing: boolean | null,
+  budgetFit:  'within' | 'over' | null,
+): number {
+  const c = config === 'exact' ? 3 : config === 'partial' ? 2 : config === null ? 1 : 0;
+  const b = budgetMin === 'exact' ? 2 : budgetMin === 'flex' ? 1 : 0;
+  const z = zone === 'exact' ? 2 : zone === null ? 1 : 0;
+  const t = type === true ? 2 : type === null ? 1 : 0;
+  const ba = bathrooms === true ? 2 : bathrooms === null ? 1 : 0;
+  const f = furnishing === true ? 2 : furnishing === null ? 1 : 0;
+  const bf = budgetFit === 'within' ? 2 : 1;
+  return c * 1_000_000 + b * 100_000 + z * 10_000 + t * 1_000 + ba * 100 + f * 10 + bf;
+}
+
+// ── Engine ────────────────────────────────────────────────────────────────────
 
 export function runMatchingEngine(inquiry: InquiryPayload, units: UnitRow[]): MatchResult[] {
   const results: MatchResult[] = [];
 
   const budgetMin = inquiry.budget_min ?? 0;
-  // Treat 0 / null / undefined as "no upper cap"
+  // Treat 0 / null / undefined max as "no upper ceiling"
   const budgetMax = inquiry.budget_max && inquiry.budget_max > 0 ? inquiry.budget_max : null;
+
   const hasZonePref      = (inquiry.preferred_zones?.length ?? 0) > 0;
   const hasTypePref      = !!inquiry.property_type;
   const hasConfigPref    = !!inquiry.config;
@@ -121,36 +162,37 @@ export function runMatchingEngine(inquiry: InquiryPayload, units: UnitRow[]): Ma
   for (const unit of units) {
     if (unit.status !== 'Available') continue;
 
-    // ── Hard gate: listing type ───────────────────────────────────────────────
+    // ── Hard gate: listing type ────────────────────────────────────────────────
     if (inquiry.listing_type && unit.listing_type !== inquiry.listing_type) continue;
 
-    // ── Budget (hard gate + primary weight) ───────────────────────────────────
-    let budgetMatch: 'exact' | 'flex' | false = false;
+    // ── Budget hard gate (±10%) ───────────────────────────────────────────────
+    // Units outside this window are excluded entirely.
+    let budgetMinMatch: 'exact' | 'flex' | false = false;
 
-    if (budgetMax !== null) {
-      // Both bounds set
-      if (unit.rent >= budgetMin && unit.rent <= budgetMax) {
-        budgetMatch = 'exact';
-      } else if (unit.rent >= budgetMin * 0.9 && unit.rent <= budgetMax * 1.1) {
-        budgetMatch = 'flex';
-      } else {
-        continue; // outside ±10% window — excluded
-      }
-    } else if (budgetMin > 0) {
-      // Only min set — any rent at/above min passes as exact; 10% below min is flex
+    if (budgetMin > 0) {
       if (unit.rent >= budgetMin) {
-        budgetMatch = 'exact';
+        budgetMinMatch = 'exact';          // rent at or above floor
       } else if (unit.rent >= budgetMin * 0.9) {
-        budgetMatch = 'flex';
+        budgetMinMatch = 'flex';           // within 10% below floor
       } else {
-        continue;
+        continue;                          // too cheap — excluded
       }
     } else {
-      // No budget specified — passes freely, scored as exact
-      budgetMatch = 'exact';
+      budgetMinMatch = 'exact';            // no floor specified — always passes
     }
 
-    // ── Zone ─────────────────────────────────────────────────────────────────
+    if (budgetMax !== null) {
+      // Ceiling hard gate: exclude if rent exceeds max by more than 10%
+      if (unit.rent > budgetMax * 1.1) continue;
+    }
+
+    // ── Budget ceiling fit (secondary) ────────────────────────────────────────
+    let budgetFit: 'within' | 'over' | null = null;
+    if (budgetMax !== null) {
+      budgetFit = unit.rent <= budgetMax ? 'within' : 'over';
+    }
+
+    // ── Zone ──────────────────────────────────────────────────────────────────
     let zoneMatch: 'exact' | false | null = null;
     if (hasZonePref) {
       const zoneParts = (unit.zone ?? '')
@@ -169,7 +211,7 @@ export function runMatchingEngine(inquiry: InquiryPayload, units: UnitRow[]): Ma
       typeMatch = unit.type?.toLowerCase() === inquiry.property_type!.toLowerCase();
     }
 
-    // ── Config / bedrooms ─────────────────────────────────────────────────────
+    // ── Config ────────────────────────────────────────────────────────────────
     let configMatch: 'exact' | 'partial' | false | null = null;
     if (hasConfigPref) {
       configMatch = matchConfig(inquiry.config!, unit.config ?? '');
@@ -187,58 +229,61 @@ export function runMatchingEngine(inquiry: InquiryPayload, units: UnitRow[]): Ma
       furnishingMatch = unit.furnishing?.toLowerCase() === inquiry.furnishing!.toLowerCase();
     }
 
-    // ── Score calculation ─────────────────────────────────────────────────────
-    //
-    // Each field contributes its full weight on a match, half its weight when
-    // the preference was not specified (neutral), and a small penalty or zero
-    // on a mismatch (see table in file header).
+    // ── Score (out of 100) ────────────────────────────────────────────────────
+
     let score = 0;
 
-    // Budget (35)
-    if      (budgetMatch === 'exact') score += W_BUDGET;
-    else if (budgetMatch === 'flex')  score += Math.round(W_BUDGET * 0.55); // 19
-
-    // Zone (20)
-    if      (zoneMatch === 'exact')   score += W_ZONE;
-    else if (zoneMatch === null)      score += Math.round(W_ZONE * 0.5);    // 10 neutral
-    else                              score -= 5;                            // wrong zone
-
-    // Type (15)
-    if      (typeMatch === true)      score += W_TYPE;
-    else if (typeMatch === null)      score += Math.round(W_TYPE * 0.5);    // 7 neutral
-    else                              score -= 5;                            // wrong type
-
-    // Config (15)
+    // Config (30) — primary
     if      (configMatch === 'exact')   score += W_CONFIG;
-    else if (configMatch === 'partial') score += Math.round(W_CONFIG * 0.55); // 8
-    else if (configMatch === null)      score += Math.round(W_CONFIG * 0.5);  // 7 neutral
-    else                                score -= 5;                            // wrong config
+    else if (configMatch === 'partial') score += Math.round(W_CONFIG * 0.60); // 18
+    else if (configMatch === null)      score += Math.round(W_CONFIG * 0.50); // 15 neutral
+    // false → 0 (mismatch, no points)
 
-    // Bathrooms (8)
+    // Budget Min (20) — primary
+    if      (budgetMinMatch === 'exact') score += W_BUDGET_MIN;
+    else if (budgetMinMatch === 'flex')  score += Math.round(W_BUDGET_MIN * 0.60); // 12
+
+    // Zone (20) — primary
+    if      (zoneMatch === 'exact')  score += W_ZONE;
+    else if (zoneMatch === null)     score += Math.round(W_ZONE * 0.50);     // 10 neutral
+    // false → 0 (wrong zone, no points)
+
+    // Property Type (10) — primary
+    if      (typeMatch === true)  score += W_TYPE;
+    else if (typeMatch === null)  score += Math.round(W_TYPE * 0.50);        // 5 neutral
+    // false → 0
+
+    // Bathrooms (8) — secondary
     if      (bathroomMatch === true)  score += W_BATHROOMS;
-    else if (bathroomMatch === null)  score += Math.round(W_BATHROOMS * 0.5); // 4 neutral
-    // false → 0 (minimum not met; no additional penalty)
+    else if (bathroomMatch === null)  score += Math.round(W_BATHROOMS * 0.50); // 4 neutral
+    // false → 0
 
-    // Furnishing (7)
+    // Furnishing (7) — secondary
     if      (furnishingMatch === true)  score += W_FURNISHING;
-    else if (furnishingMatch === null)  score += Math.round(W_FURNISHING * 0.5); // 3 neutral
-    // false → 0 (soft preference; no penalty)
+    else if (furnishingMatch === null)  score += Math.round(W_FURNISHING * 0.50); // 3 neutral
+    // false → 0
+
+    // Budget Fit (5) — secondary
+    if      (budgetFit === 'within') score += W_BUDGET_FIT;
+    else if (budgetFit === 'over')   score += Math.round(W_BUDGET_FIT * 0.40); // 2
+    else                             score += Math.round(W_BUDGET_FIT * 0.40); // 2 neutral (no ceiling)
 
     score = Math.min(100, Math.max(0, score));
 
-    // ── Tier determination ────────────────────────────────────────────────────
-    // T1 — budget exact AND overall score strong
-    // T2 — good score regardless of budget flex, OR exact budget with moderate score
-    // T3 — anything else that cleared the budget gate
+    // ── Tier ──────────────────────────────────────────────────────────────────
     let tier: 1 | 2 | 3;
-
-    if (budgetMatch === 'exact' && score >= TIER1_SCORE) {
+    if (score >= TIER1_SCORE) {
       tier = 1;
     } else if (score >= TIER2_SCORE) {
       tier = 2;
     } else {
       tier = 3;
     }
+
+    const priority = makePriority(
+      configMatch, budgetMinMatch, zoneMatch,
+      typeMatch, bathroomMatch, furnishingMatch, budgetFit,
+    );
 
     results.push({
       unitId:   unit.id,
@@ -259,8 +304,10 @@ export function runMatchingEngine(inquiry: InquiryPayload, units: UnitRow[]): Ma
       },
       tier,
       score,
+      priority,
       reasons: {
-        budget:     budgetMatch,
+        budget:     budgetMinMatch,
+        budget_fit: budgetFit,
         type:       typeMatch,
         config:     configMatch,
         bathrooms:  bathroomMatch,
@@ -270,7 +317,12 @@ export function runMatchingEngine(inquiry: InquiryPayload, units: UnitRow[]): Ma
     });
   }
 
-  // Primary sort: tier ASC, secondary: score DESC
-  results.sort((a, b) => a.tier - b.tier || b.score - a.score);
+  // Primary sort: tier ASC, score DESC, then priority DESC (tie-break)
+  results.sort((a, b) =>
+    a.tier - b.tier ||
+    b.score - a.score ||
+    b.priority - a.priority
+  );
+
   return results;
 }

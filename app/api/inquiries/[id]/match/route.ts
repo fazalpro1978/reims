@@ -91,9 +91,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           alias_code: (units ?? []).find(u => u.id === r.unitId)?.alias_code ?? null,
           ...r.unitSnapshot,
         },
-        match_tier:    r.tier,
-        match_score:   r.score,
-        match_reasons: r.reasons,
+        match_tier:     r.tier,
+        match_score:    r.score,
+        match_priority: r.priority,
+        match_reasons:  r.reasons,
       }));
       await admin.from('inquiry_matches').insert(rows);
     }
@@ -135,8 +136,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     .from('inquiry_matches')
     .select('*')
     .eq('inquiry_id', params.id)
-    .order('match_tier', { ascending: true })
-    .order('match_score', { ascending: false });
+    .order('match_tier',     { ascending: true })
+    .order('match_score',    { ascending: false })
+    .order('match_priority', { ascending: false, nullsFirst: false });
 
   if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
 

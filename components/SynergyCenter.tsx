@@ -72,12 +72,14 @@ interface InquiryMatch {
   } | null;
   match_tier: 1 | 2 | 3;
   match_score: number;
+  match_priority?: number;
   match_reasons: {
-    budget: 'exact' | 'flex' | false;
-    type: boolean | null;
-    config: 'exact' | 'partial' | false | null;
-    bathrooms: boolean | null;
-    zone: 'exact' | false | null;
+    budget:     'exact' | 'flex' | false;
+    budget_fit: 'within' | 'over' | null;
+    type:       boolean | null;
+    config:     'exact' | 'partial' | false | null;
+    bathrooms:  boolean | null;
+    zone:       'exact' | false | null;
     furnishing: boolean | null;
   } | null;
   is_shortlisted: boolean;
@@ -1139,16 +1141,18 @@ function MatchingGrid({ inquiryId, clientEmail }: {
                 <div className="flex gap-1 mt-2 flex-wrap">
                   {canReasons && m.match_reasons && (
                     <>
+                      {m.match_reasons.config === 'exact'   && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#fb923c22] text-[#fb923c]">Config ✓</span>}
+                      {m.match_reasons.config === 'partial' && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#fb923c11] text-[#fb923c99]">Config ~</span>}
                       {m.match_reasons.budget && (
                         <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${m.match_reasons.budget === 'exact' ? 'bg-[#4ade8022] text-[#4ade80]' : 'bg-[#fbbf2422] text-[#fbbf24]'}`}>
                           Budget {m.match_reasons.budget}
                         </span>
                       )}
-                      {m.match_reasons.zone === 'exact' && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#38bdf822] text-[#38bdf8]">Zone ✓</span>}
-                      {m.match_reasons.type === true      && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#a78bfa22] text-[#a78bfa]">Type ✓</span>}
-                      {m.match_reasons.config === 'exact'   && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#fb923c22] text-[#fb923c]">Config ✓</span>}
-                      {m.match_reasons.config === 'partial' && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#fb923c11] text-[#fb923c99]">Config ~</span>}
-                      {m.match_reasons.bathrooms === true && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#e879f922] text-[#e879f9]">Bath ✓</span>}
+                      {m.match_reasons.budget_fit === 'within' && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#4ade8011] text-[#4ade8088]">Fit ✓</span>}
+                      {m.match_reasons.zone === 'exact'       && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#38bdf822] text-[#38bdf8]">Zone ✓</span>}
+                      {m.match_reasons.type === true           && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#a78bfa22] text-[#a78bfa]">Type ✓</span>}
+                      {m.match_reasons.bathrooms === true      && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#e879f922] text-[#e879f9]">Bath ✓</span>}
+                      {m.match_reasons.furnishing === true     && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#818cf822] text-[#818cf8]">Furn ✓</span>}
                     </>
                   )}
                 </div>
