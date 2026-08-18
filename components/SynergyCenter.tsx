@@ -1052,37 +1052,47 @@ function MatchingGrid({ inquiryId, clientEmail }: {
     `}</style>
     <div className="flex flex-col h-full">
       {/* Grid header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <h3 className="text-sm font-semibold text-[#e0e0e0]">Matching Units</h3>
-          <div className="flex gap-1.5">
-            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#4ade8022] text-[#4ade80] border border-[#4ade8044] tracking-wide">T1 = &quot;{tier1}&quot;</span>
-            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#fbbf2422] text-[#fbbf24] border border-[#fbbf2444] tracking-wide">T2 = &quot;{tier2}&quot;</span>
-            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#94a3b822] text-[#94a3b8] border border-[#94a3b844] tracking-wide">T3 = &quot;{tier3}&quot;</span>
-            {shortlisted > 0 && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#f43f5e22] text-[#f43f5e] border border-[#f43f5e44]">⭐ {shortlisted}</span>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex bg-[#111] border border-[#222] rounded-lg overflow-hidden text-xs">
-            {(['all', 1, 2, 3] as const).map(t => (
-              <button key={t} onClick={() => setFilter(t)}
-                className={`px-3 py-1.5 font-medium transition-colors ${filter === t ? 'bg-[#f43f5e] text-white' : 'text-[#666] hover:text-[#ccc]'}`}>
-                {t === 'all' ? 'All' : `T${t}`}
-              </button>
-            ))}
-          </div>
-          {canRerun && (
-            <button onClick={rerun} disabled={running}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a1a1a] border border-[#333] text-[#aaa] text-xs rounded-lg hover:border-[#f43f5e] hover:text-[#f43f5e] transition-colors disabled:opacity-40">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`w-3.5 h-3.5 ${running ? 'animate-spin' : ''}`}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              {running ? 'Running…' : 'Re-run'}
-            </button>
+      {/* ── Single-line header: label · tier counts · divider · filters · re-run ── */}
+      <div className="flex items-center gap-2 mb-4 min-w-0">
+        {/* Label — fixed, never shrinks */}
+        <h3 className="text-sm font-semibold text-[#e0e0e0] whitespace-nowrap shrink-0">Matching Units</h3>
+
+        {/* Divider */}
+        <span className="w-px h-3.5 bg-[#2a2a2a] shrink-0" />
+
+        {/* Tier count badges */}
+        <div className="flex items-center gap-1 shrink-0">
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#4ade8022] text-[#4ade80] border border-[#4ade8044] whitespace-nowrap">T1 = &quot;{tier1}&quot;</span>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#fbbf2422] text-[#fbbf24] border border-[#fbbf2444] whitespace-nowrap">T2 = &quot;{tier2}&quot;</span>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#94a3b822] text-[#94a3b8] border border-[#94a3b844] whitespace-nowrap">T3 = &quot;{tier3}&quot;</span>
+          {shortlisted > 0 && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#f43f5e22] text-[#f43f5e] border border-[#f43f5e44] whitespace-nowrap">⭐ {shortlisted}</span>
           )}
         </div>
+
+        {/* Spacer pushes controls to the right */}
+        <div className="flex-1 min-w-0" />
+
+        {/* Filter tabs */}
+        <div className="flex items-center bg-[#111] border border-[#222] rounded-lg overflow-hidden text-xs shrink-0">
+          {(['all', 1, 2, 3] as const).map(t => (
+            <button key={t} onClick={() => setFilter(t)}
+              className={`px-2.5 py-1.5 font-medium transition-colors ${filter === t ? 'bg-[#f43f5e] text-white' : 'text-[#666] hover:text-[#ccc]'}`}>
+              {t === 'all' ? 'All' : `T${t}`}
+            </button>
+          ))}
+        </div>
+
+        {/* Re-run */}
+        {canRerun && (
+          <button onClick={rerun} disabled={running} title={running ? 'Running…' : 'Re-run matching'}
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-[#1a1a1a] border border-[#333] text-[#aaa] text-xs rounded-lg hover:border-[#f43f5e] hover:text-[#f43f5e] transition-colors disabled:opacity-40 shrink-0 whitespace-nowrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`w-3 h-3 shrink-0 ${running ? 'animate-spin' : ''}`}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {running ? 'Running…' : 'Re-run'}
+          </button>
+        )}
       </div>
 
       {/* Grid body */}
