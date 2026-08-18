@@ -739,7 +739,8 @@ export default function UnitsInventory({
   }, []);
 
   const handleDeleteConfirm = async () => {
-    if (deletePin !== 'PRIVE2024') {
+    const isPrivileged = userRole === 'administrator' || userRole === 'superuser';
+    if (!isPrivileged && deletePin !== 'PRIVE2024') {
       setDeletePinError('Incorrect PIN. Access denied.');
       setDeletePin('');
       return;
@@ -1275,18 +1276,24 @@ export default function UnitsInventory({
                 <p className="text-xs font-semibold text-[#d0d0d0]">{deleteTarget.property}</p>
                 <p className="text-[11px] text-[#888888] mt-0.5">Unit {deleteTarget.unitNo} · {deleteTarget.zone}</p>
               </div>
-              <p className="text-xs text-[#888888]">Enter admin PIN to authorise deletion:</p>
-              <input
-                type="password"
-                value={deletePin}
-                onChange={e => { setDeletePin(e.target.value); setDeletePinError(''); }}
-                onKeyDown={e => { if (e.key === 'Enter') handleDeleteConfirm(); }}
-                placeholder="Admin PIN"
-                autoFocus
-                className="w-full text-sm text-[#d0d0d0] bg-[#0f0f0f] border border-[#333333] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 placeholder:text-[#444444]"
-              />
-              {deletePinError && (
-                <p className="text-xs text-red-400">{deletePinError}</p>
+              {(userRole !== 'administrator' && userRole !== 'superuser') ? (
+                <>
+                  <p className="text-xs text-[#888888]">Enter admin PIN to authorise deletion:</p>
+                  <input
+                    type="password"
+                    value={deletePin}
+                    onChange={e => { setDeletePin(e.target.value); setDeletePinError(''); }}
+                    onKeyDown={e => { if (e.key === 'Enter') handleDeleteConfirm(); }}
+                    placeholder="Admin PIN"
+                    autoFocus
+                    className="w-full text-sm text-[#d0d0d0] bg-[#0f0f0f] border border-[#333333] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 placeholder:text-[#444444]"
+                  />
+                  {deletePinError && (
+                    <p className="text-xs text-red-400">{deletePinError}</p>
+                  )}
+                </>
+              ) : (
+                <p className="text-xs text-[#888888]">This action is irreversible. Confirm to proceed.</p>
               )}
             </div>
             {/* Footer */}
@@ -1299,7 +1306,7 @@ export default function UnitsInventory({
               </button>
               <button
                 onClick={handleDeleteConfirm}
-                disabled={deleting || !deletePin}
+                disabled={deleting || ((userRole !== 'administrator' && userRole !== 'superuser') && !deletePin)}
                 className="flex-1 px-4 py-2 text-xs font-bold text-white bg-red-700 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
               >
                 {deleting ? 'Deleting…' : 'Delete Permanently'}
