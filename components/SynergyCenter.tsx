@@ -1056,9 +1056,9 @@ function MatchingGrid({ inquiryId, clientEmail }: {
         <div className="flex items-center gap-3">
           <h3 className="text-sm font-semibold text-[#e0e0e0]">Matching Units</h3>
           <div className="flex gap-1.5">
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#4ade8022] text-[#4ade80] border border-[#4ade8044]">T1 {tier1}</span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#fbbf2422] text-[#fbbf24] border border-[#fbbf2444]">T2 {tier2}</span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#94a3b822] text-[#94a3b8] border border-[#94a3b844]">T3 {tier3}</span>
+            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#4ade8022] text-[#4ade80] border border-[#4ade8044] tracking-wide">T1 = &quot;{tier1}&quot;</span>
+            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#fbbf2422] text-[#fbbf24] border border-[#fbbf2444] tracking-wide">T2 = &quot;{tier2}&quot;</span>
+            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#94a3b822] text-[#94a3b8] border border-[#94a3b844] tracking-wide">T3 = &quot;{tier3}&quot;</span>
             {shortlisted > 0 && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#f43f5e22] text-[#f43f5e] border border-[#f43f5e44]">⭐ {shortlisted}</span>
             )}
