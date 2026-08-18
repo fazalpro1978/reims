@@ -75,7 +75,7 @@ interface InquiryMatch {
   match_reasons: {
     budget: 'exact' | 'flex' | false;
     type: boolean | null;
-    config: boolean | null;
+    config: 'exact' | 'partial' | false | null;
     bathrooms: boolean | null;
     zone: 'exact' | false | null;
     furnishing: boolean | null;
@@ -121,9 +121,9 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string }> 
 };
 
 const TIER_META = {
-  1: { label: 'T1', color: '#4ade80', title: 'Exact Match' },
-  2: { label: 'T2', color: '#fbbf24', title: '±10% Flex'  },
-  3: { label: 'T3', color: '#94a3b8', title: 'Zone Buffer' },
+  1: { label: 'T1', color: '#4ade80', title: 'Strong Match — score ≥ 70, budget exact'  },
+  2: { label: 'T2', color: '#fbbf24', title: 'Partial Match — score 45–69'               },
+  3: { label: 'T3', color: '#94a3b8', title: 'Weak Match — score < 45'                   },
 };
 
 const SOURCES = ['Walk-in','WhatsApp','Website','Referral','Bayut','Property Finder','Phone','Other'];
@@ -1146,7 +1146,8 @@ function MatchingGrid({ inquiryId, clientEmail }: {
                       )}
                       {m.match_reasons.zone === 'exact' && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#38bdf822] text-[#38bdf8]">Zone ✓</span>}
                       {m.match_reasons.type === true      && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#a78bfa22] text-[#a78bfa]">Type ✓</span>}
-                      {m.match_reasons.config === true    && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#fb923c22] text-[#fb923c]">Config ✓</span>}
+                      {m.match_reasons.config === 'exact'   && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#fb923c22] text-[#fb923c]">Config ✓</span>}
+                      {m.match_reasons.config === 'partial' && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#fb923c11] text-[#fb923c99]">Config ~</span>}
                       {m.match_reasons.bathrooms === true && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#e879f922] text-[#e879f9]">Bath ✓</span>}
                     </>
                   )}
