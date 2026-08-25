@@ -122,6 +122,7 @@ export interface UnitListing {
   notes?: string;        // General freeform notes
   mociStatus?: string;   // MOCI registration status label, e.g. "REGISTERED"
   aliasCode?: string;    // Public alias code, e.g. "WB61-023" — hides property identity from prospects
+  smartCode?: string;    // 14-digit Smart Serial Code from cr_registry, canonical primary identifier
 
   // ── Metadata ──────────────────────────────────────────────────────────────
   listedDate: string;    // ISO 8601 date string

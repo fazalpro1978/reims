@@ -384,7 +384,7 @@ export default function UnitsInventory({
       setLoading(true);
       const { data, error } = await supabase
         .from('units')
-        .select('*, unit_operational(maintenance_notes, access_lockbox, focal_point_name, focal_point_phone), alias_code')
+        .select('*, unit_operational(maintenance_notes, access_lockbox, focal_point_name, focal_point_phone), alias_code, smart_code')
         .order('unit_code');
       if (error) { setDbError(error.message); setLoading(false); return; }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -437,6 +437,7 @@ export default function UnitsInventory({
         listedDate:          row.listed_date ?? '',
         lastUpdated:         row.updated_at ?? '',
         aliasCode:           row.alias_code ?? undefined,
+        smartCode:           row.smart_code  ?? undefined,
         designType:          row.design_type ?? undefined,
       }));
       setUnits(mapped);
@@ -1038,6 +1039,7 @@ export default function UnitsInventory({
                 <tr className="bg-[#111111] border-b border-[#252525]">
                   {([
                     !isAgent && ['Realtor',       'text-left'],
+                    ['Smart Code',     'text-left'],
                     ['Property / Unit','text-left'],
                     ['Zone / District','text-left'],
                     ['Type · Config',  'text-left'],
@@ -1058,7 +1060,7 @@ export default function UnitsInventory({
               <tbody>
                 {paginatedUnits.length === 0 ? (
                   <tr>
-                    <td colSpan={isAgent ? 10 : 11} className="px-4 py-14 text-center">
+                    <td colSpan={isAgent ? 11 : 12} className="px-4 py-14 text-center">
                       <p className="text-[#888888] text-sm">No units match the current filter combination.</p>
                       {hasActiveFilters && (
                         <button onClick={clearFilters} className="mt-2 text-sm text-[#c9a84c] underline underline-offset-2 hover:no-underline">
@@ -1081,6 +1083,13 @@ export default function UnitsInventory({
                           <span className="text-[10px] font-mono text-[#888888]">{unit.realtorMOCI}</span>
                         </td>
                       )}
+
+                      {/* Smart Code — 14-digit canonical identifier, first column */}
+                      <td className="px-2.5 py-2.5 whitespace-nowrap">
+                        {unit.smartCode
+                          ? <span className="font-mono text-xs font-bold text-[#c9a84c] tracking-wider">{unit.smartCode}</span>
+                          : <span className="text-[10px] text-[#444]">—</span>}
+                      </td>
 
                       {/* Property / Unit — combined; agents see alias code to hide building identity */}
                       <td className="px-2.5 py-2.5 max-w-[180px]" title={isAgent && unit.aliasCode ? unit.aliasCode : unit.property}>

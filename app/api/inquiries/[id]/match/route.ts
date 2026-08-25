@@ -29,7 +29,7 @@ function scrubMatch(m: Record<string, unknown>, role: string) {
       };
     }
 
-    // Score > 60: strip internal identifiers; alias_code becomes the only unit identifier
+    // Score > 60: strip internal identifiers; smart_code becomes the only unit identifier
     const { property: _p, unit_no: _u, id: _id, ...safeSnap } = snap;
     return {
       id:             m.id,
@@ -67,10 +67,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Load all Available units — include alias_code
+    // Load all Available units — include smart_code
     const { data: units, error: unitsErr } = await admin
       .from('units')
-      .select('id, unit_code, property, unit_no, zone, zone_code, type, config, rent, bathrooms, furnishing, status, listing_type, alias_code, view_types')
+      .select('id, unit_code, property, unit_no, zone, zone_code, type, config, rent, bathrooms, furnishing, status, listing_type, smart_code, view_types')
       .eq('status', 'Available');
 
     if (unitsErr) return NextResponse.json({ error: unitsErr.message }, { status: 500 });
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         unit_id:       r.unitId,
         unit_code:     r.unitCode,
         unit_snapshot: {
-          alias_code: (units ?? []).find(u => u.id === r.unitId)?.alias_code ?? null,
+          smart_code: (units ?? []).find(u => u.id === r.unitId)?.smart_code ?? null,
           ...r.unitSnapshot,
         },
         match_tier:     r.tier,

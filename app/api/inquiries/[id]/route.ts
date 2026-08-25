@@ -12,7 +12,7 @@ const admin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-const UNIT_JOIN = '*, assigned_unit:units!assigned_unit_id(id, unit_code, unit_no, property, alias_code, zone, type, config, furnishing, rent), assigned_unit2:units!assigned_unit_id_2(id, unit_code, unit_no, property, alias_code), assigned_unit3:units!assigned_unit_id_3(id, unit_code, unit_no, property, alias_code)';
+const UNIT_JOIN = '*, assigned_unit:units!assigned_unit_id(id, unit_code, unit_no, property, smart_code, zone, type, config, furnishing, rent), assigned_unit2:units!assigned_unit_id_2(id, unit_code, unit_no, property, smart_code), assigned_unit3:units!assigned_unit_id_3(id, unit_code, unit_no, property, smart_code)';
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const { data, error } = await admin
@@ -254,7 +254,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       const unit = (inq.assigned_unit as any) ?? null;
 
       if (clientEmail && unit) {
-        const aliasCode  = unit.alias_code as string | null;
+        const aliasCode  = unit.smart_code as string | null;
         const displayId  = aliasCode ?? `${unit.property} – Unit ${unit.unit_no}`;
         const zone       = unit.zone  as string ?? '';
         const type       = unit.type  as string ?? '';
