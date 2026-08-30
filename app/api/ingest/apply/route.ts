@@ -28,6 +28,7 @@ const UNITS_COLUMNS = new Set([
   'kahramaa_applicable', 'kahramaa_amount',
   'qatar_cool_applicable', 'qatar_cool_amount',
   'marafeq_applicable', 'marafeq_amount',
+  'smart_code', 'master_code',
   'updated_at',
 ]);
 
@@ -161,8 +162,20 @@ export async function POST(req: NextRequest) {
     const toInsert: Record<string, unknown>[] = [];
     const toUpdate: { id: string; data: Record<string, unknown> }[] = [];
     const toReplace: { id: string; data: Record<string, unknown> }[] = [];
+    const toPatch: { property: string; unit_no: string; smart_code: string | null; master_code: string | null }[] = [];
 
     for (const row of rows) {
+      // Backfill path: only write smart_code + master_code onto an existing unit
+      if (row.__patch_only === true) {
+        toPatch.push({
+          property:    String(row.property   ?? ''),
+          unit_no:     String(row.unit_no    ?? ''),
+          smart_code:  row.smart_code  != null ? String(row.smart_code)  : null,
+          master_code: row.master_code != null ? String(row.master_code) : null,
+        });
+        continue;
+      }
+
       const { __force_delete, ...rawData } = row;
       const data = toUnitRow(rawData);
       const code = data.unit_code as string;
@@ -210,7 +223,31 @@ export async function POST(req: NextRequest) {
       else updated++;
     }
 
-    // ── 1b. Write contact_details → unit_operational ──────────────────────────
+    // ── 1b. Backfill patches — smart_code + master_code only ───────────────────
+    if (toPatch.length > 0) {
+      for (const patch of toPatch) {
+        if (!patch.property || !patch.unit_no) continue;
+        const { data: found } = await admin
+          .from('units')
+          .select('id')
+          .ilike('property', patch.property)
+          .ilike('unit_no',  patch.unit_no)
+          .limit(1)
+          .single();
+        if (!found?.id) {
+          errors.push(`Backfill patch: unit not found for ${patch.property} / ${patch.unit_no}`);
+          continue;
+        }
+        const { error: patchErr } = await admin
+          .from('units')
+          .update({ smart_code: patch.smart_code, master_code: patch.master_code, updated_at: new Date().toISOString() })
+          .eq('id', found.id);
+        if (patchErr) errors.push(`Backfill patch ${patch.unit_no}: ${patchErr.message}`);
+        else updated++;
+      }
+    }
+
+    // ── 1c. Write contact_details → unit_operational ──────────────────────────
     // contact_details format: "Name Phone" — trailing numeric/+ token is phone, rest is name
     const contactRows = rows.filter(
       (r) => typeof r.contact_details === 'string' && (r.contact_details as string).trim(),

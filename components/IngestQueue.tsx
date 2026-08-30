@@ -254,11 +254,12 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                     <colgroup>
                       <col style={{ width: '3%'  }} />{/* Checkbox */}
                       <col style={{ width: '5%'  }} />{/* Match */}
-                      <col style={{ width: '9%'  }} />{/* Realtor */}
-                      <col style={{ width: '11%' }} />{/* Property */}
+                      <col style={{ width: '7%'  }} />{/* Realtor */}
+                      <col style={{ width: '10%' }} />{/* Property */}
+                      <col style={{ width: '9%'  }} />{/* Smart Code */}
                       <col style={{ width: '5%'  }} />{/* Unit */}
                       <col style={{ width: '4%'  }} />{/* Zone # */}
-                      <col style={{ width: '9%'  }} />{/* Zone */}
+                      <col style={{ width: '6%'  }} />{/* Zone */}
                       <col style={{ width: '6%'  }} />{/* Type */}
                       <col style={{ width: '5%'  }} />{/* Config */}
                       <col style={{ width: '4%'  }} />{/* Bath */}
@@ -267,7 +268,7 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                       <col style={{ width: '7%'  }} />{/* Furnishing */}
                       <col style={{ width: '8%'  }} />{/* Rent/mo */}
                       <col style={{ width: '5%'  }} />{/* Status */}
-                      <col style={{ width: '9%'  }} />{/* Source File */}
+                      <col style={{ width: '6%'  }} />{/* Source File */}
                     </colgroup>
                     <thead>
                       <tr className="border-b border-[#1e1e1e] bg-[#0d0d0d]">
@@ -279,7 +280,7 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                             className="w-3 h-3 accent-[#ef4444] cursor-pointer"
                           />
                         </th>
-                        {['Match', 'Realtor', 'Property', 'Unit', 'Zone #', 'Zone', 'Type', 'Config', 'Bath', 'Kitchen', 'Parking', 'Furnishing', 'Rent/mo', 'Status', 'Source File'].map((h) => (
+                        {['Match', 'Realtor', 'Property', 'Smart Code', 'Unit', 'Zone #', 'Zone', 'Type', 'Config', 'Bath', 'Kitchen', 'Parking', 'Furnishing', 'Rent/mo', 'Status', 'Source File'].map((h) => (
                           <th key={h} className="px-2 py-2 text-left text-[9px] font-bold text-[#555] uppercase tracking-wider truncate">{h}</th>
                         ))}
                       </tr>
@@ -305,6 +306,18 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                             <td className="px-2 py-2"><MatchBadge type={r.match_type} /></td>
                             <td className="px-2 py-2 text-[#888] truncate" title={fmt(p.realtor_name)}>{fmt(p.realtor_name)}</td>
                             <td className="px-2 py-2 text-white font-medium truncate" title={fmt(p.property)}>{fmt(p.property)}</td>
+                            <td className="px-2 py-2">
+                              {(p.master_code != null || p.smart_code != null) ? (
+                                <div className="flex flex-col gap-0.5">
+                                  {p.master_code != null && (
+                                    <span className="font-mono text-[9px] font-bold text-blue-400 tracking-widest leading-tight truncate">{String(p.master_code)}</span>
+                                  )}
+                                  {p.smart_code != null && (
+                                    <span className="font-mono text-[9px] font-bold text-green-400 bg-green-400/10 px-1 py-px rounded leading-tight truncate">{String(p.smart_code)}</span>
+                                  )}
+                                </div>
+                              ) : <span className="text-[#555]">—</span>}
+                            </td>
                             <td className="px-2 py-2 text-[#888] font-mono truncate">{fmt(p.unit_no)}</td>
                             <td className="px-2 py-2 text-[#c9a84c] font-mono">{fmt(p.zone_code)}</td>
                             <td className="px-2 py-2 text-[#888] truncate" title={fmt(p.zone)}>{fmt(p.zone)}</td>
