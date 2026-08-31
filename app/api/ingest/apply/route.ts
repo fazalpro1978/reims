@@ -152,12 +152,34 @@ export async function POST(req: NextRequest) {
 
     const { data: existing } = await admin
       .from('units')
-      .select('id, unit_code, view_types')
+      .select('id, unit_code, property, unit_no, view_types')
       .in('unit_code', unitCodes);
 
     const existingMap = new Map(
-      (existing ?? []).map((r: { id: string; unit_code: string; view_types: string[] | null }) => [r.unit_code, r]),
+      (existing ?? []).map((r: { id: string; unit_code: string; property: string; unit_no: string; view_types: string[] | null }) => [r.unit_code, r]),
     );
+
+    // Natural-key fallback: for rows that won't match by unit_code, query by property
+    // so the worker can find existing units matched by property + unit_no.
+    // This is independent of the AXIOM 3-tier dedup — it only prevents false inserts
+    // when a vetted record lacks unit_code (e.g. natural_key-matched backfill records).
+    const nk = (p: unknown, u: unknown) =>
+      `${String(p ?? '').toLowerCase().trim()}||${String(u ?? '').toLowerCase().trim()}`;
+
+    const propertiesInBatch = Array.from(new Set(
+      rows.filter(r => !r.__patch_only && !r.unit_code).map(r => r.property).filter(Boolean) as string[]
+    ));
+
+    const naturalKeyMap = new Map<string, { id: string; unit_code: string; property: string; unit_no: string; view_types: string[] | null }>();
+    if (propertiesInBatch.length > 0) {
+      const { data: byNk } = await admin
+        .from('units')
+        .select('id, unit_code, property, unit_no, view_types')
+        .in('property', propertiesInBatch);
+      (byNk ?? []).forEach((r: { id: string; unit_code: string; property: string; unit_no: string; view_types: string[] | null }) => {
+        naturalKeyMap.set(nk(r.property, r.unit_no), r);
+      });
+    }
 
     const toInsert: Record<string, unknown>[] = [];
     const toUpdate: { id: string; data: Record<string, unknown> }[] = [];
@@ -179,7 +201,8 @@ export async function POST(req: NextRequest) {
       const { __force_delete, ...rawData } = row;
       const data = toUnitRow(rawData);
       const code = data.unit_code as string;
-      const existingRow = existingMap.get(code);
+      const existingRow = existingMap.get(code)
+        ?? naturalKeyMap.get(nk(rawData.property, rawData.unit_no));
 
       // If view is a valid REIMS view_type, merge it into view_types[]
       const viewVal = typeof rawData.view === 'string' ? rawData.view.trim() : '';
