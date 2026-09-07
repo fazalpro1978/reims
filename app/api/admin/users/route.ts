@@ -62,6 +62,24 @@ export async function PUT(req: NextRequest) {
   if (body.is_active  !== undefined) patch.is_active  = body.is_active;
   if (body.platforms  !== undefined) patch.platforms  = body.platforms;
 
+  // Derive axiom_upload_authorised from platforms + role so AXIOM reads a single boolean
+  const effectiveRole      = (body.role      ?? '') as string;
+  const effectivePlatforms = (body.platforms ?? []) as string[];
+  if (body.role !== undefined || body.platforms !== undefined) {
+    // Fetch current values for whichever field wasn't supplied
+    if (body.role === undefined || body.platforms === undefined) {
+      const supabase = adminClient();
+      const { data: cur } = await supabase.from('profiles').select('role,platforms').eq('id', body.id).single();
+      const role      = body.role      !== undefined ? effectiveRole      : (cur?.role      ?? '');
+      const platforms = body.platforms !== undefined ? effectivePlatforms : (cur?.platforms ?? []);
+      patch.axiom_upload_authorised =
+        ['superuser', 'administrator'].includes(role as string) || (platforms as string[]).includes('axiom');
+    } else {
+      patch.axiom_upload_authorised =
+        ['superuser', 'administrator'].includes(effectiveRole) || effectivePlatforms.includes('axiom');
+    }
+  }
+
   const supabase = adminClient();
   const { data, error } = await supabase
     .from('profiles')
