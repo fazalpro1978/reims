@@ -18,7 +18,7 @@ interface AssignedUnit {
   unit_code: string;
   unit_no: string;
   property: string;
-  alias_code?: string | null;
+  smart_code?: string | null;
 }
 
 interface Inquiry {
@@ -65,7 +65,7 @@ interface InquiryMatch {
   unit_id: string;
   unit_code: string | null;
   unit_snapshot: {
-    alias_code?: string | null;
+    smart_code?: string | null;
     property?: string; unit_no?: string; zone?: string; zone_code?: number;
     type?: string; config?: string; rent?: number; bathrooms?: number;
     furnishing?: string; status?: string; listing_type?: string;
@@ -437,8 +437,8 @@ function UnitSearch({
       setLoading(true);
       const { data } = await supabase
         .from('units')
-        .select('id, unit_code, unit_no, property, alias_code')
-        .or(`unit_no.ilike.%${term}%,unit_code.ilike.%${term}%,property.ilike.%${term}%,alias_code.ilike.%${term}%`)
+        .select('id, unit_code, unit_no, property, smart_code')
+        .or(`unit_no.ilike.%${term}%,unit_code.ilike.%${term}%,property.ilike.%${term}%,smart_code.ilike.%${term}%`)
         .eq('status', 'Available')
         .limit(10);
       setResults((data ?? []) as AssignedUnit[]);
@@ -456,7 +456,7 @@ function UnitSearch({
       >
         <span className={value ? 'text-[#e0e0e0]' : 'text-[#555]'}>
           {value
-            ? <><span className="font-mono text-[#c9a84c] mr-2">{value.alias_code ?? value.unit_code}</span>{value.unit_no} · {value.property}</>
+            ? <><span className="font-mono text-[#c9a84c] mr-2">{value.smart_code ?? value.unit_code}</span>{value.unit_no} · {value.property}</>
             : 'Search by unit no., code or property…'}
         </span>
         <svg className="w-4 h-4 text-[#555] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -486,7 +486,7 @@ function UnitSearch({
                 onClick={() => { onSelect(u); setOpen(false); setQ(''); }}
                 className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-[#1e1e1e] transition-colors"
               >
-                <span className="font-mono text-xs text-[#c9a84c] shrink-0 w-20 truncate">{u.alias_code ?? u.unit_code}</span>
+                <span className="font-mono text-xs text-[#c9a84c] shrink-0 w-20 truncate">{u.smart_code ?? u.unit_code}</span>
                 <div className="min-w-0">
                   <p className="text-sm text-[#e0e0e0] truncate">{u.unit_no}</p>
                   <p className="text-[10px] text-[#555] truncate">{u.property}</p>
@@ -549,7 +549,7 @@ function mapDbRowToUnit(row: any): UnitListing {
     mediaUrl:            row.media_url              ?? '',
     listedDate:          row.listed_date            ?? '',
     lastUpdated:         row.updated_at             ?? '',
-    aliasCode:           row.alias_code             ?? undefined,
+    smartCode:           row.smart_code              ?? undefined,
   };
 }
 
@@ -1003,8 +1003,8 @@ function MatchingGrid({ inquiryId, clientEmail }: {
     if (!unitId) return;
     const unit = await fetchUnit(unitId);
     if (!unit) return;
-    const subject = unit.aliasCode
-      ? encodeURIComponent(`Match Found — Ref ${unit.aliasCode} · Privé Group Real Estate`)
+    const subject = unit.smartCode
+      ? encodeURIComponent(`Match Found — ${unit.smartCode} · Privé Group Real Estate`)
       : encodeURIComponent(`Property Details: ${unit.property} – Unit ${unit.unitNo}`);
     const body = encodeURIComponent(generatePublicShareText(unit));
     window.open(`mailto:?subject=${subject}&body=${body}`);
@@ -1147,7 +1147,7 @@ function MatchingGrid({ inquiryId, clientEmail }: {
                         {tier.label}
                       </span>
                       <span className="text-xs font-mono text-[#c9a84c]">
-                        {canUnitCode ? m.unit_code : (snap?.alias_code ?? m.unit_code ?? '—')}
+                        {canUnitCode ? m.unit_code : (snap?.smart_code ?? m.unit_code ?? '—')}
                       </span>
                       <span className="w-1.5 h-1.5 rounded-full bg-[#4ade80] shrink-0" title="Available" />
                       {/* Flash indicator badges — shown beside tier label */}
@@ -1181,7 +1181,7 @@ function MatchingGrid({ inquiryId, clientEmail }: {
                     <p className="text-sm font-medium text-[#e0e0e0] truncate">
                       {canUnitCode
                         ? `${snap?.property} · ${snap?.unit_no}`
-                        : (snap?.alias_code ?? '—')}
+                        : (snap?.smart_code ?? '—')}
                     </p>
                     {snap && <p className="text-xs text-[#666] mt-0.5">{snap.zone} · {snap.type} · {snap.config}</p>}
                     {!snap && isExt && (
@@ -1546,7 +1546,7 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
                           </div>
                           <div className="min-w-0">
                             <p className="text-sm font-semibold text-[#e0e0e0] truncate">
-                              {canUnitCode ? `${unit.property} · ${unit.unit_no}` : (unit.alias_code ?? unit.unit_code)}
+                              {canUnitCode ? `${unit.property} · ${unit.unit_no}` : (unit.smart_code ?? unit.unit_code)}
                             </p>
                             {canUnitCode && <p className="text-[10px] font-mono text-[#c9a84c]">{unit.unit_code}</p>}
                           </div>
@@ -1980,7 +1980,7 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
                               <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                               <path strokeLinecap="round" strokeLinejoin="round" d="M9 22V12h6v10" />
                             </svg>
-                            <span className="font-mono text-[9px] text-[#c9a84c]">{canUnitCode ? u.unit_code : (u.alias_code ?? u.unit_code)}</span>
+                            <span className="font-mono text-[9px] text-[#c9a84c]">{canUnitCode ? u.unit_code : (u.smart_code ?? u.unit_code)}</span>
                             {canUnitCode && <span className="text-[10px] text-[#666] truncate">{u.unit_no} · {u.property}</span>}
                           </div>
                         ) : null)}

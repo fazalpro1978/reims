@@ -384,7 +384,7 @@ export default function UnitsInventory({
       setLoading(true);
       const { data, error } = await supabase
         .from('units')
-        .select('*, unit_operational(maintenance_notes, access_lockbox, focal_point_name, focal_point_phone), alias_code, smart_code')
+        .select('*, unit_operational(maintenance_notes, access_lockbox, focal_point_name, focal_point_phone), master_code, smart_code')
         .order('unit_code');
       if (error) { setDbError(error.message); setLoading(false); return; }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -436,8 +436,8 @@ export default function UnitsInventory({
         mediaUrl:            row.media_url ?? '',
         listedDate:          row.listed_date ?? '',
         lastUpdated:         row.updated_at ?? '',
-        aliasCode:           row.alias_code ?? undefined,
-        smartCode:           row.smart_code  ?? undefined,
+        smartCode:           row.smart_code   ?? undefined,
+        masterCode:          row.master_code  ?? undefined,
         designType:          row.design_type ?? undefined,
       }));
       setUnits(mapped);
@@ -1084,18 +1084,27 @@ export default function UnitsInventory({
                         </td>
                       )}
 
-                      {/* Smart Code — 14-digit canonical identifier, first column */}
+                      {/* Smart Code — dual-stack: 16-digit master_code (blue) + smart_code chip (green) */}
                       <td className="px-2.5 py-2.5 whitespace-nowrap">
-                        {unit.smartCode
-                          ? <span className="font-mono text-xs font-bold text-[#c9a84c] tracking-wider">{unit.smartCode}</span>
-                          : <span className="text-[10px] text-[#444]">—</span>}
+                        {unit.masterCode || unit.smartCode ? (
+                          <div className="flex flex-col gap-0.5">
+                            {unit.masterCode && (
+                              <span className="font-mono text-[10px] font-bold text-[#5b9bd5] tracking-wider leading-none">{unit.masterCode}</span>
+                            )}
+                            {unit.smartCode && (
+                              <span className="inline-block font-mono text-[10px] font-semibold text-[#1a1a1a] bg-[#4ade80] px-1.5 py-0.5 rounded leading-none w-fit">{unit.smartCode}</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-[#444]">—</span>
+                        )}
                       </td>
 
-                      {/* Property / Unit — combined; agents see alias code to hide building identity */}
-                      <td className="px-2.5 py-2.5 max-w-[180px]" title={isAgent && unit.aliasCode ? unit.aliasCode : unit.property}>
-                        {isAgent && unit.aliasCode ? (
+                      {/* Property / Unit — combined; agents see smart_code prefix to mask building identity */}
+                      <td className="px-2.5 py-2.5 max-w-[180px]" title={isAgent && unit.smartCode ? unit.smartCode : unit.property}>
+                        {isAgent && unit.smartCode ? (
                           <>
-                            <span className="block text-xs font-semibold font-mono text-[#c9a84c] leading-snug">{unit.aliasCode}</span>
+                            <span className="block text-xs font-semibold font-mono text-[#4ade80] leading-snug">{unit.smartCode}</span>
                             <span className="block text-[10px] text-[#555] mt-0.5">—</span>
                           </>
                         ) : (

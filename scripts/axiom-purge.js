@@ -308,6 +308,15 @@ async function executeDeletion(units, dependents) {
     return { ok: false, errors, nulled_matches, nulled_notifications, deleted_units };
   }
 
+  // D: Zero cached match_count on all inquiries (inquiry_matches rows were deleted above)
+  try {
+    await pgPatch('inquiries', { match_count: 'gt.0' }, { match_count: 0 });
+    console.log('   ✓ Zeroed match_count on all inquiries');
+  } catch (err) {
+    // Non-fatal — badges will be stale but data integrity is intact
+    console.warn(`   ⚠️  Could not zero inquiry match_count: ${err.message}`);
+  }
+
   return { ok: true, nulled_matches, nulled_notifications, deleted_units, errors: [] };
 }
 
@@ -362,7 +371,10 @@ ${whereClause};
 DELETE FROM public.units
 ${unitsWhere};
 
--- 4. Verify
+-- 4. Zero cached match_count on all inquiries
+UPDATE public.inquiries SET match_count = 0 WHERE match_count > 0;
+
+-- 5. Verify
 ${verifyClause}
 
 COMMIT;

@@ -254,8 +254,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       const unit = (inq.assigned_unit as any) ?? null;
 
       if (clientEmail && unit) {
-        const aliasCode  = unit.smart_code as string | null;
-        const displayId  = aliasCode ?? `${unit.property} – Unit ${unit.unit_no}`;
+        const smartCode  = unit.smart_code as string | null;
+        const displayId  = smartCode ?? `${unit.property} – Unit ${unit.unit_no}`;
         const zone       = unit.zone  as string ?? '';
         const type       = unit.type  as string ?? '';
         const config     = unit.config as string ?? '';
@@ -271,8 +271,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         await resend.emails.send({
           from: `Privé Group Real Estate <${process.env.RESEND_FROM ?? 'noreply@privegroupre.com'}>`,
           to:   clientEmail,
-          subject: aliasCode
-            ? `Match Found — Ref ${aliasCode} · Privé Group Real Estate`
+          subject: smartCode
+            ? `Match Found — ${smartCode} · Privé Group Real Estate`
             : `We Found a Match for You · Privé Group Real Estate`,
           attachments: [{ filename: 'logo.png', content: logoBuf, contentType: 'image/png', contentId: 'logo-prive' }],
           html: `

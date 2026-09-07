@@ -121,8 +121,8 @@ export interface UnitListing {
   focalPointPhone?: string; // Watchman / caretaker phone (unit_operational)
   notes?: string;        // General freeform notes
   mociStatus?: string;   // MOCI registration status label, e.g. "REGISTERED"
-  aliasCode?: string;    // Public alias code, e.g. "WB61-023" — hides property identity from prospects
-  smartCode?: string;    // 14-digit Smart Serial Code from cr_registry, canonical primary identifier
+  smartCode?: string;    // Smart Code, e.g. "RAARAA66-311" — canonical identifier for this unit
+  masterCode?: string;   // 16-digit Master Code from cr_master_registry
 
   // ── Metadata ──────────────────────────────────────────────────────────────
   listedDate: string;    // ISO 8601 date string

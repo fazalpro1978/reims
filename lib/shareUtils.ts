@@ -12,14 +12,14 @@ export function generateShareText(unit: UnitListing): string {
 }
 
 export function generatePublicShareText(unit: UnitListing): string {
-  const hasAlias = Boolean(unit.aliasCode);
+  const hasSmartCode = Boolean(unit.smartCode);
   return [
     `Connecting you with property, the Privé way`,
     ``,
     `PROPERTY DETAILS`,
-    ...(hasAlias
+    ...(hasSmartCode
       ? [
-          `  Reference        ${unit.aliasCode}`,
+          `  Smart Code       ${unit.smartCode}`,
           `  District / Area  ${unit.zone}`,
         ]
       : [
@@ -136,17 +136,17 @@ export function generateInternalCopyText(unit: UnitListing, focal?: FocalData): 
 }
 
 export function generateAgentShareText(unit: UnitListing): string {
-  const hasAlias = Boolean(unit.aliasCode);
+  const hasSmartCode = Boolean(unit.smartCode);
   return [
     `⚠ FOR AGENT USE ONLY — PRIVÉ GROUP REAL ESTATE ⚠`,
     `Unit Code         ${unit.id}`,
-    ...(hasAlias ? [`Alias Code        ${unit.aliasCode}`] : []),
+    ...(hasSmartCode ? [`Smart Code        ${unit.smartCode}`] : []),
     `Contract Status   ${unit.mociContractStatus ?? 'null'}`,
     ``,
     `IDENTIFICATION`,
-    ...(hasAlias
+    ...(hasSmartCode
       ? [
-          `  Alias Code        ${unit.aliasCode}`,
+          `  Smart Code        ${unit.smartCode}`,
           `  District / Area   ${unit.zone}`,
           `  Zone Code         Zone ${unit.zoneCode}`,
         ]
