@@ -18,11 +18,11 @@ RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   IF NEW.platforms IS DISTINCT FROM OLD.platforms THEN
     NEW.axiom_upload_authorised :=
-      ('axiom' = ANY(NEW.platforms)) OR (NEW.role IN ('superuser', 'administrator'));
+      ('dinges' = ANY(NEW.platforms)) OR (NEW.role IN ('superuser', 'administrator'));
   END IF;
   IF NEW.role IS DISTINCT FROM OLD.role THEN
     NEW.axiom_upload_authorised :=
-      ('axiom' = ANY(NEW.platforms)) OR (NEW.role IN ('superuser', 'administrator'));
+      ('dinges' = ANY(NEW.platforms)) OR (NEW.role IN ('superuser', 'administrator'));
   END IF;
   RETURN NEW;
 END;

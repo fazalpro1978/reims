@@ -73,10 +73,10 @@ export async function PUT(req: NextRequest) {
       const role      = body.role      !== undefined ? effectiveRole      : (cur?.role      ?? '');
       const platforms = body.platforms !== undefined ? effectivePlatforms : (cur?.platforms ?? []);
       patch.axiom_upload_authorised =
-        ['superuser', 'administrator'].includes(role as string) || (platforms as string[]).includes('axiom');
+        ['superuser', 'administrator'].includes(role as string) || (platforms as string[]).includes('dinges');
     } else {
       patch.axiom_upload_authorised =
-        ['superuser', 'administrator'].includes(effectiveRole) || effectivePlatforms.includes('axiom');
+        ['superuser', 'administrator'].includes(effectiveRole) || effectivePlatforms.includes('dinges');
     }
   }
 
