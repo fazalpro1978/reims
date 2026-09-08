@@ -68,13 +68,21 @@ const KITCHEN_MAP: Record<string, string> = {
   'pantry': 'Pantry',
 };
 
-// Columns that must be numeric in the DB (NUMERIC or INTEGER). Any non-numeric
-// value from the spreadsheet (e.g. "Maintenance included", "N/A") is coerced
-// to 0 rather than letting the bulk insert fail with a type error.
-const NUMERIC_COLUMNS = new Set([
+// Numeric columns: any non-numeric spreadsheet value is coerced to 0.
+const NUMERIC_COLUMNS = [
   'zone_code', 'bathrooms', 'rent', 'service_charges', 'deposit_amount',
   'agency_fee', 'kahramaa_amount', 'qatar_cool_amount', 'marafeq_amount',
-]);
+];
+
+// NOT NULL columns that have a DB DEFAULT of 0 or a safe fallback.
+// When absent from the payload, Supabase bulk-insert pads missing columns
+// with null rather than letting PostgreSQL apply the column default —
+// we must supply the value explicitly to avoid NOT NULL constraint violations.
+const NUMERIC_DEFAULTS: Record<string, number> = {
+  rent: 0, service_charges: 0, deposit_amount: 0, agency_fee: 0,
+  bathrooms: 0, zone_code: 0,
+  kahramaa_amount: 2000, qatar_cool_amount: 3000, marafeq_amount: 3000,
+};
 
 function coerceNumeric(v: unknown): number {
   const n = Number(v);
@@ -84,9 +92,14 @@ function coerceNumeric(v: unknown): number {
 function normaliseEnums(row: Record<string, unknown>): Record<string, unknown> {
   const out = { ...row };
 
-  // Coerce all numeric columns — guards against freeform text (e.g. "Maintenance included")
-  for (const col of Array.from(NUMERIC_COLUMNS)) {
+  // Coerce present numeric values (guards against freeform text)
+  for (const col of NUMERIC_COLUMNS) {
     if (col in out) out[col] = coerceNumeric(out[col]);
+  }
+  // Fill in defaults for absent NOT NULL numeric columns so bulk insert
+  // never sends null and lets the DB default apply
+  for (const col of Object.keys(NUMERIC_DEFAULTS)) {
+    if (!(col in out)) out[col] = NUMERIC_DEFAULTS[col];
   }
 
   if (typeof out.furnishing === 'string') {
