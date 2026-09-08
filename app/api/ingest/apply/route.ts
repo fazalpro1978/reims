@@ -85,7 +85,7 @@ function normaliseEnums(row: Record<string, unknown>): Record<string, unknown> {
   const out = { ...row };
 
   // Coerce all numeric columns — guards against freeform text (e.g. "Maintenance included")
-  for (const col of NUMERIC_COLUMNS) {
+  for (const col of Array.from(NUMERIC_COLUMNS)) {
     if (col in out) out[col] = coerceNumeric(out[col]);
   }
 
