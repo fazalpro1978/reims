@@ -1714,142 +1714,170 @@ function CrPdfModal({ records, onClose }: { records: RegistryRecord[]; onClose: 
   );
 }
 
-// ── Search Tab ────────────────────────────────────────────────────────────────
+// ── Smart Codes Tab (AXIOM Inventory Search) ──────────────────────────────────
 
-function SearchTab({ options }: { options: Options }) {
-  const { configs, entities, agents, zones } = options;
+type UnitRecord = {
+  id: string; realtor_name: string;
+  master_code: string | null; smart_code: string | null;
+  property: string; unit_no: string; zone_code: number; zone: string;
+  type: string; config: string; bathrooms: number; parking: boolean | null;
+  kitchen: string | null; furnishing: string | null; rent: number;
+  status: string; created_at: string;
+};
 
-  const [typeCode,     setTypeFilter]   = useState('');
-  const [entityCode,   setEntityFilter] = useState('');
-  const [agentCode,    setAgentFilter]  = useState('');
-  const [municipality, setMuniFilter]   = useState('');
-  const [zoneCode,     setZoneFilter]   = useState('');
-  const [dateFrom,     setDateFrom]     = useState('');
-  const [dateTo,       setDateTo]       = useState('');
-  const [q,            setQ]            = useState('');
-  const [page,         setPage]         = useState(1);
+function UnitStatusBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    Available:         { label: 'Available',   cls: 'text-[#22c55e] bg-[#22c55e]/10 border-[#22c55e]/20' },
+    Leased:            { label: 'Leased',      cls: 'text-[#f97316] bg-[#f97316]/10 border-[#f97316]/20' },
+    Reserved:          { label: 'Reserved',    cls: 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/20' },
+    Under_Maintenance: { label: 'Maintenance', cls: 'text-[#a855f7] bg-[#a855f7]/10 border-[#a855f7]/20' },
+  };
+  const e = map[status] ?? { label: status, cls: 'text-[#888] bg-[#1a1a1a] border-[#2a2a2a]' };
+  return (
+    <span className={`inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full border ${e.cls}`}>
+      {e.label}
+    </span>
+  );
+}
 
-  const [results,     setResults]     = useState<RegistryRecord[]>([]);
-  const [total,       setTotal]       = useState(0);
-  const [loading,     setLoading]     = useState(false);
-  const [searched,    setSearched]    = useState(false);
-  const [selectedIds,  setSelectedIds]  = useState<Set<string>>(new Set());
-  const [showPdf,      setShowPdf]      = useState(false);
-  const [detailRecord, setDetailRecord] = useState<RegistryRecord | null>(null);
+function KitchenBadge({ kitchen }: { kitchen: string | null }) {
+  if (!kitchen) return <span className="text-[#444] text-[10px]">—</span>;
+  const cls: Record<string, string> = {
+    Open:   'text-[#22c55e] bg-[#22c55e]/10 border-[#22c55e]/20',
+    Closed: 'text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/20',
+    Yes:    'text-[#22c55e] bg-[#22c55e]/10 border-[#22c55e]/20',
+    Pantry: 'text-[#f59e0b] bg-[#f59e0b]/10 border-[#f59e0b]/20',
+  };
+  return (
+    <span className={`inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full border ${cls[kitchen] ?? 'text-[#888] bg-[#1a1a1a] border-[#2a2a2a]'}`}>
+      {kitchen}
+    </span>
+  );
+}
 
-  function onStatusChange(id: string, status: string) {
-    setResults(prev => prev.map(r => r.id === id ? { ...r, status } : r));
-    setDetailRecord(dr => dr && dr.id === id ? { ...dr, status } : dr);
-  }
+const UNIT_TYPES   = ['Apartment','Villa','Penthouse','Studio','Duplex','Office','Retail','Warehouse'];
+const UNIT_CONFIGS = ['Studio','1 BHK','2 BHK','3 BHK','4 BHK','5 BHK','Office'];
 
-  const filteredZones  = zones.filter(z => !municipality || z.municipality === municipality);
+function SmartCodesTab({ options }: { options: Options }) {
+  const { agents, zones } = options;
+
+  const [q,           setQ]         = useState('');
+  const [unitType,    setUnitType]  = useState('');
+  const [config,      setConfig]    = useState('');
+  const [company,     setCompany]   = useState('');
+  const [agentCode,   setAgentCode] = useState('');
+  const [municipality, setMuni]     = useState('');
+  const [zoneCode,    setZoneCode]  = useState('');
+  const [dateFrom,    setDateFrom]  = useState('');
+  const [dateTo,      setDateTo]    = useState('');
+  const [page,     setPage]     = useState(1);
+  const [results,  setResults]  = useState<UnitRecord[]>([]);
+  const [total,    setTotal]    = useState(0);
+  const [loading,  setLoading]  = useState(false);
+  const [searched, setSearched] = useState(false);
+
   const municipalities = Array.from(new Set(zones.map(z => z.municipality))).sort();
-  const uniqueSubTypes = Array.from(new Set(configs.map(c => c.sub_type)));
-
-  const selectedRecords = results.filter(r => selectedIds.has(r.id));
-  const allSelected     = results.length > 0 && results.every(r => selectedIds.has(r.id));
-
-  function toggleRow(id: string) {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  }
-
-  function toggleAll() {
-    if (allSelected) {
-      setSelectedIds(prev => { const n = new Set(prev); results.forEach(r => n.delete(r.id)); return n; });
-    } else {
-      setSelectedIds(prev => { const n = new Set(prev); results.forEach(r => n.add(r.id)); return n; });
-    }
-  }
+  const filteredZones  = zones.filter(z => !municipality || z.municipality === municipality);
 
   const search = useCallback(async (p = 1) => {
-    setLoading(true); setSearched(true); setSelectedIds(new Set());
+    setLoading(true); setSearched(true);
     try {
       const params = new URLSearchParams({ page: String(p) });
-      if (typeCode)    params.set('typeCode',    typeCode);
-      if (entityCode)  params.set('entityCode',  entityCode);
-      if (agentCode)   params.set('agentCode',   agentCode);
-      if (zoneCode)    params.set('zoneCode',    zoneCode);
-      if (municipality) params.set('municipality', municipality);
-      if (dateFrom)    params.set('dateFrom',    dateFrom);
-      if (dateTo)      params.set('dateTo',      dateTo);
-      if (q)           params.set('q',           q);
-      const res  = await authedFetch(`/api/code-registry/search?${params}`);
+      if (q)           params.set('q',         q);
+      if (unitType)    params.set('type',       unitType);
+      if (config)      params.set('config',     config);
+      if (company)     params.set('company',    company);
+      if (agentCode)   params.set('agentCode',  agentCode);
+      if (zoneCode)    params.set('zoneCode',   zoneCode);
+      if (!zoneCode && municipality) {
+        const codes = zones.filter(z => z.municipality === municipality).map(z => z.zone_code).join(',');
+        if (codes) params.set('zoneCodes', codes);
+      }
+      if (dateFrom)    params.set('dateFrom',   dateFrom);
+      if (dateTo)      params.set('dateTo',     dateTo);
+      const res  = await authedFetch(`/api/code-registry/smart-codes?${params}`);
       const json = await res.json();
       setResults(json.data ?? []); setTotal(json.total ?? 0); setPage(p);
     } finally { setLoading(false); }
-  }, [typeCode, entityCode, agentCode, zoneCode, municipality, dateFrom, dateTo, q]);
+  }, [q, unitType, config, company, agentCode, zoneCode, municipality, dateFrom, dateTo, zones]);
 
   function exportExcel() {
     if (!results.length) return;
     const rows = results.map(r => ({
-      'Smart Code':     r.smart_code,
-      'Core Type':      r.core_type,
-      'Sub-Type':       r.sub_type,
-      'Configuration':  r.configuration,
-      'Entity Code':    r.entity_code,
-      'Company':        r.company_name,
-      'Classification': r.classification,
-      'Agent Code':     r.agent_code,
-      'Agent Name':     r.agent_name,
-      'Zone Code':      r.zone_code,
-      'District':       r.district_name,
-      'Municipality':   r.municipality,
-      'Sequence No':    r.sequence_number,
-      'Building':       r.building_name ?? '',
-      'Floor':          r.floor_ref ?? '',
-      'Unit Ref':       r.unit_ref ?? '',
-      'Notes':          r.notes ?? '',
-      'Registered':     new Date(r.created_at).toLocaleDateString('en-GB'),
+      'Realtor':     r.realtor_name,
+      'Master Code': r.master_code ?? '',
+      'Smart Code':  r.smart_code  ?? '',
+      'Property':    r.property,
+      'Unit No':     r.unit_no,
+      'Zone Code':   r.zone_code,
+      'Zone':        r.zone,
+      'Type':        r.type,
+      'Config':      r.config,
+      'Bathrooms':   r.bathrooms,
+      'Parking':     r.parking ? 'Yes' : 'No',
+      'Kitchen':     r.kitchen  ?? '',
+      'Furnishing':  r.furnishing ?? '',
+      'Rent (QAR)':  r.rent,
+      'Status':      r.status,
+      'Imported':    new Date(r.created_at).toLocaleDateString('en-GB'),
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Code Registry');
-    XLSX.writeFile(wb, `Code_Registry_${new Date().toISOString().slice(0,10)}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, 'Smart Codes');
+    XLSX.writeFile(wb, `Smart_Codes_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
-  const pageSize = 25;
-  const totalPages = Math.ceil(total / pageSize);
+  function clearAll() {
+    setQ(''); setUnitType(''); setConfig(''); setCompany(''); setAgentCode('');
+    setMuni(''); setZoneCode(''); setDateFrom(''); setDateTo('');
+    setResults([]); setTotal(0); setSearched(false);
+  }
 
-  const sel = "bg-[#1a1a1a] border border-[#2a2a2a] text-[#e0e0e0] text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-[#c9a84c]/60 w-full";
+  const pageSize   = 25;
+  const totalPages = Math.ceil(total / pageSize);
+  const sel = 'bg-[#1a1a1a] border border-[#2a2a2a] text-[#e0e0e0] text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-[#c9a84c]/60 w-full';
 
   return (
     <div className="space-y-4">
       {/* Filter Panel */}
       <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-5 space-y-4">
-        <p className="text-[10px] font-bold text-[#555] uppercase tracking-[0.18em]">Filters</p>
+        <p className="text-[10px] font-bold text-[#555] uppercase tracking-[0.18em]">Search AXIOM Inventory</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="sm:col-span-2">
+            <FieldLabel>Smart Code / Master Code / Property</FieldLabel>
+            <input
+              type="text" value={q} onChange={e => setQ(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && search(1)}
+              placeholder="Search code, property, realtor…"
+              className={sel + ' placeholder-[#555]'}
+            />
+          </div>
           <div>
-            <FieldLabel>Sub-Type</FieldLabel>
-            <select value={typeCode} onChange={e => setTypeFilter(e.target.value)} className={sel}>
+            <FieldLabel>Type</FieldLabel>
+            <select value={unitType} onChange={e => setUnitType(e.target.value)} className={sel}>
               <option value="">All types</option>
-              {uniqueSubTypes.map(s => {
-                const matched = configs.filter(c => c.sub_type === s);
-                return matched.map(c => (
-                  <option key={c.type_code} value={c.type_code}>
-                    [{c.type_code}] {c.configuration} — {s}
-                  </option>
-                ));
-              })}
+              {UNIT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
           <div>
-            <FieldLabel>Company</FieldLabel>
-            <select value={entityCode} onChange={e => setEntityFilter(e.target.value)} className={sel}>
-              <option value="">All companies</option>
-              {entities.map(e => (
-                <option key={e.entity_code} value={e.entity_code}>
-                  [{e.entity_code}] {e.company_name}
-                </option>
-              ))}
+            <FieldLabel>Config</FieldLabel>
+            <select value={config} onChange={e => setConfig(e.target.value)} className={sel}>
+              <option value="">All configs</option>
+              {UNIT_CONFIGS.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
+          </div>
+          <div>
+            <FieldLabel>Company / Realtor</FieldLabel>
+            <input
+              type="text" value={company} onChange={e => setCompany(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && search(1)}
+              placeholder="Realtor name…"
+              className={sel + ' placeholder-[#555]'}
+            />
           </div>
           <div>
             <FieldLabel>Agent</FieldLabel>
-            <select value={agentCode} onChange={e => setAgentFilter(e.target.value)} className={sel}>
+            <select value={agentCode} onChange={e => setAgentCode(e.target.value)} className={sel}>
               <option value="">All agents</option>
               {agents.map(a => (
                 <option key={a.agent_code} value={a.agent_code}>
@@ -1860,18 +1888,18 @@ function SearchTab({ options }: { options: Options }) {
           </div>
           <div>
             <FieldLabel>Municipality</FieldLabel>
-            <select value={municipality} onChange={e => { setMuniFilter(e.target.value); setZoneFilter(''); }} className={sel}>
+            <select value={municipality} onChange={e => { setMuni(e.target.value); setZoneCode(''); }} className={sel}>
               <option value="">All municipalities</option>
               {municipalities.map(m => <option key={m}>{m}</option>)}
             </select>
           </div>
           <div>
             <FieldLabel>Zone</FieldLabel>
-            <select value={zoneCode} onChange={e => setZoneFilter(e.target.value)} className={sel}>
+            <select value={zoneCode} onChange={e => setZoneCode(e.target.value)} className={sel}>
               <option value="">All zones</option>
               {filteredZones.map(z => (
                 <option key={z.zone_code} value={z.zone_code}>
-                  Zone {String(z.zone_code).padStart(2,'0')} — {z.district_name}
+                  Z{String(z.zone_code).padStart(2, '0')} — {z.district_name}
                 </option>
               ))}
             </select>
@@ -1884,15 +1912,6 @@ function SearchTab({ options }: { options: Options }) {
             <FieldLabel>To</FieldLabel>
             <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={sel} />
           </div>
-          <div>
-            <FieldLabel>Search</FieldLabel>
-            <input
-              type="text" value={q} onChange={e => setQ(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && search(1)}
-              placeholder="Code, company, district…"
-              className={sel + ' placeholder-[#555]'}
-            />
-          </div>
         </div>
         <div className="flex gap-3 pt-1">
           <button
@@ -1902,11 +1921,7 @@ function SearchTab({ options }: { options: Options }) {
             {loading ? 'Searching…' : 'Search'}
           </button>
           <button
-            onClick={() => {
-              setTypeFilter(''); setEntityFilter(''); setAgentFilter('');
-              setMuniFilter(''); setZoneFilter(''); setDateFrom(''); setDateTo(''); setQ('');
-              setResults([]); setTotal(0); setSearched(false);
-            }}
+            onClick={clearAll}
             className="text-[#888] hover:text-[#e0e0e0] text-sm border border-[#2a2a2a] px-4 py-2.5 rounded-lg transition-colors"
           >
             Clear
@@ -1917,161 +1932,136 @@ function SearchTab({ options }: { options: Options }) {
       {/* Results */}
       {searched && (
         <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl overflow-hidden">
-          {/* Table toolbar */}
           <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#1e1e1e] gap-3 flex-wrap">
             <p className="text-sm text-[#888]">
-              {loading ? 'Loading…' : `${total.toLocaleString()} record${total !== 1 ? 's' : ''} found`}
+              {loading ? 'Loading…' : `${total.toLocaleString()} unit${total !== 1 ? 's' : ''} found`}
             </p>
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                onClick={exportExcel}
-                disabled={!results.length}
-                className="flex items-center gap-2 text-xs font-semibold text-[#22c55e] border border-[#22c55e]/30 px-3 py-1.5 rounded-lg hover:bg-[#22c55e]/10 disabled:opacity-40 transition-colors"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                Export Excel
-              </button>
-            </div>
+            <button
+              onClick={exportExcel}
+              disabled={!results.length}
+              className="flex items-center gap-2 text-xs font-semibold text-[#22c55e] border border-[#22c55e]/30 px-3 py-1.5 rounded-lg hover:bg-[#22c55e]/10 disabled:opacity-40 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Export Excel
+            </button>
           </div>
-
-          {/* Bulk action bar */}
-          {selectedIds.size > 0 && (
-            <div className="flex items-center gap-3 px-5 py-2.5 bg-[#c9a84c]/8 border-b border-[#c9a84c]/20 flex-wrap">
-              <span className="text-xs font-bold text-[#c9a84c]">{selectedIds.size} selected</span>
-              <button
-                onClick={() => setSelectedIds(new Set())}
-                className="text-[10px] text-[#666] hover:text-[#e0e0e0] border border-[#2a2a2a] px-2 py-0.5 rounded transition-colors"
-              >Clear</button>
-              <div className="h-3 w-px bg-[#2a2a2a] mx-1" />
-              {/* WhatsApp */}
-              <button
-                onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(buildCrWaText(selectedRecords))}`, '_blank')}
-                className="flex items-center gap-1.5 text-xs font-semibold text-[#25d366] border border-[#25d366]/30 px-3 py-1.5 rounded-lg hover:bg-[#25d366]/10 transition-colors"
-              >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-                  <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.532 5.848L.072 23.928l6.244-1.637A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.891 0-3.667-.493-5.205-1.355l-.372-.221-3.708.972.988-3.615-.243-.387A9.953 9.953 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
-                </svg>
-                WhatsApp
-              </button>
-              {/* Email */}
-              <button
-                onClick={() => { window.location.href = buildCrEmailBody(selectedRecords); }}
-                className="flex items-center gap-1.5 text-xs font-semibold text-[#38bdf8] border border-[#38bdf8]/30 px-3 py-1.5 rounded-lg hover:bg-[#38bdf8]/10 transition-colors"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                </svg>
-                Email
-              </button>
-              {/* PDF Report */}
-              <button
-                onClick={() => setShowPdf(true)}
-                className="flex items-center gap-1.5 text-xs font-semibold text-[#e879f9] border border-[#e879f9]/30 px-3 py-1.5 rounded-lg hover:bg-[#e879f9]/10 transition-colors"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                </svg>
-                PDF Report
-              </button>
-            </div>
-          )}
 
           {results.length > 0 ? (
             <>
-              <div>
-                <table className="w-full text-sm table-fixed">
-                  <colgroup>
-                    <col className="w-8" />
-                    <col className="w-[152px]" />
-                    <col className="w-[90px]" />
-                    <col className="w-[110px]" />
-                    <col />
-                    <col className="w-[110px]" />
-                    <col className="w-[130px]" />
-                    <col className="w-[100px]" />
-                    <col className="w-8" />
-                  </colgroup>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm" style={{ minWidth: '960px' }}>
                   <thead>
                     <tr className="border-b border-[#1e1e1e]">
-                      <th className="pl-3 pr-1 py-2.5 w-8">
-                        <input
-                          type="checkbox"
-                          checked={allSelected}
-                          onChange={toggleAll}
-                          title="Select all"
-                          className="w-3.5 h-3.5 accent-[#c9a84c] cursor-pointer"
-                        />
-                      </th>
-                      {['Smart Code','Status','Type','Company','Agent','Zone / District','Ref / Date'].map(h => (
-                        <th key={h} className="text-left px-2 py-2.5 text-[10px] font-bold text-[#555] uppercase tracking-widest whitespace-nowrap">
+                      {['Realtor','Smart Code','Property / Unit','Zone / District','Type · Config','Bath','P','Kitchen','Furnishing','Rent (QAR/mo)','Status',''].map((h, i) => (
+                        <th key={i} className="text-left px-3 py-2.5 text-[10px] font-bold text-[#555] uppercase tracking-widest whitespace-nowrap">
                           {h}
                         </th>
                       ))}
-                      <th className="px-2 py-2.5 w-8" />
                     </tr>
                   </thead>
                   <tbody>
                     {results.map(r => (
-                      <tr
-                        key={r.id}
-                        className={`border-b border-[#1a1a1a] transition-colors group cursor-pointer ${selectedIds.has(r.id) ? 'bg-[#c9a84c]/5' : 'hover:bg-[#1a1a1a]'}`}
-                        onClick={() => toggleRow(r.id)}
-                      >
-                        <td className="pl-3 pr-1 py-2.5 w-8" onClick={e => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.has(r.id)}
-                            onChange={() => toggleRow(r.id)}
-                            className="w-3.5 h-3.5 accent-[#c9a84c] cursor-pointer"
-                          />
+                      <tr key={r.id} className="border-b border-[#1a1a1a] hover:bg-[#1a1a1a] transition-colors group">
+                        {/* Realtor */}
+                        <td className="px-3 py-2.5 max-w-[130px]">
+                          <p className="text-xs text-[#e0e0e0] truncate">{r.realtor_name}</p>
                         </td>
-                        <td className="px-2 py-2.5">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="font-mono text-xs text-[#e0e0e0] tracking-widest shrink-0">{r.smart_code}</span>
-                            <button
-                              onClick={e => { e.stopPropagation(); copyToClipboard(r.smart_code); }}
-                              className="opacity-0 group-hover:opacity-100 text-[9px] text-[#c9a84c] border border-[#c9a84c]/30 rounded px-1 py-0.5 transition-all shrink-0"
-                            >
-                              Copy
-                            </button>
+                        {/* Smart Code — dual-stacked: master (blue) on top, smart (green chip) below */}
+                        <td className="px-3 py-2.5">
+                          <div className="flex flex-col gap-0.5">
+                            {r.master_code ? (
+                              <button
+                                onClick={() => copyToClipboard(r.master_code!)}
+                                className="font-mono text-[11px] text-[#3b82f6] tracking-widest text-left hover:text-[#60a5fa] transition-colors leading-tight"
+                                title="Copy master code"
+                              >
+                                {r.master_code}
+                              </button>
+                            ) : (
+                              <span className="text-[10px] text-[#333] leading-tight">—</span>
+                            )}
+                            {r.smart_code ? (
+                              <button
+                                onClick={() => copyToClipboard(r.smart_code!)}
+                                className="inline-flex items-center self-start text-[10px] font-mono font-semibold text-[#22c55e] bg-[#22c55e]/10 border border-[#22c55e]/20 px-1.5 py-0.5 rounded hover:bg-[#22c55e]/20 transition-colors"
+                                title="Copy smart code"
+                              >
+                                {r.smart_code}
+                              </button>
+                            ) : (
+                              <span className="text-[10px] text-[#333]">—</span>
+                            )}
                           </div>
                         </td>
-                        <td className="px-2 py-2.5">
-                          <StatusBadge status={r.status ?? 'Active'} />
+                        {/* Property / Unit */}
+                        <td className="px-3 py-2.5 max-w-[160px]">
+                          <p className="text-xs font-semibold text-[#e0e0e0] truncate">{r.property}</p>
+                          <p className="text-[10px] text-[#666] mt-0.5">{r.unit_no}</p>
                         </td>
-                        <td className="px-2 py-2.5">
-                          <span className="text-[10px] font-mono text-[#a855f7] bg-[#a855f7]/10 px-1.5 py-0.5 rounded">{r.type_code}</span>
-                          <p className="text-[10px] text-[#666] truncate mt-0.5">{r.configuration}</p>
-                        </td>
-                        <td className="px-2 py-2.5 min-w-0">
-                          <p className="text-xs text-[#e0e0e0] truncate">{r.company_name}</p>
-                          <p className="text-[10px] text-[#555] font-mono">{r.entity_code}</p>
-                        </td>
-                        <td className="px-2 py-2.5">
-                          <span className="text-[10px] font-mono text-[#22c55e]">{r.agent_code}</span>
-                          <p className="text-[10px] text-[#666] truncate">{r.agent_name}</p>
-                        </td>
-                        <td className="px-2 py-2.5">
-                          <p className="text-[10px] text-[#e0e0e0] truncate">{r.district_name}</p>
-                          <p className="text-[10px] text-[#555]">Z{String(r.zone_code).padStart(2,'0')}</p>
-                        </td>
-                        <td className="px-2 py-2.5">
-                          <p className="text-[10px] text-[#888] truncate">
-                            {[r.building_name, r.floor_ref && `Fl.${r.floor_ref}`].filter(Boolean).join(' · ') || '—'}
+                        {/* Zone / District */}
+                        <td className="px-3 py-2.5 max-w-[130px]">
+                          <p className="text-[10px] font-semibold font-mono text-[#c9a84c]">
+                            Z-{String(r.zone_code).padStart(2, '0')}
                           </p>
-                          <p className="text-[10px] text-[#555]">{new Date(r.created_at).toLocaleDateString('en-GB')}</p>
+                          <p className="text-[10px] text-[#666] truncate">{r.zone}</p>
                         </td>
-                        <td className="px-2 py-2.5 w-8" onClick={e => e.stopPropagation()}>
+                        {/* Type · Config */}
+                        <td className="px-3 py-2.5 whitespace-nowrap">
+                          <p className="text-xs text-[#e0e0e0]">
+                            <span className="text-[#888]">{r.type}</span>
+                            {r.config && <> · <span className="font-semibold">{r.config}</span></>}
+                          </p>
+                        </td>
+                        {/* Bath */}
+                        <td className="px-3 py-2.5">
+                          <div className="flex items-center gap-1">
+                            <svg className="w-3 h-3 text-[#888] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                            </svg>
+                            <span className="text-xs text-[#e0e0e0]">{r.bathrooms || '—'}</span>
+                          </div>
+                        </td>
+                        {/* Parking */}
+                        <td className="px-3 py-2.5 text-center">
+                          {r.parking
+                            ? <svg className="w-3.5 h-3.5 text-[#22c55e] mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                            : <span className="text-[#333] text-xs">—</span>}
+                        </td>
+                        {/* Kitchen */}
+                        <td className="px-3 py-2.5">
+                          <KitchenBadge kitchen={r.kitchen} />
+                        </td>
+                        {/* Furnishing */}
+                        <td className="px-3 py-2.5 whitespace-nowrap">
+                          <p className="text-[10px] text-[#888]">
+                            {r.furnishing === 'Fully Furnished' ? 'Fully Furn.'
+                              : r.furnishing === 'Semi-Furnished' ? 'Semi-Furn.'
+                              : r.furnishing ?? '—'}
+                          </p>
+                        </td>
+                        {/* Rent */}
+                        <td className="px-3 py-2.5 whitespace-nowrap">
+                          <p className="text-xs font-semibold text-[#e0e0e0]">
+                            {r.rent ? `QAR ${r.rent.toLocaleString()}` : '—'}
+                          </p>
+                        </td>
+                        {/* Status */}
+                        <td className="px-3 py-2.5">
+                          <UnitStatusBadge status={r.status} />
+                        </td>
+                        {/* Copy row */}
+                        <td className="px-2 py-2.5">
                           <button
-                            onClick={e => { e.stopPropagation(); setDetailRecord(r); }}
+                            onClick={() => {
+                              const text = [r.master_code, r.smart_code, `${r.property} ${r.unit_no}`, r.zone,
+                                `${r.type} ${r.config}`, `QAR ${r.rent?.toLocaleString()}`, r.status].filter(Boolean).join(' | ');
+                              copyToClipboard(text);
+                            }}
                             className="opacity-0 group-hover:opacity-100 w-6 h-6 rounded hover:bg-[#252525] flex items-center justify-center text-[#666] hover:text-[#e0e0e0] transition-all"
-                            title="View details"
-                          >
-                            ⋮
-                          </button>
+                            title="Copy row"
+                          >⋮</button>
                         </td>
                       </tr>
                     ))}
@@ -2079,43 +2069,22 @@ function SearchTab({ options }: { options: Options }) {
                 </table>
               </div>
 
-              {/* Pagination */}
               {totalPages > 1 && (
                 <div className="flex items-center justify-between px-5 py-3 border-t border-[#1e1e1e]">
-                  <button
-                    disabled={page <= 1}
-                    onClick={() => search(page - 1)}
-                    className="text-sm text-[#888] hover:text-[#e0e0e0] disabled:opacity-30 transition-colors"
-                  >← Previous</button>
+                  <button disabled={page <= 1} onClick={() => search(page - 1)} className="text-sm text-[#888] hover:text-[#e0e0e0] disabled:opacity-30 transition-colors">← Previous</button>
                   <span className="text-xs text-[#555]">Page {page} of {totalPages}</span>
-                  <button
-                    disabled={page >= totalPages}
-                    onClick={() => search(page + 1)}
-                    className="text-sm text-[#888] hover:text-[#e0e0e0] disabled:opacity-30 transition-colors"
-                  >Next →</button>
+                  <button disabled={page >= totalPages} onClick={() => search(page + 1)} className="text-sm text-[#888] hover:text-[#e0e0e0] disabled:opacity-30 transition-colors">Next →</button>
                 </div>
               )}
             </>
           ) : (
             !loading && (
               <div className="px-5 py-12 text-center text-[#555] text-sm">
-                No codes registered yet. Use the Register tab to generate your first Smart Code.
+                No records found. Adjust filters and search again.
               </div>
             )
           )}
         </div>
-      )}
-
-      {showPdf && (
-        <CrPdfModal records={selectedRecords} onClose={() => setShowPdf(false)} />
-      )}
-
-      {detailRecord && (
-        <CrDetailModal
-          record={detailRecord}
-          onClose={() => setDetailRecord(null)}
-          onStatusChange={onStatusChange}
-        />
       )}
     </div>
   );
@@ -2579,7 +2548,7 @@ function ZoneRegistryTab() {
 
 export default function CodeRegistry({ onMenuClick }: { onMenuClick?: () => void }) {
   const [options,    setOptions]    = useState<Options | null>(null);
-  const [activeTab,  setActiveTab]  = useState<'register' | 'search' | 'realtors' | 'zones'>('register');
+  const [activeTab,  setActiveTab]  = useState<'register' | 'smart-codes' | 'realtors' | 'zones'>('register');
   const [loadError,  setLoadError]  = useState(false);
 
   useEffect(() => {
@@ -2635,7 +2604,7 @@ export default function CodeRegistry({ onMenuClick }: { onMenuClick?: () => void
             <p className="text-[11px] text-[#555] mt-0.5">14-Digit Smart Serial Code Generator by Vanguard REOS</p>
           </div>
           <div className="flex items-center gap-1 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg p-1">
-            {(['register', 'search', 'realtors', 'zones'] as const).map(tab => (
+            {(['register', 'smart-codes', 'realtors', 'zones'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -2645,7 +2614,7 @@ export default function CodeRegistry({ onMenuClick }: { onMenuClick?: () => void
                     : 'text-[#888] hover:text-[#e0e0e0]'
                 }`}
               >
-                {tab === 'register' ? 'Register' : tab === 'search' ? 'Search Registry' : tab === 'realtors' ? 'Realtors' : 'Zone / District'}
+                {tab === 'register' ? 'Register' : tab === 'smart-codes' ? 'Smart Codes' : tab === 'realtors' ? 'Realtors' : 'Zone / District'}
               </button>
             ))}
           </div>
@@ -2656,8 +2625,8 @@ export default function CodeRegistry({ onMenuClick }: { onMenuClick?: () => void
       <div className="max-w-5xl mx-auto px-5 py-6">
         {activeTab === 'register'
           ? <RegisterTab options={options} onEntityAdded={handleEntityAdded} onConfigAdded={handleConfigAdded} onAgentAdded={handleAgentAdded} onZoneAdded={handleZoneAdded} />
-          : activeTab === 'search'
-          ? <SearchTab options={options} />
+          : activeTab === 'smart-codes'
+          ? <SmartCodesTab options={options} />
           : activeTab === 'realtors'
           ? <RealtorRegistryTab />
           : <ZoneRegistryTab />
