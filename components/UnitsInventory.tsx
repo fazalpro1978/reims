@@ -519,6 +519,9 @@ export default function UnitsInventory({
       !_q ||
       u.property.toLowerCase().includes(_q) ||
       u.unitNo.toLowerCase().includes(_q) ||
+      (u.zone  ?? '').toLowerCase().includes(_q) ||
+      (u.smartCode  ?? '').toLowerCase().includes(_q) ||
+      (u.masterCode ?? '').toLowerCase().includes(_q) ||
       (!isAgent && u.realtorName.toLowerCase().includes(_q)) ||
       (!isAgent && (u.realtorMOCI ?? '').toLowerCase().includes(_q));
     const matchStatus     = statusFilter     === 'All' || u.status      === statusFilter;
@@ -868,7 +871,7 @@ export default function UnitsInventory({
               </span>
               <input
                 type="text"
-                placeholder={isAgent ? 'Search property, unit, zone…' : 'Search code, realtor, zone…'}
+                placeholder={isAgent ? 'Search property, unit, zone, smart code…' : 'Search property, unit, zone, smart/master code, realtor…'}
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); resetPage(); }}
                 className="w-full pl-9 pr-3 py-2 text-sm bg-[#1e1e1e] text-white border border-[#2a2a2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c9a84c]/40 focus:border-[#c9a84c] placeholder:text-[#505050]"
