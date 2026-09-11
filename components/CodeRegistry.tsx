@@ -1951,7 +1951,7 @@ function SmartCodesTab({ options }: { options: Options }) {
           {results.length > 0 ? (
             <>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm" style={{ minWidth: '960px' }}>
+                <table className="w-full text-sm" style={{ minWidth: '1100px' }}>
                   <thead>
                     <tr className="border-b border-[#1e1e1e]">
                       {['Realtor','Smart Code','Property / Unit','Zone / District','Type · Config','Bath','P','Kitchen','Furnishing','Rent (QAR/mo)','Status',''].map((h, i) => (
@@ -1974,7 +1974,7 @@ function SmartCodesTab({ options }: { options: Options }) {
                             {r.master_code ? (
                               <button
                                 onClick={() => copyToClipboard(r.master_code!)}
-                                className="font-mono text-[11px] text-[#3b82f6] tracking-widest text-left hover:text-[#60a5fa] transition-colors leading-tight"
+                                className="font-mono text-[10px] text-[#3b82f6] tracking-wider text-left hover:text-[#60a5fa] transition-colors leading-tight"
                                 title="Copy master code"
                               >
                                 {r.master_code}
@@ -2622,7 +2622,7 @@ export default function CodeRegistry({ onMenuClick }: { onMenuClick?: () => void
       </div>
 
       {/* Content */}
-      <div className="max-w-5xl mx-auto px-5 py-6">
+      <div className={`${activeTab === 'smart-codes' ? 'max-w-screen-xl' : 'max-w-5xl'} mx-auto px-5 py-6`}>
         {activeTab === 'register'
           ? <RegisterTab options={options} onEntityAdded={handleEntityAdded} onConfigAdded={handleConfigAdded} onAgentAdded={handleAgentAdded} onZoneAdded={handleZoneAdded} />
           : activeTab === 'smart-codes'
