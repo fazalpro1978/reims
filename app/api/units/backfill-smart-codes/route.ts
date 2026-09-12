@@ -115,10 +115,47 @@ export async function POST(req: Request) {
       .upsert(upsertRows, { onConflict: 'entity_code,zone_code,type_code' });
   }
 
+  // Sync unit_snapshot.smart_code in inquiry_matches so Synergy cards
+  // always reflect the current smart_code, not the stale cached value.
+  let snapshotsSynced = 0;
+  if (backfilled > 0) {
+    // Re-read the smart_codes we just wrote
+    const updatedIds = units
+      .filter((_, i) => i < units.length)   // all of them — filter happens below
+      .map(u => u.id);
+
+    const { data: freshUnits } = await admin
+      .from('units')
+      .select('id, smart_code')
+      .in('id', updatedIds)
+      .not('smart_code', 'is', null);
+
+    for (const fu of (freshUnits ?? [])) {
+      if (!fu.smart_code) continue;
+
+      const { data: matches } = await admin
+        .from('inquiry_matches')
+        .select('id, unit_snapshot')
+        .eq('unit_id', fu.id);
+
+      for (const match of (matches ?? [])) {
+        const snap = (match.unit_snapshot as Record<string, unknown>) ?? {};
+        // Only update when the cached smart_code differs
+        if (snap.smart_code === fu.smart_code) continue;
+        await admin
+          .from('inquiry_matches')
+          .update({ unit_snapshot: { ...snap, smart_code: fu.smart_code } })
+          .eq('id', match.id);
+        snapshotsSynced++;
+      }
+    }
+  }
+
   return NextResponse.json({
     backfilled,
     skipped,
     total: units.length,
+    snapshotsSynced,
     ...(errors.length ? { errors } : {}),
   });
 }
