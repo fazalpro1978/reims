@@ -572,75 +572,105 @@ export default function UnitsInventory({
   // ── AXIOM INGES export ────────────────────────────────────────────────────
 
   const generateAxiomExport = useCallback((rows: typeof filteredUnits) => {
-    // Column order exactly mirrors the AXIOM INGES Schema Template:
-    // MASTER_FIELDS → BATCH_FIELDS → EXTENDED_FIELDS
-    const cols: { header: string; get: (u: typeof filteredUnits[number]) => string | number }[] = [
+    type Col = { header: string; get: (u: typeof filteredUnits[number]) => string | number };
+
+    // ── Section 1: REIMS identifiers (unstacked from dual-stack grid display) ─
+    const identifierCols: Col[] = [
+      { header: 'Realtor Name',        get: (u) => u.realtorName ?? '' },
+      { header: 'Master Code',         get: (u) => u.masterCode  ?? '' },
+      { header: 'Unit Smart Code',     get: (u) => u.smartCode   ?? '' },
+    ];
+
+    // ── Section 2: Core unit fields — AXIOM INGES template order ─────────────
+    const coreCols: Col[] = [
       { header: 'Property Name [PRIMARY KEY] *',    get: (u) => u.property },
       { header: 'Property Unit No [PRIMARY KEY] *', get: (u) => u.unitNo },
       { header: 'Zone Number *',                    get: (u) => u.zoneCode },
+      { header: 'Zone / District',                  get: (u) => u.zone ?? '' },
       { header: 'Property Type *',                  get: (u) => u.type },
       { header: 'Property Subtype *',               get: (u) => u.config },
-      // REIMS 'Fully Furnished' → AXIOM enum 'Furnished'
-      { header: 'Furnishing Status *',              get: (u) => u.furnishing === 'Fully Furnished' ? 'Furnished' : u.furnishing },
-      { header: 'Bathrooms',                        get: (u) => u.bathrooms || '' },
-      { header: 'Kitchen',                          get: (u) => u.kitchen ?? '' },
-      // REIMS parking is boolean; AXIOM template expects numeric (1 / 0)
-      { header: 'Parking',                          get: (u) => u.parking ? 1 : 0 },
-      { header: 'Rent (QAR / Monthly)',             get: (u) => u.rent || '' },
-      // Status normalisation: REIMS enum values → AXIOM equivalents
+      { header: 'Bedrooms', get: (u) => {
+        const m = String(u.config ?? '').match(/^(\d+)\s*BHK/i);
+        return m ? Number(m[1]) : '';
+      }},
+      { header: 'Bathrooms',  get: (u) => u.bathrooms || '' },
+      { header: 'Kitchen',    get: (u) => u.kitchen ?? '' },
+      { header: 'Parking',    get: (u) => u.parking ? 1 : 0 },
+      { header: 'Furnishing Status *', get: (u) => u.furnishing === 'Fully Furnished' ? 'Furnished' : u.furnishing },
+      { header: 'Rent (QAR / Monthly)', get: (u) => u.rent || '' },
       { header: 'Status', get: (u) => {
         if (u.status === 'Under_Maintenance') return 'Under Preparation';
         if (u.status === 'Leased') return 'Not Available';
         return u.status;
       }},
-      { header: 'Map URL',                          get: (u) => u.locationMapUrl ?? '' },
-      { header: 'Media Storage URL',                get: (u) => u.mediaUrl ?? '' },
-      { header: 'Realtor Name',                     get: (u) => u.realtorName ?? '' },
-      // Extended fields: contact_details = "Name Phone" (AXIOM transit format)
-      { header: 'Contact Details', get: (u) => {
-        const parts = [u.focalPointName, u.focalPointPhone].filter(Boolean);
-        return parts.join(' ');
-      }},
-      { header: 'View',                             get: (u) => u.view ?? '' },
-      { header: 'Amenities',                        get: (u) => (u.amenities ?? []).join(' | ') },
-      { header: 'Design Type',                      get: (u) => u.designType ?? '' },
     ];
+
+    // ── Section 3: Extended / financial fields ────────────────────────────────
+    const extendedCols: Col[] = [
+      { header: 'Service Charges (QAR)',  get: (u) => u.serviceCharges  || '' },
+      { header: 'Deposit Amount (QAR)',   get: (u) => u.depositAmount   || '' },
+      { header: 'Agency Fee (QAR)',       get: (u) => u.agencyFee       || '' },
+      { header: 'View',                   get: (u) => u.view ?? '' },
+      { header: 'Amenities',             get: (u) => (u.amenities ?? []).join(' | ') },
+      { header: 'Design Type',           get: (u) => u.designType ?? '' },
+      { header: 'Listing Type',          get: (u) => u.listingType ?? '' },
+      { header: 'Contact Name',          get: (u) => u.focalPointName  ?? '' },
+      { header: 'Contact Phone',         get: (u) => u.focalPointPhone ?? '' },
+      { header: 'Contact Details',       get: (u) => [u.focalPointName, u.focalPointPhone].filter(Boolean).join(' ') },
+      { header: 'Map URL',               get: (u) => u.locationMapUrl ?? '' },
+      { header: 'Media Storage URL',     get: (u) => u.mediaUrl ?? '' },
+    ];
+
+    const cols = [...identifierCols, ...coreCols, ...extendedCols];
 
     const wb = XLSX.utils.book_new();
 
-    // Data sheet — column headers + one row per unit
     const wsData = [
       cols.map((c) => c.header),
       ...rows.map((u) => cols.map((c) => c.get(u))),
     ];
     const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-    // Column widths for readability
     ws['!cols'] = [
-      { wch: 28 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 16 },
-      { wch: 16 }, { wch: 10 }, { wch: 10 }, { wch: 8  }, { wch: 16 },
-      { wch: 16 }, { wch: 40 }, { wch: 40 }, { wch: 24 }, { wch: 26 }, { wch: 18 },
+      // Identifiers
+      { wch: 28 }, { wch: 20 }, { wch: 18 },
+      // Core
+      { wch: 30 }, { wch: 16 }, { wch: 12 }, { wch: 24 },
+      { wch: 16 }, { wch: 18 }, { wch: 10 }, { wch: 10 },
+      { wch: 12 }, { wch: 8  }, { wch: 18 }, { wch: 18 }, { wch: 18 },
+      // Extended
+      { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 24 },
+      { wch: 40 }, { wch: 16 }, { wch: 14 }, { wch: 22 },
+      { wch: 18 }, { wch: 30 }, { wch: 40 }, { wch: 40 },
     ];
+
+    // Freeze the header row
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+
     XLSX.utils.book_append_sheet(wb, ws, 'Units');
 
-    // Notes sheet — column legend
+    // Notes sheet
     const notes = [
       ['Column', 'Notes'],
-      ['[PRIMARY KEY] *', 'Mandatory. Used for entity matching in AXIOM. Missing value auto-rejects the row.'],
-      ['*',              'Required field. Row blocked until value is valid.'],
-      ['(no marker)',    'Optional. Missing value does not block import.'],
+      ['[PRIMARY KEY] *',   'Mandatory. Used for entity matching in AXIOM. Missing value auto-rejects the row.'],
+      ['*',                 'Required field. Row blocked until value is valid.'],
+      ['(no marker)',       'Optional. Missing value does not block import.'],
+      ['Master Code',       '16-digit REIMS master property identifier (e.g. RAEMSB5508091920). Read-only audit field.'],
+      ['Unit Smart Code',   '14-digit unique unit identifier (e.g. RAEMSB552B0001). Assigned by AXIOM pipeline. Do not modify.'],
+      ['Zone / District',   'Human-readable zone name. Zone Number is the numeric key used for import matching.'],
+      ['Bedrooms',          'Derived from Property Subtype (e.g. "2 BHK" → 2). Studio = blank.'],
       ['Furnishing Status', 'Accepted: Furnished | Semi-Furnished | Unfurnished'],
-      ['Status',         'Accepted: Available | Not Available | Reserved | Under Preparation'],
-      ['Contact Details','Format: "Name Phone" — parsed into focal point name and phone on import.'],
-      ['View',           'Normalised to one of 44 AXIOM VIEW options. Populates view_types in REIMS if it is a REIMS VIEW TYPE.'],
-      ['Parking',        '1 = has parking, 0 = no parking'],
-      ['Amenities',      'Pipe-separated list (e.g. "Balcony | Central A/C"). Re-imported as amenities[] in AXIOM. Consolidates the deprecated Maid Room and WiFi columns.'],
-      ['Design Type',    'Layout variant or special designation (e.g. "Type B", "Standard", "Medium", "Mock up unit"). Stored in Classification → Unit Type in REIMS.'],
-      ['Exported',       new Date().toLocaleString()],
-      ['Rows',           rows.length],
+      ['Status',            'Accepted: Available | Not Available | Reserved | Under Preparation'],
+      ['Parking',           '1 = has parking, 0 = no parking'],
+      ['View',              'Normalised to one of 44 AXIOM VIEW options.'],
+      ['Amenities',         'Pipe-separated list (e.g. "Balcony | Central A/C"). Re-imported as amenities[] in AXIOM.'],
+      ['Design Type',       'Layout variant (e.g. "Type B", "Standard", "Mock up unit"). Stored in Classification → Unit Type in REIMS.'],
+      ['Contact Details',   'Combined "Name Phone" — AXIOM transit format for round-trip re-upload.'],
+      ['Exported',          new Date().toLocaleString()],
+      ['Rows',              rows.length],
     ];
     const wsNotes = XLSX.utils.aoa_to_sheet(notes);
-    wsNotes['!cols'] = [{ wch: 20 }, { wch: 80 }];
+    wsNotes['!cols'] = [{ wch: 20 }, { wch: 90 }];
     XLSX.utils.book_append_sheet(wb, wsNotes, 'Notes');
 
     const ts = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '');
