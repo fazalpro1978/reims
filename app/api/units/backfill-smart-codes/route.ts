@@ -38,7 +38,19 @@ export async function POST(req: Request) {
   }
 
   if (!units || units.length === 0) {
-    return NextResponse.json({ backfilled: 0, skipped: 0 });
+    return NextResponse.json({ backfilled: 0, skipped: 0, total: 0 });
+  }
+
+  // Load the current sequence counters for all relevant buckets up front
+  const { data: seqRows } = await admin
+    .from('cr_smart_code_sequences')
+    .select('entity_code, zone_code, type_code, last_seq');
+
+  // In-memory sequence map: "entity|zone|type" → current last_seq
+  const seqMap = new Map<string, number>();
+  for (const row of (seqRows ?? [])) {
+    const key = `${row.entity_code}|${row.zone_code}|${row.type_code}`;
+    seqMap.set(key, row.last_seq as number);
   }
 
   let backfilled = 0;
@@ -47,7 +59,11 @@ export async function POST(req: Request) {
 
   for (const unit of units) {
     const parts = parseMasterCode(unit.master_code ?? '');
-    if (!parts) { skipped++; continue; }
+    if (!parts) {
+      errors.push(`Unit ${unit.id}: master_code too short ("${unit.master_code}")`);
+      skipped++;
+      continue;
+    }
 
     // Resolve type_code from cr_config_type_map
     const { data: typeRow } = await admin
@@ -58,40 +74,45 @@ export async function POST(req: Request) {
 
     const typeCode: string = (typeRow?.type_code as string | null) ?? 'XX';
 
-    // Call atomic RPC to assign (or patch) smart_code
-    const { data: assignment, error: rpcError } = await admin.rpc('cr_assign_smart_code', {
-      p_category:  parts.category,
-      p_entity:    parts.entity,
-      p_agent:     parts.agent,
-      p_zone_code: parts.zone_code,
-      p_type_code: typeCode,
-      p_realtor:   String(unit.realtor_name ?? ''),
-      p_property:  String(unit.property ?? ''),
-      p_unit_no:   String(unit.unit_no ?? ''),
-      p_zone_name: String(unit.zone ?? ''),
-    });
+    // Increment local sequence counter for this bucket
+    const bucketKey = `${parts.entity}|${parts.zone_code}|${typeCode}`;
+    const nextSeq = (seqMap.get(bucketKey) ?? 0) + 1;
+    seqMap.set(bucketKey, nextSeq);
 
-    if (rpcError || !assignment) {
-      errors.push(`Unit ${unit.id}: ${rpcError?.message ?? 'no assignment'}`);
-      skipped++;
-      continue;
-    }
+    // Build 14-char smart_code
+    const smartCode = parts.category
+      + parts.entity
+      + parts.agent
+      + parts.zone_code
+      + typeCode
+      + String(nextSeq).padStart(4, '0');
 
-    const newSmartCode: string = (assignment as { smart_code: string }).smart_code;
-    if (!newSmartCode) { skipped++; continue; }
-
-    // Write smart_code back to this unit
+    // Write smart_code to this unit
     const { error: updateError } = await admin
       .from('units')
-      .update({ smart_code: newSmartCode, updated_at: new Date().toISOString() })
+      .update({ smart_code: smartCode, updated_at: new Date().toISOString() })
       .eq('id', unit.id);
 
     if (updateError) {
       errors.push(`Unit ${unit.id} update: ${updateError.message}`);
+      // Roll back local seq so gap doesn't form — next unit gets this slot
+      seqMap.set(bucketKey, nextSeq - 1);
       skipped++;
     } else {
       backfilled++;
     }
+  }
+
+  // Persist updated sequence counters back to cr_smart_code_sequences
+  const upsertRows = Array.from(seqMap.entries()).map(([key, last_seq]) => {
+    const [entity_code, zone_code, type_code] = key.split('|');
+    return { entity_code, zone_code, type_code, last_seq, updated_at: new Date().toISOString() };
+  });
+
+  if (upsertRows.length > 0) {
+    await admin
+      .from('cr_smart_code_sequences')
+      .upsert(upsertRows, { onConflict: 'entity_code,zone_code,type_code' });
   }
 
   return NextResponse.json({

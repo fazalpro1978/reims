@@ -695,12 +695,19 @@ export default function UnitsInventory({
         setToast({ type: 'error', msg: `Backfill failed: ${body.error ?? res.statusText}` });
         return;
       }
-      const { backfilled, skipped, total } = await res.json();
+      const result = await res.json();
+      // eslint-disable-next-line no-console
+      console.log('[Backfill]', result);
+      const { backfilled, skipped, total, errors: bfErrors } = result;
       if (backfilled > 0) setRefreshKey((k) => k + 1);
-      setToast({
-        type: 'success',
-        msg: `Backfill complete — ${backfilled} smart code(s) written, ${skipped} skipped (${total} units checked).`,
-      });
+      if (bfErrors?.length) {
+        setToast({ type: 'error', msg: `Backfill: ${backfilled} written, ${skipped} skipped. Error sample: ${bfErrors[0]}` });
+      } else {
+        setToast({
+          type: skipped > 0 && backfilled === 0 ? 'error' : 'success',
+          msg: `Backfill complete — ${backfilled} smart code(s) written, ${skipped} skipped (${total} units checked).`,
+        });
+      }
     } finally {
       setBackfillBusy(false);
     }
