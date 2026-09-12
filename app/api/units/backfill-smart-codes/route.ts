@@ -41,16 +41,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ backfilled: 0, skipped: 0, total: 0 });
   }
 
-  // Load the current sequence counters for all relevant buckets up front
-  const { data: seqRows } = await admin
-    .from('cr_smart_code_sequences')
-    .select('entity_code, zone_code, type_code, last_seq');
+  // Derive starting sequences from the MAX existing smart_codes in public.units.
+  // This guarantees we never collide with codes already written by any prior run.
+  // Format: Cat(1)+Entity(3)+Agent(2)+Zone(2)+TypeCode(2)+Seq(4) = 14 chars
+  const { data: existingCodes } = await admin
+    .from('units')
+    .select('smart_code')
+    .not('smart_code', 'is', null)
+    .not('smart_code', 'ilike', '%XX%');
 
-  // In-memory sequence map: "entity|zone|type" → current last_seq
   const seqMap = new Map<string, number>();
-  for (const row of (seqRows ?? [])) {
-    const key = `${row.entity_code}|${row.zone_code}|${row.type_code}`;
-    seqMap.set(key, row.last_seq as number);
+  for (const row of (existingCodes ?? [])) {
+    const sc = row.smart_code as string;
+    if (!sc || sc.length !== 14) continue;
+    const entity   = sc.slice(1, 4);
+    const zone     = sc.slice(6, 8);
+    const typeCode = sc.slice(8, 10);
+    const seq      = parseInt(sc.slice(10, 14), 10);
+    if (isNaN(seq)) continue;
+    const key = `${entity}|${zone}|${typeCode}`;
+    if (seq > (seqMap.get(key) ?? 0)) seqMap.set(key, seq);
   }
 
   let backfilled = 0;
@@ -95,8 +105,6 @@ export async function POST(req: Request) {
 
     if (updateError) {
       errors.push(`Unit ${unit.id} update: ${updateError.message}`);
-      // Roll back local seq so gap doesn't form — next unit gets this slot
-      seqMap.set(bucketKey, nextSeq - 1);
       skipped++;
     } else {
       backfilled++;
