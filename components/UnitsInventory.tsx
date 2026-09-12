@@ -695,7 +695,10 @@ export default function UnitsInventory({
         setToast({ type: 'error', msg: `Backfill failed: ${body.error ?? res.statusText}` });
         return;
       }
-      const { backfilled } = await res.json();
+      const backfillResult = await res.json();
+      const { backfilled, skipped, total: bfTotal, errors: bfErrors } = backfillResult;
+      // eslint-disable-next-line no-console
+      console.log('[ZeroBlankPolicy] backfill result:', backfillResult);
 
       // 2. If anything was written back, trigger a fresh fetch before export
       if (backfilled > 0) {
@@ -769,17 +772,23 @@ export default function UnitsInventory({
         designType:          row.design_type ?? undefined,
       })) as typeof filteredUnits;
 
-      // 4. ZeroBlankPolicy: abort if any unit still has no smart_code
-      const blankCount = freshMapped.filter((u) => !u.smartCode).length;
-      if (blankCount > 0) {
-        setToast({ type: 'error', msg: `ZeroBlankPolicy: ${blankCount} unit(s) still missing smart_code after backfill. Export aborted.` });
+      // 4. ZeroBlankPolicy: units with a master_code MUST have a smart_code after backfill.
+      //    Units without a master_code cannot be backfilled and are allowed to export blank.
+      const codeableWithoutSC = freshMapped.filter((u) => u.masterCode && !u.smartCode);
+      if (codeableWithoutSC.length > 0) {
+        const detail = bfErrors?.length
+          ? ` Errors: ${(bfErrors as string[]).slice(0, 3).join('; ')}`
+          : ` (backfill: ${backfilled} written, ${skipped ?? 0} skipped of ${bfTotal ?? '?'} found)`;
+        setToast({ type: 'error', msg: `ZeroBlankPolicy: ${codeableWithoutSC.length} unit(s) have master_code but no smart_code.${detail}` });
         return;
       }
 
       generateAxiomExport(freshMapped);
-      if (backfilled > 0) {
-        setToast({ type: 'success', msg: `Smart codes backfilled for ${backfilled} unit(s). Export complete.` });
-      }
+      const noMcCount = freshMapped.filter((u) => !u.masterCode).length;
+      const msg = backfilled > 0
+        ? `Backfilled ${backfilled} smart code(s). Export complete.${noMcCount > 0 ? ` (${noMcCount} unit(s) without master_code exported with blank smart_code)` : ''}`
+        : `Export complete.${noMcCount > 0 ? ` ${noMcCount} unit(s) have no master_code — smart_code cannot be auto-generated for them.` : ''}`;
+      setToast({ type: backfilled > 0 || noMcCount === 0 ? 'success' : 'error', msg });
     } finally {
       setExportBusy(false);
     }
