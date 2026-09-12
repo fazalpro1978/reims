@@ -1150,6 +1150,11 @@ function MatchingGrid({ inquiryId, clientEmail }: {
                         {canUnitCode ? m.unit_code : (snap?.smart_code ?? m.unit_code ?? '—')}
                       </span>
                       <span className="w-1.5 h-1.5 rounded-full bg-[#4ade80] shrink-0" title="Available" />
+                      {snap?.smart_code && (
+                        <span className="inline-block font-mono text-[10px] font-semibold text-[#1a1a1a] bg-[#4ade80] px-1.5 py-0.5 rounded leading-none tracking-wide shrink-0">
+                          {snap.smart_code}
+                        </span>
+                      )}
                       {/* Flash indicator badges — shown beside tier label */}
                       {showDualFlash && (
                         <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border"
