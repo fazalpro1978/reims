@@ -37,13 +37,14 @@ export async function POST(req: Request) {
   const authResult = await requireAuth(req as Parameters<typeof requireAuth>[0]);
   if (!authResult.ok) return authResult.response;
 
-  // ── 1. Seed cr_config_type_map (idempotent) ─────────────────────────────────
+  // ── 1. Seed cr_config_type_map (idempotent, best-effort) ────────────────────
+  // If the table doesn't exist the error is ignored; DEFAULT_TYPE_MAP is the fallback.
   await admin
     .from('cr_config_type_map')
     .upsert(
       Object.entries(DEFAULT_TYPE_MAP).map(([config_key, type_code]) => ({ config_key, type_code })),
       { onConflict: 'config_key' },
-    );
+    ).then(() => null).catch(() => null);
 
   // ── 2. Purge: NULL all smart_codes and wipe sequence counters ────────────────
   // Starting from zero eliminates musical-chairs unique-constraint collisions
@@ -102,7 +103,10 @@ export async function POST(req: Request) {
       continue;
     }
 
-    const typeCode = typeCache.get(String(unit.config ?? '').trim()) ?? 'XX';
+    const config = String(unit.config ?? '').trim();
+    // DB table is authoritative; DEFAULT_TYPE_MAP is the in-memory fallback
+    // so type codes resolve correctly even if cr_config_type_map doesn't exist.
+    const typeCode = typeCache.get(config) ?? DEFAULT_TYPE_MAP[config] ?? 'XX';
     const bucketKey = `${parts.entity}|${parts.agent}|${parts.zone_code}|${typeCode}`;
     const nextSeq = (seqMap.get(bucketKey) ?? 0) + 1;
     seqMap.set(bucketKey, nextSeq);
