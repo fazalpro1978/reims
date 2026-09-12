@@ -43,11 +43,11 @@ export async function requireAuth(
     .eq('id', user.id)
     .single();
 
-  if (!profile?.is_active) {
+  const role = profile.role as Role;
+
+  if (role !== 'superuser' && !profile?.is_active) {
     return { ok: false, response: NextResponse.json({ error: 'Account inactive' }, { status: 403 }) };
   }
-
-  const role = profile.role as Role;
 
   if (allowedRoles && !allowedRoles.includes(role)) {
     return { ok: false, response: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
