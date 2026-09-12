@@ -26,11 +26,11 @@ export async function POST(req: Request) {
   const authResult = await requireAuth(req as Parameters<typeof requireAuth>[0]);
   if (!authResult.ok) return authResult.response;
 
-  // Fetch all units missing smart_code but having master_code
+  // Fetch units that need a smart_code: either missing one OR have a placeholder XX code
   const { data: units, error: fetchError } = await admin
     .from('units')
-    .select('id, master_code, config, realtor_name, property, unit_no, zone')
-    .is('smart_code', null)
+    .select('id, master_code, config, realtor_name, property, unit_no, zone, smart_code')
+    .or('smart_code.is.null,smart_code.ilike.%XX%')
     .not('master_code', 'is', null);
 
   if (fetchError) {
