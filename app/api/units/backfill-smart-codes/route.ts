@@ -7,9 +7,20 @@ const admin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-// Parse a 16-char master_code into its component parts.
-// Format: {Cat(1)}{Entity(3)}{Agent(2)}{Zone(2)}{Date(4)}{Time(4)}
-// Example: RAEMSB5508091920
+// Canonical type-code map — upserted on every run so the table stays in sync.
+const DEFAULT_TYPE_MAP: Record<string, string> = {
+  'Studio':     'ST',
+  '1 BHK':      '1B',
+  '2 BHK':      '2B',
+  '3 BHK':      '3B',
+  '4 BHK':      '4B',
+  '5 BHK':      '5B',
+  'Penthouse':  'PH',
+  'Villa':      'VL',
+  'Duplex':     'DP',
+  'Townhouse':  'TH',
+};
+
 function parseMasterCode(mc: string): {
   category: string; entity: string; agent: string; zone_code: string;
 } | null {
@@ -26,11 +37,35 @@ export async function POST(req: Request) {
   const authResult = await requireAuth(req as Parameters<typeof requireAuth>[0]);
   if (!authResult.ok) return authResult.response;
 
-  // Fetch units that need a smart_code: either missing one OR have a placeholder XX code
+  // ── 1. Seed cr_config_type_map (idempotent) ─────────────────────────────────
+  await admin
+    .from('cr_config_type_map')
+    .upsert(
+      Object.entries(DEFAULT_TYPE_MAP).map(([config_key, type_code]) => ({ config_key, type_code })),
+      { onConflict: 'config_key' },
+    );
+
+  // ── 2. Purge: NULL all smart_codes and wipe sequence counters ────────────────
+  // Starting from zero eliminates musical-chairs unique-constraint collisions
+  // that occur when in-flight updates race against still-held legacy codes.
+  const { error: purgeError } = await admin
+    .from('units')
+    .update({ smart_code: null })
+    .not('id', 'is', null);
+
+  if (purgeError) {
+    return NextResponse.json({ error: `Purge failed: ${purgeError.message}` }, { status: 500 });
+  }
+
+  await admin
+    .from('cr_smart_code_sequences')
+    .delete()
+    .not('entity_code', 'is', null);
+
+  // ── 3. Fetch all units that have a master_code ───────────────────────────────
   const { data: units, error: fetchError } = await admin
     .from('units')
-    .select('id, master_code, config, realtor_name, property, unit_no, zone, smart_code')
-    .or('smart_code.is.null,smart_code.ilike.%XX%')
+    .select('id, master_code, config')
     .not('master_code', 'is', null);
 
   if (fetchError) {
@@ -38,34 +73,23 @@ export async function POST(req: Request) {
   }
 
   if (!units || units.length === 0) {
-    return NextResponse.json({ backfilled: 0, skipped: 0, total: 0 });
+    return NextResponse.json({ purged: true, backfilled: 0, skipped: 0, total: 0 });
   }
 
-  // Derive starting sequences from the MAX existing smart_codes in public.units.
-  // This guarantees we never collide with codes already written by any prior run.
-  // Format: Cat(1)+Entity(3)+Agent(2)+Zone(2)+TypeCode(2)+Seq(4) = 14 chars
-  const { data: existingCodes } = await admin
-    .from('units')
-    .select('smart_code')
-    .not('smart_code', 'is', null)
-    .not('smart_code', 'ilike', '%XX%');
+  // ── 4. Load full type map into memory (one query, not N) ─────────────────────
+  const { data: typeMapRows } = await admin
+    .from('cr_config_type_map')
+    .select('config_key, type_code');
 
-  // Bucket key includes agent so it exactly mirrors the unique code prefix
-  // (Cat+Entity+Agent+Zone+TypeCode) — sequence is unique per prefix.
+  const typeCache = new Map<string, string>();
+  for (const row of (typeMapRows ?? [])) {
+    typeCache.set(row.config_key as string, row.type_code as string);
+  }
+
+  // ── 5. Backfill ──────────────────────────────────────────────────────────────
+  // Bucket key = entity|agent|zone|typeCode — mirrors the full 10-char code prefix.
+  // Starting from zero with all codes NULLed means no collisions are possible.
   const seqMap = new Map<string, number>();
-  for (const row of (existingCodes ?? [])) {
-    const sc = row.smart_code as string;
-    if (!sc || sc.length !== 14) continue;
-    const entity   = sc.slice(1, 4);
-    const agent    = sc.slice(4, 6);
-    const zone     = sc.slice(6, 8);
-    const typeCode = sc.slice(8, 10);
-    const seq      = parseInt(sc.slice(10, 14), 10);
-    if (isNaN(seq)) continue;
-    const key = `${entity}|${agent}|${zone}|${typeCode}`;
-    if (seq > (seqMap.get(key) ?? 0)) seqMap.set(key, seq);
-  }
-
   let backfilled = 0;
   let skipped = 0;
   const errors: string[] = [];
@@ -78,63 +102,33 @@ export async function POST(req: Request) {
       continue;
     }
 
-    // Resolve type_code from cr_config_type_map
-    const { data: typeRow } = await admin
-      .from('cr_config_type_map')
-      .select('type_code')
-      .eq('config_key', String(unit.config ?? ''))
-      .maybeSingle();
-
-    const typeCode: string = (typeRow?.type_code as string | null) ?? 'XX';
-
+    const typeCode = typeCache.get(String(unit.config ?? '').trim()) ?? 'XX';
     const bucketKey = `${parts.entity}|${parts.agent}|${parts.zone_code}|${typeCode}`;
+    const nextSeq = (seqMap.get(bucketKey) ?? 0) + 1;
+    seqMap.set(bucketKey, nextSeq);
 
-    // Retry loop: on duplicate key we bump the counter and try the next seq.
-    // This handles any edge case where the DB already holds a code the scan missed.
-    let written = false;
-    let attempts = 0;
-    let lastError = '';
-    while (!written && attempts < 20) {
-      const nextSeq = (seqMap.get(bucketKey) ?? 0) + 1;
-      seqMap.set(bucketKey, nextSeq);
+    const smartCode =
+      parts.category +
+      parts.entity +
+      parts.agent +
+      parts.zone_code +
+      typeCode +
+      String(nextSeq).padStart(4, '0');
 
-      const smartCode = parts.category
-        + parts.entity
-        + parts.agent
-        + parts.zone_code
-        + typeCode
-        + String(nextSeq).padStart(4, '0');
+    const { error: updateError } = await admin
+      .from('units')
+      .update({ smart_code: smartCode, updated_at: new Date().toISOString() })
+      .eq('id', unit.id);
 
-      const { error: updateError } = await admin
-        .from('units')
-        .update({ smart_code: smartCode, updated_at: new Date().toISOString() })
-        .eq('id', unit.id);
-
-      if (!updateError) {
-        written = true;
-        backfilled++;
-      } else if (
-        (updateError as { code?: string }).code === '23505' ||
-        updateError.message.includes('duplicate key') ||
-        updateError.message.includes('unique')
-      ) {
-        // seq collision — advance the counter and try again
-        attempts++;
-        lastError = `seq=${nextSeq} → ${updateError.message}`;
-      } else {
-        errors.push(`Unit ${unit.id} update: ${updateError.message}`);
-        skipped++;
-        break;
-      }
-    }
-
-    if (!written && attempts >= 20) {
-      errors.push(`Unit ${unit.id}: gave up after 20 attempts — ${lastError}`);
+    if (updateError) {
+      errors.push(`Unit ${unit.id}: ${updateError.message}`);
       skipped++;
+    } else {
+      backfilled++;
     }
   }
 
-  // Persist updated sequence counters back to cr_smart_code_sequences
+  // ── 6. Persist sequence counters ─────────────────────────────────────────────
   const upsertRows = Array.from(seqMap.entries()).map(([key, last_seq]) => {
     const [entity_code, , zone_code, type_code] = key.split('|');
     return { entity_code, zone_code, type_code, last_seq, updated_at: new Date().toISOString() };
@@ -146,15 +140,10 @@ export async function POST(req: Request) {
       .upsert(upsertRows, { onConflict: 'entity_code,zone_code,type_code' });
   }
 
-  // Sync unit_snapshot.smart_code in inquiry_matches so Synergy cards
-  // always reflect the current smart_code, not the stale cached value.
+  // ── 7. Sync unit_snapshot.smart_code in inquiry_matches ──────────────────────
   let snapshotsSynced = 0;
   if (backfilled > 0) {
-    // Re-read the smart_codes we just wrote
-    const updatedIds = units
-      .filter((_, i) => i < units.length)   // all of them — filter happens below
-      .map(u => u.id);
-
+    const updatedIds = units.map(u => u.id);
     const { data: freshUnits } = await admin
       .from('units')
       .select('id, smart_code')
@@ -163,7 +152,6 @@ export async function POST(req: Request) {
 
     for (const fu of (freshUnits ?? [])) {
       if (!fu.smart_code) continue;
-
       const { data: matches } = await admin
         .from('inquiry_matches')
         .select('id, unit_snapshot')
@@ -171,7 +159,6 @@ export async function POST(req: Request) {
 
       for (const match of (matches ?? [])) {
         const snap = (match.unit_snapshot as Record<string, unknown>) ?? {};
-        // Only update when the cached smart_code differs
         if (snap.smart_code === fu.smart_code) continue;
         await admin
           .from('inquiry_matches')
@@ -183,6 +170,7 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({
+    purged: true,
     backfilled,
     skipped,
     total: units.length,

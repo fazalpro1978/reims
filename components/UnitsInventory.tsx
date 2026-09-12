@@ -699,12 +699,12 @@ export default function UnitsInventory({
       const { backfilled, skipped, total, snapshotsSynced, errors: bfErrors } = result;
       if (backfilled > 0) setRefreshKey((k) => k + 1);
       if (bfErrors?.length) {
-        setToast({ type: 'error', msg: `Backfill: ${backfilled} written, ${skipped} skipped. Error: ${bfErrors[0]}` });
+        setToast({ type: 'error', msg: `Purge + backfill: ${backfilled} written, ${skipped} skipped. Error: ${bfErrors[0]}` });
       } else {
         const syncMsg = snapshotsSynced > 0 ? ` · ${snapshotsSynced} Synergy snapshot(s) updated.` : '';
         setToast({
           type: skipped > 0 && backfilled === 0 ? 'error' : 'success',
-          msg: `Backfill complete — ${backfilled} smart code(s) written, ${skipped} skipped (${total} units checked).${syncMsg}`,
+          msg: `Purge + backfill complete — ${backfilled}/${total} smart code(s) written, ${skipped} skipped.${syncMsg}`,
         });
       }
     } finally {
