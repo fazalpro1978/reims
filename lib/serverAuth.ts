@@ -43,9 +43,13 @@ export async function requireAuth(
     .eq('id', user.id)
     .single();
 
+  if (!profile) {
+    return { ok: false, response: NextResponse.json({ error: 'Account inactive' }, { status: 403 }) };
+  }
+
   const role = profile.role as Role;
 
-  if (role !== 'superuser' && !profile?.is_active) {
+  if (role !== 'superuser' && !profile.is_active) {
     return { ok: false, response: NextResponse.json({ error: 'Account inactive' }, { status: 403 }) };
   }
 
