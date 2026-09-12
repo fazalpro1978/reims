@@ -683,7 +683,13 @@ export default function UnitsInventory({
     setExportBusy(true);
     try {
       // 1. Backfill — server writes smart_codes for all NULL rows
-      const res = await fetch('/api/units/backfill-smart-codes', { method: 'POST' });
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/units/backfill-smart-codes', {
+        method: 'POST',
+        headers: session?.access_token
+          ? { Authorization: `Bearer ${session.access_token}` }
+          : {},
+      });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         setToast({ type: 'error', msg: `Backfill failed: ${body.error ?? res.statusText}` });
