@@ -50,16 +50,19 @@ export async function POST(req: Request) {
     .not('smart_code', 'is', null)
     .not('smart_code', 'ilike', '%XX%');
 
+  // Bucket key includes agent so it exactly mirrors the unique code prefix
+  // (Cat+Entity+Agent+Zone+TypeCode) — sequence is unique per prefix.
   const seqMap = new Map<string, number>();
   for (const row of (existingCodes ?? [])) {
     const sc = row.smart_code as string;
     if (!sc || sc.length !== 14) continue;
     const entity   = sc.slice(1, 4);
+    const agent    = sc.slice(4, 6);
     const zone     = sc.slice(6, 8);
     const typeCode = sc.slice(8, 10);
     const seq      = parseInt(sc.slice(10, 14), 10);
     if (isNaN(seq)) continue;
-    const key = `${entity}|${zone}|${typeCode}`;
+    const key = `${entity}|${agent}|${zone}|${typeCode}`;
     if (seq > (seqMap.get(key) ?? 0)) seqMap.set(key, seq);
   }
 
@@ -84,36 +87,56 @@ export async function POST(req: Request) {
 
     const typeCode: string = (typeRow?.type_code as string | null) ?? 'XX';
 
-    // Increment local sequence counter for this bucket
-    const bucketKey = `${parts.entity}|${parts.zone_code}|${typeCode}`;
-    const nextSeq = (seqMap.get(bucketKey) ?? 0) + 1;
-    seqMap.set(bucketKey, nextSeq);
+    const bucketKey = `${parts.entity}|${parts.agent}|${parts.zone_code}|${typeCode}`;
 
-    // Build 14-char smart_code
-    const smartCode = parts.category
-      + parts.entity
-      + parts.agent
-      + parts.zone_code
-      + typeCode
-      + String(nextSeq).padStart(4, '0');
+    // Retry loop: on duplicate key we bump the counter and try the next seq.
+    // This handles any edge case where the DB already holds a code the scan missed.
+    let written = false;
+    let attempts = 0;
+    let lastError = '';
+    while (!written && attempts < 20) {
+      const nextSeq = (seqMap.get(bucketKey) ?? 0) + 1;
+      seqMap.set(bucketKey, nextSeq);
 
-    // Write smart_code to this unit
-    const { error: updateError } = await admin
-      .from('units')
-      .update({ smart_code: smartCode, updated_at: new Date().toISOString() })
-      .eq('id', unit.id);
+      const smartCode = parts.category
+        + parts.entity
+        + parts.agent
+        + parts.zone_code
+        + typeCode
+        + String(nextSeq).padStart(4, '0');
 
-    if (updateError) {
-      errors.push(`Unit ${unit.id} update: ${updateError.message}`);
+      const { error: updateError } = await admin
+        .from('units')
+        .update({ smart_code: smartCode, updated_at: new Date().toISOString() })
+        .eq('id', unit.id);
+
+      if (!updateError) {
+        written = true;
+        backfilled++;
+      } else if (
+        (updateError as { code?: string }).code === '23505' ||
+        updateError.message.includes('duplicate key') ||
+        updateError.message.includes('unique')
+      ) {
+        // seq collision — advance the counter and try again
+        attempts++;
+        lastError = `seq=${nextSeq} → ${updateError.message}`;
+      } else {
+        errors.push(`Unit ${unit.id} update: ${updateError.message}`);
+        skipped++;
+        break;
+      }
+    }
+
+    if (!written && attempts >= 20) {
+      errors.push(`Unit ${unit.id}: gave up after 20 attempts — ${lastError}`);
       skipped++;
-    } else {
-      backfilled++;
     }
   }
 
   // Persist updated sequence counters back to cr_smart_code_sequences
   const upsertRows = Array.from(seqMap.entries()).map(([key, last_seq]) => {
-    const [entity_code, zone_code, type_code] = key.split('|');
+    const [entity_code, , zone_code, type_code] = key.split('|');
     return { entity_code, zone_code, type_code, last_seq, updated_at: new Date().toISOString() };
   });
 
