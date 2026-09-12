@@ -383,6 +383,28 @@ body {
 .rpt-nbhd-notes { font-size: 8pt; color: #94a3b8; margin-top: 1pt; font-style: italic; }
 .rpt-nbhd-empty { font-size: 8.5pt; color: #cbd5e1; font-style: italic; }
 
+/* ── Smart Code identification badge ─────────────────────────────────────────── */
+.rpt-smart-badge {
+  display: inline-block;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 14.5pt;
+  font-weight: 700;
+  color: #0a1f0a;
+  background: #4ade80;
+  padding: 3pt 12pt;
+  border-radius: 4pt;
+  letter-spacing: 0.16em;
+  line-height: 1.6;
+}
+.rpt-smart-subtitle {
+  font-size: 9.5pt;
+  font-weight: 500;
+  color: #475569;
+  margin-top: 5pt;
+  margin-bottom: 0;
+  line-height: 1.4;
+}
+
 /* ── 8. Contact & operations ─────────────────────────────────────────────────── */
 .rpt-admin-hub {
   font-size: 9.5pt; color: #334155; line-height: 1.75;
@@ -457,19 +479,34 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
       <hr className="rpt-hr-gold" />
 
       {/* ── 2. Asset Identification Banner ────────────────────────────── */}
-      <h1 className="rpt-asset-title">
-        {opts.isExternal
-          ? (data.smartCode || '—')
-          : (data.titleOverride || <>{data.propertyName}&nbsp;&bull;&nbsp;CODE:&nbsp;{data.unitCode}&nbsp;|&nbsp;Zone:&nbsp;{data.zoneCode}.&nbsp;{data.zoneName}</>)
-        }
-      </h1>
+      <p className="rpt-sec-lbl" style={{ marginTop: 0, marginBottom: '5pt' }}>Unit Smart Code</p>
+      <div>
+        {opts.isExternal ? (
+          data.smartCode
+            ? <span className="rpt-smart-badge">{data.smartCode}</span>
+            : <span className="rpt-asset-title">—</span>
+        ) : data.titleOverride ? (
+          <h1 className="rpt-asset-title">{data.titleOverride}</h1>
+        ) : data.smartCode ? (
+          <>
+            <span className="rpt-smart-badge">{data.smartCode}</span>
+            <p className="rpt-smart-subtitle">
+              {data.propertyName}&nbsp;&bull;&nbsp;Zone&nbsp;{data.zoneCode}.&nbsp;{data.zoneName}
+            </p>
+          </>
+        ) : (
+          <h1 className="rpt-asset-title">
+            {data.propertyName}&nbsp;&bull;&nbsp;CODE:&nbsp;{data.unitCode}&nbsp;|&nbsp;Zone:&nbsp;{data.zoneCode}.&nbsp;{data.zoneName}
+          </h1>
+        )}
+      </div>
       {data.salutation && (
         <p className="rpt-salutation">{data.salutation}</p>
       )}
       <hr className="rpt-hr-light" />
 
-      {/* ── 3. Property & Unit Details ────────────────────────────────── */}
-      <p className="rpt-sec-lbl" style={{ marginTop: 0 }}>Property &amp; Unit Details</p>
+      {/* ── 3. Unit Details ───────────────────────────────────────────── */}
+      <p className="rpt-sec-lbl" style={{ marginTop: 0 }}>Unit Details</p>
       <table className="rpt-det-tbl">
         <tbody>
           <tr>
@@ -903,7 +940,7 @@ export default function ReportPage() {
                   <input
                     className="rpt-edit-inp"
                     type="text"
-                    placeholder={`${data.propertyName} • CODE: ${data.unitCode} | Zone: ${data.zoneCode}. ${data.zoneName}`}
+                    placeholder={data.smartCode ? `${data.smartCode} — override title (leave blank to use Smart Code badge)` : `${data.propertyName} • Zone ${data.zoneCode}. ${data.zoneName}`}
                     value={titleOverride}
                     onChange={e => setTitleOverride(e.target.value)}
                   />

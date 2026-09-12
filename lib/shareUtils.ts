@@ -16,7 +16,7 @@ export function generatePublicShareText(unit: UnitListing): string {
   return [
     `Connecting you with property, the Privé way`,
     ``,
-    `PROPERTY DETAILS`,
+    hasSmartCode ? `UNIT IDENTIFICATION` : `PROPERTY DETAILS`,
     ...(hasSmartCode
       ? [
           `  Smart Code       ${unit.smartCode}`,
