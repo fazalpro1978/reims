@@ -378,6 +378,7 @@ export default function UnitsInventory({
   const [dbError, setDbError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+  const [exportBusy, setExportBusy] = useState(false);
 
   useEffect(() => {
     async function fetchUnits() {
@@ -676,6 +677,107 @@ export default function UnitsInventory({
     const ts = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '');
     XLSX.writeFile(wb, `reims-inges-export-${ts}.xlsx`);
   }, [filteredUnits]);
+
+  // ── ZeroBlankPolicy: backfill missing smart_codes, re-fetch, then export ────
+  const exportAxiomData = useCallback(async () => {
+    setExportBusy(true);
+    try {
+      // 1. Backfill — server writes smart_codes for all NULL rows
+      const res = await fetch('/api/units/backfill-smart-codes', { method: 'POST' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setToast({ type: 'error', msg: `Backfill failed: ${body.error ?? res.statusText}` });
+        return;
+      }
+      const { backfilled } = await res.json();
+
+      // 2. If anything was written back, trigger a fresh fetch before export
+      if (backfilled > 0) {
+        await new Promise<void>((resolve) => {
+          setRefreshKey((k) => { setTimeout(resolve, 800); return k + 1; });
+        });
+      }
+
+      // 3. Re-read units directly so export uses the freshest data
+      const { data: fresh, error: freshErr } = await supabase
+        .from('units')
+        .select('*, unit_operational(maintenance_notes, access_lockbox, focal_point_name, focal_point_phone), master_code, smart_code')
+        .order('unit_code');
+
+      if (freshErr || !fresh) {
+        setToast({ type: 'error', msg: `Re-fetch failed: ${freshErr?.message ?? 'unknown'}` });
+        return;
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const freshMapped = (fresh as any[]).map((row) => ({
+        id:                  row.unit_code,
+        uuid:                row.id,
+        realtorName:         row.realtor_name,
+        realtorMOCI:         row.realtor_moci,
+        property:            row.property,
+        unitNo:              row.unit_no,
+        zoneCode:            row.zone_code,
+        zone:                row.zone,
+        type:                row.type,
+        config:              row.config,
+        bathrooms:           Number(row.bathrooms),
+        parking:             row.parking,
+        amenities:           row.amenities ?? [],
+        viewTypes:           row.view_types ?? [],
+        kitchen:             row.kitchen,
+        furnishing:          row.furnishing,
+        listingType:         row.listing_type,
+        status:              row.status,
+        rent:                Number(row.rent),
+        serviceCharges:      Number(row.service_charges),
+        depositAmount:       Number(row.deposit_amount),
+        agencyFee:           Number(row.agency_fee),
+        kahramaaApplicable:  row.kahramaa_applicable   ?? true,
+        kahramaaAmount:      Number(row.kahramaa_amount)  || 2000,
+        qatarCoolApplicable: row.qatar_cool_applicable ?? true,
+        qatarCoolAmount:     Number(row.qatar_cool_amount) || 3000,
+        marafeqApplicable:   row.marafeq_applicable    ?? true,
+        marafeqAmount:       Number(row.marafeq_amount)   || 3000,
+        mociContractStatus:  row.moci_contract_status,
+        mociContractNumber:  row.moci_contract_number ?? '',
+        legalDuration:       row.legal_duration ?? '',
+        contractStartDate:   row.contract_start_date ?? '',
+        contractEndDate:     row.contract_end_date ?? '',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        maintenanceNotes:    (row.unit_operational as any)?.[0]?.maintenance_notes ?? '',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        accessLockbox:       (row.unit_operational as any)?.[0]?.access_lockbox ?? '',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        focalPointName:      (row.unit_operational as any)?.[0]?.focal_point_name ?? '',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        focalPointPhone:     (row.unit_operational as any)?.[0]?.focal_point_phone ?? '',
+        view:                row.view ?? '',
+        assetHistoryLinks:   row.asset_history_links ?? [],
+        locationMapUrl:      row.location_map_url ?? '',
+        mediaUrl:            row.media_url ?? '',
+        listedDate:          row.listed_date ?? '',
+        lastUpdated:         row.updated_at ?? '',
+        smartCode:           row.smart_code   ?? undefined,
+        masterCode:          row.master_code  ?? undefined,
+        designType:          row.design_type ?? undefined,
+      })) as typeof filteredUnits;
+
+      // 4. ZeroBlankPolicy: abort if any unit still has no smart_code
+      const blankCount = freshMapped.filter((u) => !u.smartCode).length;
+      if (blankCount > 0) {
+        setToast({ type: 'error', msg: `ZeroBlankPolicy: ${blankCount} unit(s) still missing smart_code after backfill. Export aborted.` });
+        return;
+      }
+
+      generateAxiomExport(freshMapped);
+      if (backfilled > 0) {
+        setToast({ type: 'success', msg: `Smart codes backfilled for ${backfilled} unit(s). Export complete.` });
+      }
+    } finally {
+      setExportBusy(false);
+    }
+  }, [generateAxiomExport, setRefreshKey, filteredUnits]);
 
   // ── Context menu positioning ───────────────────────────────────────────────
 
@@ -1040,15 +1142,22 @@ export default function UnitsInventory({
               )}
               {!isAgent && (
                 <button
-                  onClick={() => generateAxiomExport(filteredUnits)}
-                  disabled={filteredUnits.length === 0}
-                  title="Export filtered units in AXIOM INGES template format for bulk re-upload"
+                  onClick={exportAxiomData}
+                  disabled={filteredUnits.length === 0 || exportBusy}
+                  title="Backfills missing smart codes, then exports in AXIOM INGES template format"
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-[#1e1e1e] border border-[#3a3a3a] text-[#c9a84c] hover:border-[#c9a84c] hover:bg-[#c9a84c]/10 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg transition-colors whitespace-nowrap"
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  EXPORT AXIOM DATA
+                  {exportBusy ? (
+                    <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                  )}
+                  {exportBusy ? 'PREPARING…' : 'EXPORT AXIOM DATA'}
                 </button>
               )}
             </div>
