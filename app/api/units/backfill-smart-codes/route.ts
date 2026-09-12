@@ -39,12 +39,13 @@ export async function POST(req: Request) {
 
   // ── 1. Seed cr_config_type_map (idempotent, best-effort) ────────────────────
   // If the table doesn't exist the error is ignored; DEFAULT_TYPE_MAP is the fallback.
+  // best-effort — ignored if cr_config_type_map doesn't exist; DEFAULT_TYPE_MAP is the fallback
   await admin
     .from('cr_config_type_map')
     .upsert(
       Object.entries(DEFAULT_TYPE_MAP).map(([config_key, type_code]) => ({ config_key, type_code })),
       { onConflict: 'config_key' },
-    ).then(() => null).catch(() => null);
+    );
 
   // ── 2. Purge: NULL all smart_codes and wipe sequence counters ────────────────
   // Starting from zero eliminates musical-chairs unique-constraint collisions
