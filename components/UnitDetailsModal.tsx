@@ -233,6 +233,9 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
   const [saveError, setSaveError] = useState('');
   const [realtors, setRealtors] = useState<{ id: string; name: string; moci: string; classification?: string }[]>([]);
   const [zones, setZones] = useState<{ zone_code: number; district_name: string; municipality?: string }[]>([]);
+  const [bookingValidity, setBookingValidity] = useState<'Applicable' | 'Not Applicable'>('Not Applicable');
+  const [bookingValidityPeriod, setBookingValidityPeriod] = useState('');
+  const [bookingFee, setBookingFee] = useState<number>(0);
 
   // Add realtor inline form
   const [addingRealtor, setAddingRealtor] = useState(false);
@@ -343,7 +346,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
   useEffect(() => {
     if (!unitUuid) return;
     supabase.from('units')
-      .select('realtor_name,realtor_moci,property,unit_no,zone,zone_code,type,config,parking,kitchen,furnishing,status,location_map_url,media_url,amenities,view_types,floor,size_sqm')
+      .select('realtor_name,realtor_moci,property,unit_no,zone,zone_code,type,config,parking,kitchen,furnishing,status,location_map_url,media_url,amenities,view_types,floor,size_sqm,booking_validity,booking_validity_period,booking_fee')
       .eq('id', unitUuid).single()
       .then(({ data }) => {
         if (!data) return;
@@ -373,6 +376,9 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
         else if (typeof rawVT === 'string') {
           try { setViewTypes(JSON.parse(rawVT)); } catch { /* leave empty */ }
         }
+        if (data.booking_validity) setBookingValidity(data.booking_validity as 'Applicable' | 'Not Applicable');
+        if (data.booking_validity_period != null) setBookingValidityPeriod(data.booking_validity_period ?? '');
+        if (data.booking_fee != null) setBookingFee(Number(data.booking_fee) || 0);
       });
   }, [unitUuid]);
 
@@ -416,6 +422,9 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
           media_url:        mediaUrl || null,
           floor:            floor !== '' ? Number(floor) : null,
           size_sqm:         sizeSqm !== '' ? Number(sizeSqm) : null,
+          booking_validity:        bookingValidity,
+          booking_validity_period: bookingValidity === 'Applicable' ? bookingValidityPeriod : null,
+          booking_fee:             bookingValidity === 'Applicable' ? bookingFee : null,
         },
       }),
     });
@@ -857,6 +866,44 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
         {/* Listing Type — read-only (structural field) */}
         <FieldRow label="Listing Type" value={<span className="text-sm text-[#d0d0d0]">{unit.listingType}</span>} />
 
+        {/* Booking Validity */}
+        <FieldRow
+          label="Booking Validity"
+          value={<ApplicableToggle value={bookingValidity === 'Applicable'} onChange={(v) => setBookingValidity(v ? 'Applicable' : 'Not Applicable')} />}
+        />
+
+        {bookingValidity === 'Applicable' && (
+          <>
+            <FieldRow
+              label="Booking Validity Period"
+              value={
+                <input
+                  type="text"
+                  value={bookingValidityPeriod}
+                  onChange={(e) => setBookingValidityPeriod(e.target.value)}
+                  placeholder="e.g. 7 days"
+                  className={inp}
+                />
+              }
+            />
+            <FieldRow
+              label="Booking Fee (QAR)"
+              value={
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-[#666666] select-none">QAR</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={bookingFee}
+                    onChange={(e) => setBookingFee(Math.max(0, Number(e.target.value)))}
+                    className="w-36 text-right text-sm font-semibold text-[#e0e0e0] bg-[#111111] border border-[#333333] rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] tabular-nums"
+                  />
+                </div>
+              }
+            />
+          </>
+        )}
+
         {/* Bathrooms — read-only */}
         <FieldRow label="Bathrooms" value={
           <span className="font-mono text-sm">{unit.bathrooms % 1 === 0 ? unit.bathrooms : unit.bathrooms.toFixed(1)}</span>
@@ -1176,27 +1223,33 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState('');
 
-  const [kahramaaApplicable, setKahramaaApplicable] = useState<boolean>(true);
+  const [kahramaaApplicable, setKahramaaApplicable] = useState<boolean>(false);
   const [kahramaaAmount, setKahramaaAmount] = useState<number>(2000);
-  const [qatarCoolApplicable, setQatarCoolApplicable] = useState<boolean>(true);
+  const [qatarCoolApplicable, setQatarCoolApplicable] = useState<boolean>(false);
   const [qatarCoolAmount, setQatarCoolAmount] = useState<number>(3000);
-  const [marafeqApplicable, setMarafeqApplicable] = useState<boolean>(true);
+  const [marafeqApplicable, setMarafeqApplicable] = useState<boolean>(false);
   const [marafeqAmount, setMarafeqAmount] = useState<number>(3000);
+  const [waterElectricity, setWaterElectricity] = useState<'Included' | 'Excluded'>('Excluded');
+  const [waterElecLimitApplicable, setWaterElecLimitApplicable] = useState<boolean>(false);
+  const [waterElecLimitAmount, setWaterElecLimitAmount] = useState<number>(0);
 
   useEffect(() => {
     if (!unitUuid) return;
-    supabase.from('units').select('rent,agency_fee,service_charges,kahramaa_applicable,kahramaa_amount,qatar_cool_applicable,qatar_cool_amount,marafeq_applicable,marafeq_amount').eq('id', unitUuid).single()
+    supabase.from('units').select('rent,agency_fee,service_charges,kahramaa_applicable,kahramaa_amount,qatar_cool_applicable,qatar_cool_amount,marafeq_applicable,marafeq_amount,water_electricity,water_electricity_limit_applicable,water_electricity_limit_amount').eq('id', unitUuid).single()
       .then(({ data }) => {
         if (!data) return;
         setMonthlyRent(Number(data.rent) ?? unit.rent);
         setContractCharges(Number(data.agency_fee) ?? unit.agencyFee);
         setAdditionalCharges(Number(data.service_charges) ?? unit.serviceCharges);
-        setKahramaaApplicable(data.kahramaa_applicable   ?? true);
+        setKahramaaApplicable(data.kahramaa_applicable   ?? false);
         setKahramaaAmount(Number(data.kahramaa_amount)   || 2000);
-        setQatarCoolApplicable(data.qatar_cool_applicable ?? true);
+        setQatarCoolApplicable(data.qatar_cool_applicable ?? false);
         setQatarCoolAmount(Number(data.qatar_cool_amount) || 3000);
-        setMarafeqApplicable(data.marafeq_applicable      ?? true);
+        setMarafeqApplicable(data.marafeq_applicable      ?? false);
         setMarafeqAmount(Number(data.marafeq_amount)      || 3000);
+        setWaterElectricity((data.water_electricity as 'Included' | 'Excluded') ?? 'Excluded');
+        setWaterElecLimitApplicable(data.water_electricity_limit_applicable ?? false);
+        setWaterElecLimitAmount(Number(data.water_electricity_limit_amount) || 0);
       });
   }, [unitUuid]);
 
@@ -1218,6 +1271,9 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
           qatar_cool_amount:      qatarCoolApplicable  ? qatarCoolAmount  : null,
           marafeq_applicable:     marafeqApplicable,
           marafeq_amount:         marafeqApplicable    ? marafeqAmount    : null,
+          water_electricity:                  waterElectricity,
+          water_electricity_limit_applicable: waterElecLimitApplicable,
+          water_electricity_limit_amount:     waterElecLimitApplicable ? waterElecLimitAmount : null,
         },
       }),
     });
@@ -1227,7 +1283,7 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
       setSaveStatus('error');
       return;
     }
-    await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'financials', payload: { monthlyRent, contractCharges, additionalCharges, kahramaaApplicable, kahramaaAmount, qatarCoolApplicable, qatarCoolAmount, marafeqApplicable, marafeqAmount } });
+    await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'financials', payload: { monthlyRent, contractCharges, additionalCharges, kahramaaApplicable, kahramaaAmount, qatarCoolApplicable, qatarCoolAmount, marafeqApplicable, marafeqAmount, waterElectricity, waterElecLimitApplicable, waterElecLimitAmount } });
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus('idle'), 2500);
   };
@@ -1325,6 +1381,44 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
           amount={kahramaaAmount}
           onAmount={setKahramaaAmount}
         />
+
+        {/* Water & Electricity */}
+        <FieldRow
+          label="Water & Electricity"
+          value={
+            <select
+              value={waterElectricity}
+              onChange={(e) => setWaterElectricity(e.target.value as 'Included' | 'Excluded')}
+              className="w-40 text-sm text-[#d0d0d0] bg-[#111111] border border-[#333333] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] cursor-pointer"
+            >
+              <option value="Included">Included</option>
+              <option value="Excluded">Excluded</option>
+            </select>
+          }
+        />
+
+        {/* Water & Electricity Limit */}
+        <FieldRow
+          label="Water & Electricity Limit"
+          value={
+            <div className="flex items-center gap-3">
+              <ApplicableToggle value={waterElecLimitApplicable} onChange={setWaterElecLimitApplicable} />
+              {waterElecLimitApplicable && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-[#666666] select-none">QAR</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={waterElecLimitAmount}
+                    onChange={(e) => setWaterElecLimitAmount(Math.max(0, Number(e.target.value)))}
+                    className="w-32 text-right text-sm font-semibold text-[#e0e0e0] bg-[#111111] border border-[#333333] rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] tabular-nums"
+                  />
+                </div>
+              )}
+            </div>
+          }
+        />
+
         <DepositRow
           label="Qatar Cool Deposit"
           applicable={qatarCoolApplicable}
@@ -1892,24 +1986,24 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
           value={<ApplicableToggle value={agencyFeeApplicable} onChange={setAgencyFeeApplicable} />}
         />
 
+        <FieldRow
+          label="Fee Amount (QAR)"
+          value={
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-[#666666] select-none">QAR</span>
+              <input
+                type="number"
+                min={0}
+                value={agencyFeeAmount}
+                onChange={(e) => setAgencyFeeAmount(Math.max(0, Number(e.target.value)))}
+                className="w-36 text-right text-sm font-bold text-[#e0e0e0] bg-[#111111] border border-[#333333] rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] tabular-nums"
+              />
+            </div>
+          }
+        />
+
         {agencyFeeApplicable && (
           <>
-            <FieldRow
-              label="Fee Amount"
-              value={
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-[#666666] select-none">QAR</span>
-                  <input
-                    type="number"
-                    min={0}
-                    value={agencyFeeAmount}
-                    onChange={(e) => setAgencyFeeAmount(Math.max(0, Number(e.target.value)))}
-                    className="w-36 text-right text-sm font-bold text-[#e0e0e0] bg-[#111111] border border-[#333333] rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] tabular-nums"
-                  />
-                </div>
-              }
-            />
-
             <FieldRow
               label="Paid By"
               value={
