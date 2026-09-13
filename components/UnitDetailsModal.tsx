@@ -1289,14 +1289,25 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   };
 
   const securityDeposit = monthlyRent; // 1 month's rent — refundable
-  const firstMonthTotal = monthlyRent + securityDeposit + contractCharges + additionalCharges;
 
-  const bannerRows = [
+  const rentRows = [
     { label: 'Monthly Rent',                  amount: monthlyRent },
     { label: 'Security Deposit (Refundable)', amount: securityDeposit },
     { label: 'Contract Charges',              amount: contractCharges },
     { label: 'Additional Charges',            amount: additionalCharges },
   ];
+  const rentTotal = rentRows.reduce((s, r) => s + r.amount, 0);
+
+  const utilityRows = [
+    ...(kahramaaApplicable  ? [{ label: 'Kahramaa Deposit',         amount: kahramaaAmount  }] : []),
+    ...(waterElectricity === 'Included' && waterElecLimitApplicable
+      ? [{ label: 'Water & Electricity Limit', amount: waterElecLimitAmount }] : []),
+    ...(qatarCoolApplicable ? [{ label: 'Qatar Cool Deposit',        amount: qatarCoolAmount }] : []),
+    ...(marafeqApplicable   ? [{ label: 'Marafeq Deposit',           amount: marafeqAmount   }] : []),
+  ];
+  const utilityTotal = utilityRows.reduce((s, r) => s + r.amount, 0);
+
+  const firstMonthTotal = rentTotal + utilityTotal;
 
   return (
     <div className="space-y-4">
@@ -1477,20 +1488,39 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
             </div>
             <span className="text-slate-600 text-xs font-mono">QAR</span>
           </div>
-          <div className="border-t border-slate-700 pt-3 space-y-2">
-            {bannerRows.map(({ label, amount }) => (
+          <div className="border-t border-slate-700 pt-3 space-y-1">
+            {/* Rent & Charges */}
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Rent &amp; Charges</p>
+            {rentRows.map(({ label, amount }) => (
               <div key={label} className="flex items-center justify-between text-xs">
                 <span className="text-slate-400">{label}</span>
-                <span className="text-slate-300 font-medium tabular-nums">
-                  {formatQAR(amount)}
-                </span>
+                <span className="text-slate-300 font-medium tabular-nums">{formatQAR(amount)}</span>
               </div>
             ))}
-            <div className="flex items-center justify-between text-xs pt-2 mt-1 border-t border-slate-700">
+            <div className="flex items-center justify-between text-xs pt-1 mt-0.5 border-t border-slate-800">
+              <span className="text-slate-500 italic">Subtotal</span>
+              <span className="text-slate-400 font-medium tabular-nums">{formatQAR(rentTotal)}</span>
+            </div>
+
+            {/* Service & Utility Charges */}
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-3 mb-1">Service &amp; Utility Charges</p>
+            {utilityRows.length > 0 ? utilityRows.map(({ label, amount }) => (
+              <div key={label} className="flex items-center justify-between text-xs">
+                <span className="text-slate-400">{label}</span>
+                <span className="text-slate-300 font-medium tabular-nums">{formatQAR(amount)}</span>
+              </div>
+            )) : (
+              <p className="text-xs text-slate-600 italic">No applicable deposits</p>
+            )}
+            <div className="flex items-center justify-between text-xs pt-1 mt-0.5 border-t border-slate-800">
+              <span className="text-slate-500 italic">Subtotal</span>
+              <span className="text-slate-400 font-medium tabular-nums">{formatQAR(utilityTotal)}</span>
+            </div>
+
+            {/* Grand total */}
+            <div className="flex items-center justify-between text-xs pt-2 mt-2 border-t border-slate-700">
               <span className="text-slate-300 font-semibold uppercase tracking-wider">Total</span>
-              <span className="text-amber-400 font-bold tabular-nums">
-                {formatQAR(firstMonthTotal)}
-              </span>
+              <span className="text-amber-400 font-bold tabular-nums">{formatQAR(firstMonthTotal)}</span>
             </div>
           </div>
         </div>
