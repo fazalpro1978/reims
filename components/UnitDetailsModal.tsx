@@ -869,7 +869,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
         {/* Booking Validity */}
         <FieldRow
           label="Booking Validity"
-          value={<ApplicableToggle value={bookingValidity === 'Applicable'} onChange={(v) => setBookingValidity(v ? 'Applicable' : 'Not Applicable')} />}
+          value={<ApplicableToggle value={bookingValidity === 'Applicable'} onChange={(v) => setBookingValidity(v ? 'Applicable' : 'Not Applicable')} trueLabel="Applicable" falseLabel="Not Applicable" />}
         />
 
         {bookingValidity === 'Applicable' && (
@@ -1388,7 +1388,15 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
           value={
             <select
               value={waterElectricity}
-              onChange={(e) => setWaterElectricity(e.target.value as 'Included' | 'Excluded')}
+              onChange={(e) => {
+                const v = e.target.value as 'Included' | 'Excluded';
+                setWaterElectricity(v);
+                // Excluded always locks the limit to Not Applicable
+                if (v === 'Excluded') {
+                  setWaterElecLimitApplicable(false);
+                  setWaterElecLimitAmount(0);
+                }
+              }}
               className="w-40 text-sm text-[#d0d0d0] bg-[#111111] border border-[#333333] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] cursor-pointer"
             >
               <option value="Included">Included</option>
@@ -1397,25 +1405,29 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
           }
         />
 
-        {/* Water & Electricity Limit */}
+        {/* Water & Electricity Limit — locked to Not Applicable when Excluded */}
         <FieldRow
           label="Water & Electricity Limit"
           value={
-            <div className="flex items-center gap-3">
-              <ApplicableToggle value={waterElecLimitApplicable} onChange={setWaterElecLimitApplicable} />
-              {waterElecLimitApplicable && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-[#666666] select-none">QAR</span>
-                  <input
-                    type="number"
-                    min={0}
-                    value={waterElecLimitAmount}
-                    onChange={(e) => setWaterElecLimitAmount(Math.max(0, Number(e.target.value)))}
-                    className="w-32 text-right text-sm font-semibold text-[#e0e0e0] bg-[#111111] border border-[#333333] rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] tabular-nums"
-                  />
-                </div>
-              )}
-            </div>
+            waterElectricity === 'Excluded' ? (
+              <span className="text-sm text-[#555555] italic">Not Applicable — water & electricity excluded</span>
+            ) : (
+              <div className="flex items-center gap-3">
+                <ApplicableToggle value={waterElecLimitApplicable} onChange={setWaterElecLimitApplicable} trueLabel="Applicable" falseLabel="Not Applicable" />
+                {waterElecLimitApplicable && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-[#666666] select-none">QAR</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={waterElecLimitAmount}
+                      onChange={(e) => setWaterElecLimitAmount(Math.max(0, Number(e.target.value)))}
+                      className="w-32 text-right text-sm font-semibold text-[#e0e0e0] bg-[#111111] border border-[#333333] rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] tabular-nums"
+                    />
+                  </div>
+                )}
+              </div>
+            )
           }
         />
 
@@ -1983,7 +1995,7 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
 
         <FieldRow
           label="Agency Fee"
-          value={<ApplicableToggle value={agencyFeeApplicable} onChange={setAgencyFeeApplicable} />}
+          value={<ApplicableToggle value={agencyFeeApplicable} onChange={setAgencyFeeApplicable} trueLabel="Applicable" falseLabel="Not Applicable" />}
         />
 
         <FieldRow
