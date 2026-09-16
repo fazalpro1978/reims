@@ -25,21 +25,25 @@ RETURNS TRIGGER LANGUAGE plpgsql AS $$
 DECLARE
   etype    TEXT;
   evt_desc TEXT;
+  eid      TEXT;
 BEGIN
+  -- Prefer unit_code; fall back to smart_code, then row id — entity_id is NOT NULL
+  eid := COALESCE(NULLIF(NEW.unit_code, ''), NULLIF(NEW.smart_code, ''), NEW.id::text);
+
   IF TG_OP = 'INSERT' THEN
     etype    := 'unit_added';
-    evt_desc := 'Unit ' || NEW.unit_code || ' added to '
+    evt_desc := 'Unit ' || eid || ' added to '
                 || COALESCE(NEW.property, 'portfolio')
                 || CASE WHEN NEW.zone IS NOT NULL THEN ' (' || NEW.zone || ')' ELSE '' END;
 
   ELSIF TG_OP = 'UPDATE' THEN
     IF OLD.status IS DISTINCT FROM NEW.status THEN
       etype    := 'unit_status_changed';
-      evt_desc := NEW.unit_code || ' status changed from '
+      evt_desc := eid || ' status changed from '
                   || OLD.status || ' → ' || NEW.status;
     ELSE
       etype    := 'unit_updated';
-      evt_desc := 'Unit ' || NEW.unit_code || ' details updated';
+      evt_desc := 'Unit ' || eid || ' details updated';
     END IF;
   END IF;
 
@@ -47,7 +51,7 @@ BEGIN
   VALUES (
     etype,
     'unit',
-    NEW.unit_code,
+    eid,
     evt_desc,
     jsonb_build_object(
       'property', NEW.property,

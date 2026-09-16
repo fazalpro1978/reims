@@ -43,6 +43,7 @@ type TabId = 'property' | 'financials' | 'commission' | 'operational';
 interface UnitDetailsModalProps {
   unit: UnitListing;
   onClose: () => void;
+  onUnitSaved?: (updates: Partial<UnitListing>) => void;
 }
 
 // ── View type tooltip descriptions ─────────────────────────────────────────
@@ -108,7 +109,7 @@ const FURNISHING_BADGE: Record<Furnishing, string> = {
   [Furnishing.Unfurnished]: 'bg-[#2a2a2a] text-[#888888] ring-1 ring-inset ring-[#444444]',
 };
 
-const KITCHEN_BADGE: Record<KitchenType, string> = {
+const KITCHEN_BADGE: Record<string, string> = {
   Open:   'border border-emerald-600/40 text-emerald-400 bg-emerald-500/10',
   Closed: 'border border-rose-600/40   text-rose-400   bg-rose-500/10',
   Yes:    'border border-green-600/40  text-green-400  bg-green-500/10',
@@ -199,13 +200,14 @@ function LockIcon() {
   );
 }
 
-function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, onAdminLock }: {
+function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, onAdminLock, onUnitSaved }: {
   unit: UnitListing;
   unitUuid: string;
   isAdmin: boolean;
   onRequestAdmin: () => void;
   onStatusSaved?: (newStatus: Status) => void;
   onAdminLock?: () => void;
+  onUnitSaved?: (updates: Partial<UnitListing>) => void;
 }) {
   const { role } = useAuth();
   const isReadOnly = role !== 'superuser' && role !== 'administrator';
@@ -220,7 +222,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
   const [unitType, setUnitType] = useState<UnitType>(unit.type);
   const [config, setConfig] = useState(unit.config);
   const [parking, setParking] = useState(unit.parking);
-  const [kitchen, setKitchen] = useState<KitchenType>(unit.kitchen);
+  const [kitchen, setKitchen] = useState<KitchenType | null>(unit.kitchen ?? null);
   const [furnishing, setFurnishing] = useState<Furnishing>(unit.furnishing);
   const [status, setStatus] = useState<Status>(unit.status);
   const [locationMapUrl, setLocationMapUrl] = useState(unit.locationMapUrl);
@@ -359,7 +361,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
         setUnitType((data.type as UnitType) ?? unit.type);
         setConfig(data.config ?? unit.config);
         setParking(data.parking ?? unit.parking);
-        setKitchen((data.kitchen as KitchenType) ?? unit.kitchen);
+        setKitchen((data.kitchen as KitchenType | null) ?? unit.kitchen ?? null);
         setFurnishing((data.furnishing as Furnishing) ?? unit.furnishing);
         setStatus((data.status as Status) ?? unit.status);
         setLocationMapUrl(data.location_map_url ?? unit.locationMapUrl);
@@ -449,6 +451,20 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
       onStatusSaved?.(status);
     }
     onAdminLock?.();
+    onUnitSaved?.({
+      type:       unitType,
+      config,
+      parking,
+      kitchen,
+      furnishing,
+      status,
+      property:   propertyName,
+      unitNo,
+      zone,
+      zoneCode,
+      locationMapUrl: locationMapUrl || undefined,
+      mediaUrl:   mediaUrl || undefined,
+    });
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus('idle'), 2500);
   };
@@ -827,10 +843,24 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
           label="Kitchen"
           value={
             isReadOnly
-              ? <span className="text-sm text-[#d0d0d0]">{kitchen}</span>
-              : <select value={kitchen} onChange={e => setKitchen(e.target.value as KitchenType)} className={`${sel} w-36`}>
-                  {(['Open', 'Closed', 'Yes', 'Pantry'] as KitchenType[]).map(k => <option key={k} value={k}>{k}</option>)}
-                </select>
+              ? <span className="text-sm text-[#d0d0d0]">{kitchen ?? 'Not Included'}</span>
+              : <div className="flex items-center gap-2">
+                  <div className="inline-flex rounded-lg overflow-hidden border border-[#333333] text-xs font-medium">
+                    <button type="button" onClick={() => setKitchen(kitchen ?? 'Open')}
+                      className={`px-3 py-1.5 transition-colors ${kitchen !== null ? 'bg-emerald-600 text-white' : 'bg-[#1e1e1e] text-[#666666] hover:bg-[#2a2a2a]'}`}>
+                      Included
+                    </button>
+                    <button type="button" onClick={() => setKitchen(null)}
+                      className={`px-3 py-1.5 border-l border-[#333333] transition-colors ${kitchen === null ? 'bg-[#3a3a3a] text-[#e0e0e0]' : 'bg-[#1e1e1e] text-[#666666] hover:bg-[#2a2a2a]'}`}>
+                      Not Included
+                    </button>
+                  </div>
+                  {kitchen !== null && (
+                    <select value={kitchen} onChange={e => setKitchen(e.target.value as KitchenType)} className={`${sel} w-32`}>
+                      {(['Open', 'Closed', 'Yes', 'Pantry'] as KitchenType[]).map(k => <option key={k} value={k}>{k}</option>)}
+                    </select>
+                  )}
+                </div>
           }
         />
 
@@ -2577,7 +2607,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'operational', label: 'Operational' },
 ];
 
-export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProps) {
+export default function UnitDetailsModal({ unit, onClose, onUnitSaved }: UnitDetailsModalProps) {
   const { role } = useAuth();
   const isAgent = role === 'agent';
   const canAdminUnlock = role === 'superuser' || role === 'administrator';
@@ -2853,7 +2883,7 @@ export default function UnitDetailsModal({ unit, onClose }: UnitDetailsModalProp
 
         {/* ── Tab Content (scrollable) ── */}
         <div className="flex-1 overflow-y-auto px-6 py-5 bg-[#181818]" role="tabpanel">
-          {activeTab === 'property'    && <PropertyTab unit={unit} unitUuid={unitUuid} isAdmin={isAdmin} onRequestAdmin={() => setShowAdminDialog(true)} onStatusSaved={setDisplayStatus} onAdminLock={() => setIsAdmin(false)} />}
+          {activeTab === 'property'    && <PropertyTab unit={unit} unitUuid={unitUuid} isAdmin={isAdmin} onRequestAdmin={() => setShowAdminDialog(true)} onStatusSaved={setDisplayStatus} onAdminLock={() => setIsAdmin(false)} onUnitSaved={onUnitSaved} />}
           {activeTab === 'financials'  && <FinancialsTab unit={unit} unitUuid={unitUuid} />}
           {activeTab === 'commission'  && <CommissionTab unit={unit} unitUuid={unitUuid} />}
           {activeTab === 'operational' && <OperationalTab unit={unit} unitUuid={unitUuid} />}

@@ -75,7 +75,7 @@ export interface UnitListing {
   // ── Unit Features ─────────────────────────────────────────────────────────
   bathrooms: number;   // Full baths + 0.5 for half bath/toilet
   parking: boolean;
-  kitchen: KitchenType;
+  kitchen: KitchenType | null;
   amenities: string[];
   floor?: number;      // Floor number within the building
 

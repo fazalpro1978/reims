@@ -59,13 +59,15 @@ const STATUS_MAP: Record<string, string> = {
   'Under Preparation': 'Under_Maintenance',
 };
 
-// DB kitchen_type enum: 'Open' | 'Closed' | 'Yes' | 'Pantry'
-// dInges may send any casing — normalise by lowercase lookup
-const KITCHEN_MAP: Record<string, string> = {
+// DB kitchen_type enum: 'Open' | 'Closed' | 'Yes' | 'Pantry' — null = Not Included
+// dInges may send any casing — normalise by lowercase lookup; 'no'/'' → null (Not Included)
+const KITCHEN_MAP: Record<string, string | null> = {
   'open':   'Open',
   'closed': 'Closed',
   'yes':    'Yes',
   'pantry': 'Pantry',
+  'no':     null,
+  '':       null,
 };
 
 // Numeric columns: any non-numeric spreadsheet value is coerced to 0.
@@ -112,7 +114,8 @@ function normaliseEnums(row: Record<string, unknown>): Record<string, unknown> {
     );
   }
   if (typeof out.kitchen === 'string') {
-    out.kitchen = KITCHEN_MAP[out.kitchen.toLowerCase()] ?? out.kitchen;
+    const lower = out.kitchen.toLowerCase();
+    out.kitchen = lower in KITCHEN_MAP ? KITCHEN_MAP[lower] : out.kitchen;
   }
   // Convert 'Yes'/'No' string from Validation table to boolean for the DB column
   if (typeof out.parking === 'string') {

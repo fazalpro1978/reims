@@ -1357,6 +1357,11 @@ export default function UnitsInventory({
         <UnitDetailsModal
           unit={selectedUnit}
           onClose={() => setSelectedUnit(null)}
+          onUnitSaved={(updates) => {
+            const updated = { ...selectedUnit, ...updates };
+            setUnits(prev => prev.map(u => u.uuid === selectedUnit.uuid ? updated : u));
+            setSelectedUnit(updated);
+          }}
         />
       )}
 
