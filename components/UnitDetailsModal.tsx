@@ -844,7 +844,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
           value={
             isReadOnly
               ? <span className="text-sm text-[#d0d0d0]">{kitchen ?? 'Not Included'}</span>
-              : <div className="flex items-center gap-2">
+              : <div className="flex flex-col items-start gap-2">
                   <div className="inline-flex rounded-lg overflow-hidden border border-[#333333] text-xs font-medium">
                     <button type="button" onClick={() => setKitchen(kitchen ?? 'Open')}
                       className={`px-3 py-1.5 transition-colors ${kitchen !== null ? 'bg-emerald-600 text-white' : 'bg-[#1e1e1e] text-[#666666] hover:bg-[#2a2a2a]'}`}>
@@ -856,7 +856,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
                     </button>
                   </div>
                   {kitchen !== null && (
-                    <select value={kitchen} onChange={e => setKitchen(e.target.value as KitchenType)} className={`${sel} w-32`}>
+                    <select value={kitchen} onChange={e => setKitchen(e.target.value as KitchenType)} className={`${sel} w-40`}>
                       {(['Open', 'Closed', 'Yes', 'Pantry'] as KitchenType[]).map(k => <option key={k} value={k}>{k}</option>)}
                     </select>
                   )}
