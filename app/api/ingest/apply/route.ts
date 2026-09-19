@@ -338,41 +338,52 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── 1c. Write contact_details → unit_operational ──────────────────────────
-    // contact_details format: "Name Phone" — trailing numeric/+ token is phone, rest is name
-    const contactRows = rows.filter(
-      (r) => typeof r.contact_details === 'string' && (r.contact_details as string).trim(),
+    // ── 1c. Write contact_details + operator_remarks → unit_operational ───────
+    const operationalRows = rows.filter(
+      (r) =>
+        (typeof r.contact_details === 'string' && (r.contact_details as string).trim()) ||
+        (typeof r.operator_remarks === 'string' && (r.operator_remarks as string).trim()),
     );
-    if (contactRows.length > 0) {
-      const contactCodes = contactRows
+    if (operationalRows.length > 0) {
+      const opCodes = operationalRows
         .map((r) => r.unit_code)
         .filter((c): c is string => typeof c === 'string' && c.trim() !== '');
 
       const { data: unitIdRows } = await admin
         .from('units')
         .select('id, unit_code')
-        .in('unit_code', contactCodes);
+        .in('unit_code', opCodes);
 
       const unitIdMap = new Map(
         (unitIdRows ?? []).map((r: { id: string; unit_code: string }) => [r.unit_code, r.id]),
       );
 
-      for (const row of contactRows) {
+      for (const row of operationalRows) {
         const unitId = unitIdMap.get(row.unit_code as string);
         if (!unitId) continue;
-        const raw = String(row.contact_details).trim();
-        const parts = raw.split(/\s+/);
-        const lastPart = parts[parts.length - 1] ?? '';
-        const isPhone = /^[+\d][\d\s\-.()]{5,}$/.test(lastPart);
-        const focal_point_phone = isPhone ? lastPart : null;
-        const focal_point_name = isPhone ? parts.slice(0, -1).join(' ').trim() : raw;
-        if (!focal_point_name) continue;
-        await admin
-          .from('unit_operational')
-          .upsert(
-            { unit_id: unitId, focal_point_name, focal_point_phone },
-            { onConflict: 'unit_id' },
-          );
+
+        const upsertPayload: Record<string, unknown> = { unit_id: unitId };
+
+        // contact_details: "Name Phone" — trailing numeric/+ token is phone, rest is name
+        if (typeof row.contact_details === 'string' && row.contact_details.trim()) {
+          const raw = String(row.contact_details).trim();
+          const parts = raw.split(/\s+/);
+          const lastPart = parts[parts.length - 1] ?? '';
+          const isPhone = /^[+\d][\d\s\-.()]{5,}$/.test(lastPart);
+          upsertPayload.focal_point_phone = isPhone ? lastPart : null;
+          upsertPayload.focal_point_name  = isPhone ? parts.slice(0, -1).join(' ').trim() : raw;
+        }
+
+        // operator_remarks → unit_operational.operator_remarks
+        if (typeof row.operator_remarks === 'string' && row.operator_remarks.trim()) {
+          upsertPayload.operator_remarks = row.operator_remarks.trim();
+        }
+
+        if (Object.keys(upsertPayload).length > 1) {
+          await admin
+            .from('unit_operational')
+            .upsert(upsertPayload, { onConflict: 'unit_id' });
+        }
       }
     }
 
