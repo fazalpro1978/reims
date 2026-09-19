@@ -121,6 +121,9 @@ function normaliseEnums(row: Record<string, unknown>): Record<string, unknown> {
   if (typeof out.parking === 'string') {
     out.parking = ['yes', 'true', '1', 'y'].includes(String(out.parking).toLowerCase());
   }
+  // NOT NULL array columns — default to empty array when absent or null
+  if (!Array.isArray(out.view_types)) out.view_types = [];
+  if (!Array.isArray(out.amenities))  out.amenities  = [];
   return out;
 }
 
