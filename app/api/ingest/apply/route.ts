@@ -256,6 +256,36 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Smart-code dedup pass: ST_NEW records that were already imported in a prior
+    // run exist in REIMS with the same smart_code. Look them up and move them
+    // from toInsert → toUpdate so the bulk insert never hits the unique constraint.
+    const scCandidates = toInsert
+      .map(r => r.smart_code)
+      .filter((c): c is string => typeof c === 'string' && c.trim() !== '');
+
+    if (scCandidates.length > 0) {
+      const { data: bySmartCode } = await admin
+        .from('units')
+        .select('id, smart_code, view_types')
+        .in('smart_code', scCandidates);
+
+      const scMap = new Map(
+        (bySmartCode ?? []).map((r: { id: string; smart_code: string; view_types: string[] | null }) => [r.smart_code, r]),
+      );
+
+      const stillNew: Record<string, unknown>[] = [];
+      for (const row of toInsert) {
+        const found = scMap.get(row.smart_code as string);
+        if (found) {
+          toUpdate.push({ id: found.id, data: { ...row, updated_at: new Date().toISOString() } });
+        } else {
+          stillNew.push(row);
+        }
+      }
+      toInsert.length = 0;
+      toInsert.push(...stillNew);
+    }
+
     let inserted = 0;
     let updated = 0;
     const errors: string[] = [];
