@@ -374,10 +374,14 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 2. Acknowledge back to dInges ───────────────────────────────────────
-    // Only acknowledge if at least one record was successfully written to the DB.
+    // Only acknowledge when ALL DB writes succeeded (no errors). If any record
+    // failed, keep the entire batch in the queue so the user can retry after
+    // the underlying issue is resolved — prevents silent data loss.
     let acknowledged = 0;
     if (inserted + updated === 0) {
       errors.push('No records were written to the database — acknowledgement skipped. Fix the errors above and retry from REIMS.');
+    } else if (errors.length > 0) {
+      errors.push(`Acknowledgement skipped — ${errors.length} error(s) above must be resolved before retrying. Records remain in the queue.`);
     } else {
       const ids = records.map((r) => r.id);
       try {
