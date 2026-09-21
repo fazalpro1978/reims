@@ -37,12 +37,14 @@ interface ReportData {
   agencyFeeApplicable:   boolean; // from unit_commissions
   agencyFeeAmount:       number;
   agencyFeePaidBy:       string;
-  kahramaaApplicable:    boolean;
-  kahramaaAmount:        number;
-  qatarCoolApplicable:   boolean;
-  qatarCoolAmount:       number;
-  marafeqApplicable:     boolean;
-  marafeqAmount:         number;
+  kahramaaApplicable:          boolean;
+  kahramaaAmount:              number;
+  waterElecLimitApplicable:    boolean;
+  waterElecLimitAmount:        number;
+  qatarCoolApplicable:         boolean;
+  qatarCoolAmount:             number;
+  marafeqApplicable:           boolean;
+  marafeqAmount:               number;
   locationMapUrl:      string;
   mediaUrl:            string;
   images:              string[];
@@ -426,8 +428,25 @@ body {
   white-space: nowrap;
 }
 .rpt-url-file-lnk:hover { color: #94a3b8; }
+/* PAY / NO PAY inline toggles — screen only, hidden on print */
+.rpt-pay-toggle {
+  display: inline-flex; overflow: hidden;
+  border: 1px solid #cbd5e1; border-radius: 3pt;
+  font-size: 6.5pt; font-weight: 700; line-height: 1;
+  vertical-align: middle; margin-left: 6pt;
+}
+.rpt-pay-toggle button {
+  padding: 2pt 5pt; border: none; cursor: pointer;
+  font-size: inherit; font-weight: inherit; font-family: inherit;
+}
+.rpt-pay-toggle .rpt-pay-pay    { background: #dcfce7; color: #14532d; }
+.rpt-pay-toggle .rpt-pay-pay.off{ background: #f1f5f9; color: #94a3b8; }
+.rpt-pay-toggle .rpt-pay-no     { background: #f1f5f9; color: #94a3b8; }
+.rpt-pay-toggle .rpt-pay-no.on  { background: #fee2e2; color: #991b1b; }
+
 @media print {
-  .rpt-img-add-btn, .rpt-img-del-btn, .rpt-url-popover { display: none !important; }
+  .rpt-img-add-btn, .rpt-img-del-btn, .rpt-url-popover, .rpt-pay-toggle { display: none !important; }
+  .rpt-row-nopay { display: none !important; }
 }
 
 /* ── 7. Neighborhood Guide ───────────────────────────────────────────────────── */
@@ -513,11 +532,25 @@ interface ReportOpts {
 
 function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighborhood: NGuide | null; opts: ReportOpts }) {
   const secDep = data.securityDeposit || data.monthlyRent;
-  const utilityTotal = (data.kahramaaApplicable  ? (data.kahramaaAmount  || 0) : 0)
-                     + (data.qatarCoolApplicable  ? (data.qatarCoolAmount || 0) : 0)
-                     + (data.marafeqApplicable     ? (data.marafeqAmount   || 0) : 0);
+
+  // PAY / NO PAY per-row toggles — buttons are hidden on print; rows with NO PAY get rpt-row-nopay (also hidden on print)
+  const [agencyFeePay,      setAgencyFeePay     ] = useState(true);
+  const [kahramaaPay,       setKahramaaPay      ] = useState(true);
+  const [waterElecLimitPay, setWaterElecLimitPay] = useState(true);
+  const [qatarCoolPay,      setQatarCoolPay     ] = useState(true);
+  const [marafeqPay,        setMarafeqPay       ] = useState(true);
+
+  // Agency Commission shows only when paid_by is 'client'
+  const agencyFeeForClient = data.agencyFeeApplicable && data.agencyFeeAmount > 0
+    && (data.agencyFeePaidBy ?? '').toLowerCase() === 'client';
+
+  const utilityTotal =
+    (data.kahramaaApplicable        && kahramaaPay       ? (data.kahramaaAmount        || 0) : 0) +
+    (data.waterElecLimitApplicable  && waterElecLimitPay ? (data.waterElecLimitAmount  || 0) : 0) +
+    (data.qatarCoolApplicable       && qatarCoolPay      ? (data.qatarCoolAmount       || 0) : 0) +
+    (data.marafeqApplicable         && marafeqPay        ? (data.marafeqAmount         || 0) : 0);
   const rentSubtotal = (data.monthlyRent || 0) + secDep + (data.contractCharges || 0) + (data.additionalCharges || 0)
-                     + (data.agencyFeeApplicable ? (data.agencyFeeAmount || 0) : 0);
+    + (agencyFeeForClient && agencyFeePay ? (data.agencyFeeAmount || 0) : 0);
   const total = rentSubtotal + utilityTotal;
 
   // Per-cell photo slots — seeded from DB images, editable by the user
@@ -700,15 +733,17 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
             <span className="rpt-fin-val">{data.electricityWater}</span>
           </div>
         )}
-        {data.agencyFeeApplicable && data.agencyFeeAmount > 0 && (
-          <div className="rpt-fin-row">
+        {agencyFeeForClient && (
+          <div className={`rpt-fin-row${agencyFeePay ? '' : ' rpt-row-nopay'}`}>
             <span className="rpt-fin-lbl">
               Agency Commission
-              {data.agencyFeePaidBy && (
-                <span style={{ fontSize: '7.5pt', color: '#64748b' }}> — Paid by: {data.agencyFeePaidBy}</span>
-              )}
+              <span style={{ fontSize: '7.5pt', color: '#64748b' }}> — Paid by Client</span>
+              <span className="rpt-pay-toggle">
+                <button className={`rpt-pay-pay${agencyFeePay ? '' : ' off'}`} onClick={() => setAgencyFeePay(true)}>PAY</button>
+                <button className={`rpt-pay-no${!agencyFeePay ? ' on' : ''}`} onClick={() => setAgencyFeePay(false)}>NO PAY</button>
+              </span>
             </span>
-            <span className="rpt-fin-val">QAR {fmt(data.agencyFeeAmount)}</span>
+            <span className="rpt-fin-val" style={{ textDecoration: agencyFeePay ? 'none' : 'line-through', color: agencyFeePay ? '#1a1a1a' : '#94a3b8' }}>QAR {fmt(data.agencyFeeAmount)}</span>
           </div>
         )}
         {/* Rent subtotal */}
@@ -718,31 +753,63 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
         </div>
 
         {/* ── Service & Utility Charges ── */}
-        {utilityTotal > 0 && <>
+        {(data.kahramaaApplicable || data.waterElecLimitApplicable || data.qatarCoolApplicable || data.marafeqApplicable) && <>
           <p style={{ fontSize: '7pt', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '8pt', marginBottom: '4pt' }}>Service &amp; Utility Charges</p>
           {data.kahramaaApplicable && data.kahramaaAmount > 0 && (
-            <div className="rpt-fin-row">
-              <span className="rpt-fin-lbl">Kahramaa Deposit <span style={{ fontSize: '7.5pt', color: '#16a34a' }}>(Refundable)*</span></span>
-              <span className="rpt-fin-val">QAR {fmt(data.kahramaaAmount)}</span>
+            <div className={`rpt-fin-row${kahramaaPay ? '' : ' rpt-row-nopay'}`}>
+              <span className="rpt-fin-lbl">
+                Kahramaa Deposit <span style={{ fontSize: '7.5pt', color: '#16a34a' }}>(Refundable)*</span>
+                <span className="rpt-pay-toggle">
+                  <button className={`rpt-pay-pay${kahramaaPay ? '' : ' off'}`} onClick={() => setKahramaaPay(true)}>PAY</button>
+                  <button className={`rpt-pay-no${!kahramaaPay ? ' on' : ''}`} onClick={() => setKahramaaPay(false)}>NO PAY</button>
+                </span>
+              </span>
+              <span className="rpt-fin-val" style={{ textDecoration: kahramaaPay ? 'none' : 'line-through', color: kahramaaPay ? '#1a1a1a' : '#94a3b8' }}>QAR {fmt(data.kahramaaAmount)}</span>
+            </div>
+          )}
+          {data.waterElecLimitApplicable && data.waterElecLimitAmount > 0 && (
+            <div className={`rpt-fin-row${waterElecLimitPay ? '' : ' rpt-row-nopay'}`}>
+              <span className="rpt-fin-lbl">
+                Water &amp; Electricity Limit
+                <span className="rpt-pay-toggle">
+                  <button className={`rpt-pay-pay${waterElecLimitPay ? '' : ' off'}`} onClick={() => setWaterElecLimitPay(true)}>PAY</button>
+                  <button className={`rpt-pay-no${!waterElecLimitPay ? ' on' : ''}`} onClick={() => setWaterElecLimitPay(false)}>NO PAY</button>
+                </span>
+              </span>
+              <span className="rpt-fin-val" style={{ textDecoration: waterElecLimitPay ? 'none' : 'line-through', color: waterElecLimitPay ? '#1a1a1a' : '#94a3b8' }}>QAR {fmt(data.waterElecLimitAmount)}</span>
             </div>
           )}
           {data.qatarCoolApplicable && data.qatarCoolAmount > 0 && (
-            <div className="rpt-fin-row">
-              <span className="rpt-fin-lbl">Qatar Cool Deposit <span style={{ fontSize: '7.5pt', color: '#16a34a' }}>(Refundable)*</span></span>
-              <span className="rpt-fin-val">QAR {fmt(data.qatarCoolAmount)}</span>
+            <div className={`rpt-fin-row${qatarCoolPay ? '' : ' rpt-row-nopay'}`}>
+              <span className="rpt-fin-lbl">
+                Qatar Cool Deposit <span style={{ fontSize: '7.5pt', color: '#16a34a' }}>(Refundable)*</span>
+                <span className="rpt-pay-toggle">
+                  <button className={`rpt-pay-pay${qatarCoolPay ? '' : ' off'}`} onClick={() => setQatarCoolPay(true)}>PAY</button>
+                  <button className={`rpt-pay-no${!qatarCoolPay ? ' on' : ''}`} onClick={() => setQatarCoolPay(false)}>NO PAY</button>
+                </span>
+              </span>
+              <span className="rpt-fin-val" style={{ textDecoration: qatarCoolPay ? 'none' : 'line-through', color: qatarCoolPay ? '#1a1a1a' : '#94a3b8' }}>QAR {fmt(data.qatarCoolAmount)}</span>
             </div>
           )}
           {data.marafeqApplicable && data.marafeqAmount > 0 && (
-            <div className="rpt-fin-row">
-              <span className="rpt-fin-lbl">Marafeq Deposit <span style={{ fontSize: '7.5pt', color: '#16a34a' }}>(Refundable)*</span></span>
-              <span className="rpt-fin-val">QAR {fmt(data.marafeqAmount)}</span>
+            <div className={`rpt-fin-row${marafeqPay ? '' : ' rpt-row-nopay'}`}>
+              <span className="rpt-fin-lbl">
+                Marafeq Deposit <span style={{ fontSize: '7.5pt', color: '#16a34a' }}>(Refundable)*</span>
+                <span className="rpt-pay-toggle">
+                  <button className={`rpt-pay-pay${marafeqPay ? '' : ' off'}`} onClick={() => setMarafeqPay(true)}>PAY</button>
+                  <button className={`rpt-pay-no${!marafeqPay ? ' on' : ''}`} onClick={() => setMarafeqPay(false)}>NO PAY</button>
+                </span>
+              </span>
+              <span className="rpt-fin-val" style={{ textDecoration: marafeqPay ? 'none' : 'line-through', color: marafeqPay ? '#1a1a1a' : '#94a3b8' }}>QAR {fmt(data.marafeqAmount)}</span>
             </div>
           )}
-          {/* Utility subtotal */}
-          <div className="rpt-fin-row" style={{ borderTop: '1px solid #cbd5e1', marginTop: '2pt', paddingTop: '3pt' }}>
-            <span className="rpt-fin-lbl" style={{ fontStyle: 'italic', color: '#64748b' }}>Subtotal</span>
-            <span className="rpt-fin-val" style={{ color: '#64748b' }}>QAR {fmt(utilityTotal)}</span>
-          </div>
+          {/* Utility subtotal — only rendered when at least one utility is being paid */}
+          {utilityTotal > 0 && (
+            <div className="rpt-fin-row" style={{ borderTop: '1px solid #cbd5e1', marginTop: '2pt', paddingTop: '3pt' }}>
+              <span className="rpt-fin-lbl" style={{ fontStyle: 'italic', color: '#64748b' }}>Subtotal</span>
+              <span className="rpt-fin-val" style={{ color: '#64748b' }}>QAR {fmt(utilityTotal)}</span>
+            </div>
+          )}
         </>}
 
         {/* ── Move-In Payment Summary Total ── */}
@@ -1004,12 +1071,14 @@ export default function ReportPage() {
           agencyFeeApplicable:   commRow?.agency_fee_applicable ?? false,
           agencyFeeAmount:       Number(commRow?.agency_fee_amount) || 0,
           agencyFeePaidBy:       commRow?.paid_by ?? '',
-          kahramaaApplicable:    row.kahramaa_applicable    ?? true,
-          kahramaaAmount:        Number(row.kahramaa_amount)   || 2000,
-          qatarCoolApplicable:   row.qatar_cool_applicable  ?? true,
+          kahramaaApplicable:       row.kahramaa_applicable               ?? false,
+          kahramaaAmount:           Number(row.kahramaa_amount)              || 0,
+          waterElecLimitApplicable: row.water_electricity_limit_applicable   ?? false,
+          waterElecLimitAmount:     Number(row.water_electricity_limit_amount) || 0,
+          qatarCoolApplicable:   row.qatar_cool_applicable  ?? false,
           qatarCoolAmount:       Number(row.qatar_cool_amount)  || 3000,
-          marafeqApplicable:     row.marafeq_applicable     ?? true,
-          marafeqAmount:         Number(row.marafeq_amount)    || 3000,
+          marafeqApplicable:     row.marafeq_applicable     ?? false,
+          marafeqAmount:         Number(row.marafeq_amount)    || 0,
           locationMapUrl:        row.location_map_url  ?? '',
           mediaUrl:            row.media_url         ?? '',
           images:              parseArray(row.images),
