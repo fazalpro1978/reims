@@ -372,8 +372,50 @@ body {
   z-index: 2; padding: 0;
 }
 .rpt-img-add-btn:hover { background: #c9a84c; }
+
+/* URL popover */
+.rpt-url-popover {
+  position: absolute; bottom: calc(100% + 6pt); left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b; border: 1px solid #334155;
+  border-radius: 5pt; padding: 7pt 8pt 6pt;
+  width: 180pt; z-index: 20;
+  box-shadow: 0 4pt 12pt rgba(0,0,0,0.35);
+}
+.rpt-url-popover-lbl {
+  font-size: 6.5pt; font-weight: 700; color: #94a3b8;
+  text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4pt;
+}
+.rpt-url-inp {
+  width: 100%; font-size: 8pt; color: #e2e8f0;
+  background: #0f172a; border: 1px solid #334155;
+  border-radius: 3pt; padding: 4pt 6pt;
+  outline: none; box-sizing: border-box;
+}
+.rpt-url-inp:focus { border-color: #c9a84c; }
+.rpt-url-actions {
+  display: flex; align-items: center; gap: 5pt; margin-top: 5pt;
+}
+.rpt-url-btn-add {
+  background: #c9a84c; color: #0f172a;
+  border: none; border-radius: 3pt;
+  font-size: 7.5pt; font-weight: 700; padding: 3pt 8pt; cursor: pointer;
+}
+.rpt-url-btn-add:hover { background: #b8963e; }
+.rpt-url-btn-cancel {
+  background: none; border: none; color: #64748b;
+  font-size: 7.5pt; cursor: pointer; padding: 3pt 4pt;
+}
+.rpt-url-btn-cancel:hover { color: #94a3b8; }
+.rpt-url-divider { flex: 1; height: 1px; background: #1e293b; }
+.rpt-url-file-lnk {
+  font-size: 7pt; color: #64748b; cursor: pointer;
+  text-decoration: underline; background: none; border: none; padding: 0;
+  white-space: nowrap;
+}
+.rpt-url-file-lnk:hover { color: #94a3b8; }
 @media print {
-  .rpt-img-add-btn { display: none !important; }
+  .rpt-img-add-btn, .rpt-url-popover { display: none !important; }
 }
 
 /* ── 7. Neighborhood Guide ───────────────────────────────────────────────────── */
@@ -464,21 +506,40 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
                      + (data.marafeqApplicable     ? (data.marafeqAmount   || 0) : 0);
   const total = (data.monthlyRent || 0) + secDep + (data.contractCharges || 0) + (data.additionalCharges || 0) + utilityTotal;
 
-  // Per-cell photo slots — seeded from DB images, editable by the user via file picker
+  // Per-cell photo slots — seeded from DB images, editable by the user
   const [photoSlots, setPhotoSlots] = useState<(string | null)[]>(() => {
     const seeded: (string | null)[] = (data.images ?? []).slice(0, 6) as (string | null)[];
     while (seeded.length < 6) seeded.push(null);
     return seeded;
   });
   const photoInputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null, null, null, null]);
+  // URL popover state
+  const [urlPopoverIdx, setUrlPopoverIdx] = useState<number | null>(null);
+  const [urlDraft,      setUrlDraft     ] = useState('');
+
+  function setSlot(index: number, url: string) {
+    setPhotoSlots(prev => { const next = [...prev]; next[index] = url; return next; });
+  }
 
   function handlePhotoFile(index: number, file: File) {
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const url = e.target?.result as string;
-      setPhotoSlots(prev => { const next = [...prev]; next[index] = url; return next; });
-    };
+    reader.onload = (e) => setSlot(index, e.target?.result as string);
     reader.readAsDataURL(file);
+  }
+
+  // Convert Google Drive share/view links → direct embed URL
+  function toEmbeddable(raw: string): string {
+    // https://drive.google.com/file/d/FILE_ID/view?...
+    const m = raw.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (m) return `https://drive.google.com/uc?id=${m[1]}&export=view`;
+    return raw.trim();
+  }
+
+  function commitUrl(idx: number) {
+    const url = toEmbeddable(urlDraft.trim());
+    if (url) setSlot(idx, url);
+    setUrlPopoverIdx(null);
+    setUrlDraft('');
   }
 
   const rows = [photoSlots.slice(0, 3), photoSlots.slice(3, 6)];
@@ -723,17 +784,41 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
                       ) : (
                         <div className="rpt-img-ph">
                           <span className="rpt-img-ph-txt">Photo {idx + 1}</span>
+
+                          {/* URL popover */}
+                          {urlPopoverIdx === idx && (
+                            <div className="rpt-url-popover">
+                              <p className="rpt-url-popover-lbl">Paste photo URL</p>
+                              <input
+                                autoFocus
+                                className="rpt-url-inp"
+                                placeholder="https://drive.google.com/file/d/…"
+                                value={urlDraft}
+                                onChange={e => setUrlDraft(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') commitUrl(idx); if (e.key === 'Escape') { setUrlPopoverIdx(null); setUrlDraft(''); } }}
+                              />
+                              <div className="rpt-url-actions">
+                                <button className="rpt-url-btn-add" onClick={() => commitUrl(idx)}>Add</button>
+                                <button className="rpt-url-btn-cancel" onClick={() => { setUrlPopoverIdx(null); setUrlDraft(''); }}>Cancel</button>
+                                <span className="rpt-url-divider" />
+                                <button className="rpt-url-file-lnk" onClick={() => { setUrlPopoverIdx(null); setUrlDraft(''); photoInputRefs.current[idx]?.click(); }}>
+                                  or upload file
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
                           <button
                             className="rpt-img-add-btn"
                             title="Add photo"
-                            onClick={() => photoInputRefs.current[idx]?.click()}
+                            onClick={() => { setUrlDraft(''); setUrlPopoverIdx(urlPopoverIdx === idx ? null : idx); }}
                           >+</button>
                           <input
                             type="file"
                             accept="image/*"
                             style={{ display: 'none' }}
                             ref={el => { photoInputRefs.current[idx] = el; }}
-                            onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoFile(idx, f); }}
+                            onChange={e => { const f = e.target.files?.[0]; if (f) { handlePhotoFile(idx, f); } }}
                           />
                         </div>
                       )}
