@@ -1274,6 +1274,8 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   const [waterElecLimitPay,setWaterElecLimitPay] = useState<boolean>(true);
   const [qatarCoolPay,     setQatarCoolPay    ] = useState<boolean>(true);
   const [marafeqPay,       setMarafeqPay      ] = useState<boolean>(true);
+  // Security Deposit PAY / NO PAY
+  const [securityDepositPay,  setSecurityDepositPay      ] = useState<boolean>(true);
   // Agency Commission (from unit_commissions) — PAY/NO PAY only; shown only when paid_by = 'Client'
   const [agencyFeeApplicable, setAgencyFeeApplicableLocal] = useState<boolean>(false);
   const [agencyFeeAmount,     setAgencyFeeAmountLocal    ] = useState<number>(0);
@@ -1351,15 +1353,15 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
 
   const securityDeposit = monthlyRent; // 1 month's rent — refundable
 
-  const rentRows = [
-    { label: 'Monthly Rent',                    amount: monthlyRent },
-    { label: 'Security Deposit (Refundable)*',  amount: securityDeposit },
-    { label: 'Contract Charges',                amount: contractCharges },
-    { label: 'Additional Charges',              amount: additionalCharges },
+  const fixedRentRows = [
+    { label: 'Monthly Rent',       amount: monthlyRent      },
+    { label: 'Contract Charges',   amount: contractCharges  },
+    { label: 'Additional Charges', amount: additionalCharges },
   ];
   const agencyFeeForClient = agencyFeeApplicable && agencyFeeAmount > 0
     && agencyFeePaidBy.toLowerCase() === 'client';
-  const rentTotal = rentRows.reduce((s, r) => s + r.amount, 0)
+  const rentTotal = fixedRentRows.reduce((s, r) => s + r.amount, 0)
+    + (securityDepositPay ? securityDeposit : 0)
     + (agencyFeeForClient && agencyFeePay ? agencyFeeAmount : 0);
 
   // Utility rows for display (filtered by applicable + per-row Include toggle)
@@ -1558,7 +1560,22 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
           <div className="border-t border-slate-700 pt-3 space-y-1">
             {/* Rent & Charges */}
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Rent &amp; Charges</p>
-            {rentRows.map(({ label, amount }) => (
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400">Monthly Rent</span>
+              <span className="text-slate-300 font-medium tabular-nums">{formatQAR(monthlyRent)}</span>
+            </div>
+            {/* Security Deposit with PAY/NO PAY */}
+            <div className="flex items-center justify-between gap-2 text-xs py-0.5">
+              <span className={`flex-1 min-w-0 ${securityDepositPay ? 'text-slate-400' : 'text-slate-600'}`}>Security Deposit (Refundable)*</span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex rounded overflow-hidden border border-slate-700 text-[9px] font-semibold">
+                  <button onClick={() => setSecurityDepositPay(true)}  className={`px-1.5 py-0.5 transition-colors ${securityDepositPay  ? 'bg-amber-500 text-amber-950'  : 'bg-slate-800 text-slate-600 hover:text-slate-400'}`}>PAY</button>
+                  <button onClick={() => setSecurityDepositPay(false)} className={`px-1.5 py-0.5 transition-colors ${!securityDepositPay ? 'bg-red-900/70 text-red-300'    : 'bg-slate-800 text-slate-600 hover:text-slate-400'}`}>NO PAY</button>
+                </div>
+                <span className={`font-medium tabular-nums w-16 text-right ${securityDepositPay ? 'text-slate-300' : 'text-slate-600 line-through'}`}>{formatQAR(securityDeposit)}</span>
+              </div>
+            </div>
+            {fixedRentRows.slice(1).map(({ label, amount }) => (
               <div key={label} className="flex items-center justify-between text-xs">
                 <span className="text-slate-400">{label}</span>
                 <span className="text-slate-300 font-medium tabular-nums">{formatQAR(amount)}</span>

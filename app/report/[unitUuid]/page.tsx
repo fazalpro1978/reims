@@ -534,11 +534,12 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
   const secDep = data.securityDeposit || data.monthlyRent;
 
   // PAY / NO PAY per-row toggles — buttons are hidden on print; rows with NO PAY get rpt-row-nopay (also hidden on print)
-  const [agencyFeePay,      setAgencyFeePay     ] = useState(true);
-  const [kahramaaPay,       setKahramaaPay      ] = useState(true);
-  const [waterElecLimitPay, setWaterElecLimitPay] = useState(true);
-  const [qatarCoolPay,      setQatarCoolPay     ] = useState(true);
-  const [marafeqPay,        setMarafeqPay       ] = useState(true);
+  const [securityDepositPay, setSecurityDepositPay] = useState(true);
+  const [agencyFeePay,       setAgencyFeePay      ] = useState(true);
+  const [kahramaaPay,        setKahramaaPay       ] = useState(true);
+  const [waterElecLimitPay,  setWaterElecLimitPay ] = useState(true);
+  const [qatarCoolPay,       setQatarCoolPay      ] = useState(true);
+  const [marafeqPay,         setMarafeqPay        ] = useState(true);
 
   // Agency Commission shows only when paid_by is 'client'
   const agencyFeeForClient = data.agencyFeeApplicable && data.agencyFeeAmount > 0
@@ -549,7 +550,10 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
     (data.waterElecLimitApplicable  && waterElecLimitPay ? (data.waterElecLimitAmount  || 0) : 0) +
     (data.qatarCoolApplicable       && qatarCoolPay      ? (data.qatarCoolAmount       || 0) : 0) +
     (data.marafeqApplicable         && marafeqPay        ? (data.marafeqAmount         || 0) : 0);
-  const rentSubtotal = (data.monthlyRent || 0) + secDep + (data.contractCharges || 0) + (data.additionalCharges || 0)
+  const rentSubtotal = (data.monthlyRent || 0)
+    + (securityDepositPay ? secDep : 0)
+    + (data.contractCharges || 0)
+    + (data.additionalCharges || 0)
     + (agencyFeeForClient && agencyFeePay ? (data.agencyFeeAmount || 0) : 0);
   const total = rentSubtotal + utilityTotal;
 
@@ -710,9 +714,15 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
           </div>
         )}
         {secDep > 0 && (
-          <div className="rpt-fin-row">
-            <span className="rpt-fin-lbl">Security Deposit <span style={{ fontSize: '7.5pt', color: '#16a34a' }}>(Refundable)*</span></span>
-            <span className="rpt-fin-val">QAR {fmt(secDep)}</span>
+          <div className={`rpt-fin-row${securityDepositPay ? '' : ' rpt-row-nopay'}`}>
+            <span className="rpt-fin-lbl">
+              Security Deposit <span style={{ fontSize: '7.5pt', color: '#16a34a' }}>(Refundable)*</span>
+              <span className="rpt-pay-toggle">
+                <button className={`rpt-pay-pay${securityDepositPay ? '' : ' off'}`} onClick={() => setSecurityDepositPay(true)}>PAY</button>
+                <button className={`rpt-pay-no${!securityDepositPay ? ' on' : ''}`} onClick={() => setSecurityDepositPay(false)}>NO PAY</button>
+              </span>
+            </span>
+            <span className="rpt-fin-val" style={{ textDecoration: securityDepositPay ? 'none' : 'line-through', color: securityDepositPay ? '#1a1a1a' : '#94a3b8' }}>QAR {fmt(secDep)}</span>
           </div>
         )}
         {data.contractCharges > 0 && (
