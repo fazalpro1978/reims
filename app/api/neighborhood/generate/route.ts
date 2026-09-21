@@ -147,18 +147,37 @@ export async function GET(req: NextRequest) {
 
   const query = buildQuery(lat, lon);
 
-  let overpassData: { elements: Array<{ id: number; type: string; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> }> };
-  try {
-    const res = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `data=${encodeURIComponent(query)}`,
-      signal: AbortSignal.timeout(35000),
-    });
-    if (!res.ok) throw new Error(`Overpass HTTP ${res.status}`);
-    overpassData = await res.json();
-  } catch (e: unknown) {
-    return NextResponse.json({ error: `Overpass fetch failed: ${e instanceof Error ? e.message : String(e)}` }, { status: 502 });
+  type OverpassEl = { id: number; type: string; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> };
+  type OverpassResp = { elements: OverpassEl[] };
+
+  // Try primary then mirror; use GET with URL-encoded data to avoid
+  // Next.js injecting Accept headers that Overpass rejects with 406.
+  const ENDPOINTS = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+  ];
+  const encodedQuery = encodeURIComponent(query);
+  let overpassData: OverpassResp = { elements: [] };
+  let lastErr = '';
+
+  for (const endpoint of ENDPOINTS) {
+    try {
+      const res = await fetch(`${endpoint}?data=${encodedQuery}`, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(35000),
+      });
+      if (!res.ok) { lastErr = `HTTP ${res.status} from ${endpoint}`; continue; }
+      overpassData = await res.json();
+      lastErr = '';
+      break;
+    } catch (e: unknown) {
+      lastErr = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  if (lastErr) {
+    return NextResponse.json({ error: `Overpass fetch failed: ${lastErr}` }, { status: 502 });
   }
 
   const elements = overpassData.elements ?? [];
