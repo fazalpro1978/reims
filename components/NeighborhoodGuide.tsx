@@ -385,12 +385,14 @@ export default function NeighborhoodGuide({
   isAdmin,
   canGenerate,
   locationMapUrl = '',
+  onDirtyChange,
 }: {
-  unitUuid:        string;
-  zoneCode:        number;
-  isAdmin:         boolean;
-  canGenerate?:    boolean; // true for superuser/admin even before admin-unlock; gates auto-generate + save
-  locationMapUrl?: string;
+  unitUuid:         string;
+  zoneCode:         number;
+  isAdmin:          boolean;
+  canGenerate?:     boolean;
+  locationMapUrl?:  string;
+  onDirtyChange?:   (dirty: boolean) => void;
 }) {
   const [guide, setGuide] = useState<NGuide>({ lifestyle: [], parks: [], commute: [] });
   const [source, setSource]       = useState<'unit' | 'zone' | 'none'>('none');
@@ -399,6 +401,9 @@ export default function NeighborhoodGuide({
   const [saveMsg, setSaveMsg]     = useState('');
   const [generating, setGenerating] = useState(false);
   const [genMsg,   setGenMsg]     = useState('');
+  const [unsavedGenerate, setUnsavedGenerate] = useState(false);
+
+  const markDirty = (d: boolean) => { setUnsavedGenerate(d); onDirtyChange?.(d); };
 
   const coords    = parseLatLon(locationMapUrl);
   const canEdit   = isAdmin || (canGenerate ?? false); // auto-generate + save; card Add/Edit/Delete still require isAdmin
@@ -458,6 +463,7 @@ export default function NeighborhoodGuide({
       const result = processElements(json.elements ?? [], lat, lon);
       const count  = result.lifestyle.length + result.parks.length + result.commute.length;
       setGuide(result);
+      markDirty(true);
       setGenMsg(`Found ${count} place${count !== 1 ? 's' : ''} — review and save to keep`);
       setTimeout(() => setGenMsg(''), 6000);
     } catch (e: unknown) {
@@ -479,6 +485,7 @@ export default function NeighborhoodGuide({
       const { error } = await res.json();
       if (error) throw new Error(error);
       setSource(asZoneLevel ? 'zone' : 'unit');
+      markDirty(false);
       setSaveMsg(asZoneLevel ? `Saved as Zone ${zoneCode} shared guide` : 'Guide saved for this property');
       setTimeout(() => setSaveMsg(''), 3500);
     } catch (e: unknown) {

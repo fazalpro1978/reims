@@ -1099,7 +1099,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
 
       </SectionCard>
 
-      <NeighborhoodGuide unitUuid={unitUuid} zoneCode={zoneCode} isAdmin={isAdmin} canGenerate={!isReadOnly} locationMapUrl={locationMapUrl} />
+      <NeighborhoodGuide unitUuid={unitUuid} zoneCode={zoneCode} isAdmin={isAdmin} canGenerate={!isReadOnly} locationMapUrl={locationMapUrl} onDirtyChange={setNeighborhoodDirty} />
 
       <SectionCard title="External Links">
 
@@ -2728,6 +2728,9 @@ export default function UnitDetailsModal({ unit, onClose, onUnitSaved }: UnitDet
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminDialog, setShowAdminDialog] = useState(false);
 
+  // Warn before close if neighborhood guide was auto-generated but not saved
+  const [neighborhoodDirty, setNeighborhoodDirty] = useState(false);
+
   const handleAdminUnlock = () => {
     if (canAdminUnlock) {
       setIsAdmin(true);
@@ -2766,8 +2769,9 @@ export default function UnitDetailsModal({ unit, onClose, onUnitSaved }: UnitDet
     return () => cancelAnimationFrame(t);
   }, []);
 
-  // Close with slide-out animation
+  // Close with slide-out animation — warn if neighborhood guide has unsaved generated data
   const handleClose = () => {
+    if (neighborhoodDirty && !window.confirm('You have auto-generated neighborhood data that hasn\'t been saved. Close without saving?')) return;
     setVisible(false);
     setTimeout(onClose, 280);
   };
