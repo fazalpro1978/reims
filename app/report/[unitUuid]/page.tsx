@@ -8,7 +8,7 @@
 // Dynamic @page margin boxes carry the generation timestamp via template literal.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import type { NCard, NGuide } from '../../../components/NeighborhoodGuide';
@@ -79,6 +79,11 @@ function parseArray(raw: unknown): string[] {
     }
   }
   return [];
+}
+
+function extractDriveFolderId(url: string): string | null {
+  const m = url.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : null;
 }
 
 function formatDateTime(d: Date): string {
@@ -357,6 +362,19 @@ body {
   font-size: 7.5pt; font-weight: 600; color: #94a3b8;
   text-transform: uppercase; letter-spacing: 0.08em;
 }
+.rpt-img-add-btn {
+  position: absolute; bottom: 5pt; right: 5pt;
+  width: 16pt; height: 16pt;
+  background: rgba(201,168,76,0.85); color: #fff;
+  border: none; border-radius: 50%; cursor: pointer;
+  font-size: 13pt; font-weight: 300; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 2; padding: 0;
+}
+.rpt-img-add-btn:hover { background: #c9a84c; }
+@media print {
+  .rpt-img-add-btn { display: none !important; }
+}
 
 /* ── 7. Neighborhood Guide ───────────────────────────────────────────────────── */
 .rpt-nbhd-wrap   { display: flex; gap: 8pt; margin-top: 4pt; }
@@ -446,10 +464,24 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
                      + (data.marafeqApplicable     ? (data.marafeqAmount   || 0) : 0);
   const total = (data.monthlyRent || 0) + secDep + (data.contractCharges || 0) + (data.additionalCharges || 0) + utilityTotal;
 
-  // Always render exactly 6 image cells
-  const slots: (string | null)[] = data.images.slice(0, 6) as (string | null)[];
-  while (slots.length < 6) slots.push(null);
-  const rows = [slots.slice(0, 3), slots.slice(3, 6)];
+  // Per-cell photo slots — seeded from DB images, editable by the user via file picker
+  const [photoSlots, setPhotoSlots] = useState<(string | null)[]>(() => {
+    const seeded: (string | null)[] = (data.images ?? []).slice(0, 6) as (string | null)[];
+    while (seeded.length < 6) seeded.push(null);
+    return seeded;
+  });
+  const photoInputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null, null, null, null]);
+
+  function handlePhotoFile(index: number, file: File) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const url = e.target?.result as string;
+      setPhotoSlots(prev => { const next = [...prev]; next[index] = url; return next; });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  const rows = [photoSlots.slice(0, 3), photoSlots.slice(3, 6)];
 
   return (
     <div className="rpt-page">
@@ -555,8 +587,12 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
       )}
 
       {/* ── 5. Financial Summary Panel ────────────────────────────────── */}
-      {opts.showFinancials && <><p className="rpt-sec-lbl">Move-In Payment Summary</p>
+      {opts.showFinancials && <>
+      <p className="rpt-sec-lbl">Financial Summary</p>
       <div className="rpt-fin-panel">
+
+        {/* ── Rent & Charges ── */}
+        <p style={{ fontSize: '7pt', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4pt' }}>Rent &amp; Charges</p>
         {data.monthlyRent > 0 && (
           <div className="rpt-fin-row">
             <span className="rpt-fin-lbl">Monthly Rent</span>
@@ -565,7 +601,7 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
         )}
         {secDep > 0 && (
           <div className="rpt-fin-row">
-            <span className="rpt-fin-lbl">Security Deposit <span style={{ fontSize: '8pt', color: '#16a34a' }}>(Refundable)*</span></span>
+            <span className="rpt-fin-lbl">Security Deposit <span style={{ fontSize: '7.5pt', color: '#16a34a' }}>(Refundable)*</span></span>
             <span className="rpt-fin-val">QAR {fmt(secDep)}</span>
           </div>
         )}
@@ -592,30 +628,53 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
             <span className="rpt-fin-lbl">
               Agency Commission
               {data.agencyFeePaidBy && (
-                <span style={{ fontSize: '8pt', color: '#64748b' }}> — Paid by: {data.agencyFeePaidBy}</span>
+                <span style={{ fontSize: '7.5pt', color: '#64748b' }}> — Paid by: {data.agencyFeePaidBy}</span>
               )}
             </span>
             <span className="rpt-fin-val">QAR {fmt(data.agencyFeeAmount)}</span>
           </div>
         )}
-        <div className="rpt-fin-row">
-          <span className="rpt-fin-lbl" style={{ fontWeight: 700, color: '#334155' }}>Kahramaa Deposit <span style={{ fontSize: '8pt', color: '#16a34a' }}>(Refundable)*</span></span>
-          <span className="rpt-fin-val">{data.kahramaaApplicable ? `QAR ${fmt(data.kahramaaAmount)}` : 'Included'}</span>
+        {/* Rent subtotal */}
+        <div className="rpt-fin-row" style={{ borderTop: '1px solid #cbd5e1', marginTop: '2pt', paddingTop: '3pt' }}>
+          <span className="rpt-fin-lbl" style={{ fontStyle: 'italic', color: '#64748b' }}>Subtotal</span>
+          <span className="rpt-fin-val" style={{ color: '#64748b' }}>QAR {fmt((data.monthlyRent || 0) + secDep + (data.contractCharges || 0) + (data.additionalCharges || 0))}</span>
         </div>
-        <div className="rpt-fin-row">
-          <span className="rpt-fin-lbl" style={{ fontWeight: 700, color: '#334155' }}>Qatar Cool Deposit <span style={{ fontSize: '8pt', color: '#16a34a' }}>(Refundable)*</span></span>
-          <span className="rpt-fin-val">{data.qatarCoolApplicable ? `QAR ${fmt(data.qatarCoolAmount)}` : 'Not Applicable'}</span>
-        </div>
-        <div className="rpt-fin-row">
-          <span className="rpt-fin-lbl" style={{ fontWeight: 700, color: '#334155' }}>Marafeq Deposit <span style={{ fontSize: '8pt', color: '#16a34a' }}>(Refundable)*</span></span>
-          <span className="rpt-fin-val">{data.marafeqApplicable ? `QAR ${fmt(data.marafeqAmount)}` : 'Not Applicable'}</span>
-        </div>
+
+        {/* ── Service & Utility Charges ── */}
+        {utilityTotal > 0 && <>
+          <p style={{ fontSize: '7pt', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '8pt', marginBottom: '4pt' }}>Service &amp; Utility Charges</p>
+          {data.kahramaaApplicable && data.kahramaaAmount > 0 && (
+            <div className="rpt-fin-row">
+              <span className="rpt-fin-lbl">Kahramaa Deposit <span style={{ fontSize: '7.5pt', color: '#16a34a' }}>(Refundable)*</span></span>
+              <span className="rpt-fin-val">QAR {fmt(data.kahramaaAmount)}</span>
+            </div>
+          )}
+          {data.qatarCoolApplicable && data.qatarCoolAmount > 0 && (
+            <div className="rpt-fin-row">
+              <span className="rpt-fin-lbl">Qatar Cool Deposit <span style={{ fontSize: '7.5pt', color: '#16a34a' }}>(Refundable)*</span></span>
+              <span className="rpt-fin-val">QAR {fmt(data.qatarCoolAmount)}</span>
+            </div>
+          )}
+          {data.marafeqApplicable && data.marafeqAmount > 0 && (
+            <div className="rpt-fin-row">
+              <span className="rpt-fin-lbl">Marafeq Deposit <span style={{ fontSize: '7.5pt', color: '#16a34a' }}>(Refundable)*</span></span>
+              <span className="rpt-fin-val">QAR {fmt(data.marafeqAmount)}</span>
+            </div>
+          )}
+          {/* Utility subtotal */}
+          <div className="rpt-fin-row" style={{ borderTop: '1px solid #cbd5e1', marginTop: '2pt', paddingTop: '3pt' }}>
+            <span className="rpt-fin-lbl" style={{ fontStyle: 'italic', color: '#64748b' }}>Subtotal</span>
+            <span className="rpt-fin-val" style={{ color: '#64748b' }}>QAR {fmt(utilityTotal)}</span>
+          </div>
+        </>}
+
+        {/* ── Move-In Payment Summary Total ── */}
         <div className="rpt-fin-row rpt-fin-total">
-          <span className="rpt-fin-lbl-tot">Total Move-In Payment</span>
+          <span className="rpt-fin-lbl-tot">Move-In Payment Summary Total</span>
           <span className="rpt-fin-val-tot">QAR {fmt(total)}</span>
         </div>
       </div>
-      <p style={{ fontSize: '7.5pt', color: '#94a3b8', marginTop: '4px', marginBottom: '0' }}>* T&amp;C apply.</p>
+      <p style={{ fontSize: '7.5pt', color: '#94a3b8', marginTop: '4px', marginBottom: '0' }}>*Terms &amp; Conditions Apply.</p>
       </>}
 
       {/* ── 6. Media (Location removed for external roles) ────────────── */}
@@ -650,23 +709,38 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
         <tbody>
           {rows.map((row, ri) => (
             <tr key={ri}>
-              {row.map((src, ci) => (
-                <td key={ci} style={{ width: '33.33%' }}>
-                  <div className="rpt-img-cell">
-                    {src ? (
-                      <img
-                        src={src}
-                        alt={`Property photo ${ri * 3 + ci + 1}`}
-                        loading="eager"
-                      />
-                    ) : (
-                      <div className="rpt-img-ph">
-                        <span className="rpt-img-ph-txt">Photo {ri * 3 + ci + 1}</span>
-                      </div>
-                    )}
-                  </div>
-                </td>
-              ))}
+              {row.map((src, ci) => {
+                const idx = ri * 3 + ci;
+                return (
+                  <td key={ci} style={{ width: '33.33%' }}>
+                    <div className="rpt-img-cell">
+                      {src ? (
+                        <img
+                          src={src}
+                          alt={`Property photo ${idx + 1}`}
+                          loading="eager"
+                        />
+                      ) : (
+                        <div className="rpt-img-ph">
+                          <span className="rpt-img-ph-txt">Photo {idx + 1}</span>
+                          <button
+                            className="rpt-img-add-btn"
+                            title="Add photo"
+                            onClick={() => photoInputRefs.current[idx]?.click()}
+                          >+</button>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            ref={el => { photoInputRefs.current[idx] = el; }}
+                            onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoFile(idx, f); }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>

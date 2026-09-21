@@ -1262,6 +1262,7 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   const [waterElectricity, setWaterElectricity] = useState<'Included' | 'Excluded'>('Excluded');
   const [waterElecLimitApplicable, setWaterElecLimitApplicable] = useState<boolean>(false);
   const [waterElecLimitAmount, setWaterElecLimitAmount] = useState<number>(0);
+  const [includeUtilities, setIncludeUtilities] = useState<boolean>(true);
 
   useEffect(() => {
     if (!unitUuid) return;
@@ -1321,23 +1322,23 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   const securityDeposit = monthlyRent; // 1 month's rent — refundable
 
   const rentRows = [
-    { label: 'Monthly Rent',                  amount: monthlyRent },
-    { label: 'Security Deposit (Refundable)', amount: securityDeposit },
-    { label: 'Contract Charges',              amount: contractCharges },
-    { label: 'Additional Charges',            amount: additionalCharges },
+    { label: 'Monthly Rent',                    amount: monthlyRent },
+    { label: 'Security Deposit (Refundable)*',  amount: securityDeposit },
+    { label: 'Contract Charges',                amount: contractCharges },
+    { label: 'Additional Charges',              amount: additionalCharges },
   ];
   const rentTotal = rentRows.reduce((s, r) => s + r.amount, 0);
 
   const utilityRows = [
-    ...(kahramaaApplicable  ? [{ label: 'Kahramaa Deposit',         amount: kahramaaAmount  }] : []),
+    ...(kahramaaApplicable  ? [{ label: 'Kahramaa Deposit (Refundable)*',   amount: kahramaaAmount  }] : []),
     ...(waterElectricity === 'Included' && waterElecLimitApplicable
-      ? [{ label: 'Water & Electricity Limit', amount: waterElecLimitAmount }] : []),
-    ...(qatarCoolApplicable ? [{ label: 'Qatar Cool Deposit',        amount: qatarCoolAmount }] : []),
-    ...(marafeqApplicable   ? [{ label: 'Marafeq Deposit',           amount: marafeqAmount   }] : []),
+      ? [{ label: 'Water & Electricity Limit',                              amount: waterElecLimitAmount }] : []),
+    ...(qatarCoolApplicable ? [{ label: 'Qatar Cool Deposit (Refundable)*', amount: qatarCoolAmount }] : []),
+    ...(marafeqApplicable   ? [{ label: 'Marafeq Deposit (Refundable)*',    amount: marafeqAmount   }] : []),
   ];
   const utilityTotal = utilityRows.reduce((s, r) => s + r.amount, 0);
 
-  const firstMonthTotal = rentTotal + utilityTotal;
+  const firstMonthTotal = rentTotal + (includeUtilities ? utilityTotal : 0);
 
   return (
     <div className="space-y-4">
@@ -1494,10 +1495,7 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
         <div className="bg-amber-500 px-5 py-3 flex items-center justify-between">
           <div>
             <p className="text-amber-950 text-xs font-bold uppercase tracking-wider">
-              Move-In Payment Summary
-            </p>
-            <p className="text-amber-900 text-[11px] mt-0.5 opacity-80">
-              Total amount due upon lease signing
+              Financial Summary
             </p>
           </div>
           <svg className="w-7 h-7 text-amber-800 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -1532,29 +1530,48 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
               <span className="text-slate-400 font-medium tabular-nums">{formatQAR(rentTotal)}</span>
             </div>
 
-            {/* Service & Utility Charges */}
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-3 mb-1">Service &amp; Utility Charges</p>
-            {utilityRows.length > 0 ? utilityRows.map(({ label, amount }) => (
-              <div key={label} className="flex items-center justify-between text-xs">
-                <span className="text-slate-400">{label}</span>
-                <span className="text-slate-300 font-medium tabular-nums">{formatQAR(amount)}</span>
+            {/* Service & Utility Charges — with Include/Exclude toggle */}
+            <div className="flex items-center justify-between mt-3 mb-1">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Service &amp; Utility Charges</p>
+              <div className="flex rounded overflow-hidden border border-slate-700 text-[10px] font-semibold">
+                <button
+                  onClick={() => setIncludeUtilities(true)}
+                  className={`px-2 py-0.5 transition-colors ${includeUtilities ? 'bg-amber-500 text-amber-950' : 'bg-slate-800 text-slate-500 hover:text-slate-300'}`}
+                >Include</button>
+                <button
+                  onClick={() => setIncludeUtilities(false)}
+                  className={`px-2 py-0.5 transition-colors ${!includeUtilities ? 'bg-slate-600 text-white' : 'bg-slate-800 text-slate-500 hover:text-slate-300'}`}
+                >Exclude</button>
               </div>
-            )) : (
-              <p className="text-xs text-slate-600 italic">No applicable deposits</p>
-            )}
-            <div className="flex items-center justify-between text-xs pt-1 mt-0.5 border-t border-slate-800">
-              <span className="text-slate-500 italic">Subtotal</span>
-              <span className="text-slate-400 font-medium tabular-nums">{formatQAR(utilityTotal)}</span>
             </div>
+            {includeUtilities && (
+              <>
+                {utilityRows.length > 0 ? utilityRows.map(({ label, amount }) => (
+                  <div key={label} className="flex items-center justify-between text-xs">
+                    <span className="text-slate-400">{label}</span>
+                    <span className="text-slate-300 font-medium tabular-nums">{formatQAR(amount)}</span>
+                  </div>
+                )) : (
+                  <p className="text-xs text-slate-600 italic">No applicable deposits</p>
+                )}
+                <div className="flex items-center justify-between text-xs pt-1 mt-0.5 border-t border-slate-800">
+                  <span className="text-slate-500 italic">Subtotal</span>
+                  <span className="text-slate-400 font-medium tabular-nums">{formatQAR(utilityTotal)}</span>
+                </div>
+              </>
+            )}
 
-            {/* Grand total */}
+            {/* Move-In Payment Summary total footer */}
             <div className="flex items-center justify-between text-xs pt-2 mt-2 border-t border-slate-700">
-              <span className="text-slate-300 font-semibold uppercase tracking-wider">Total</span>
+              <span className="text-slate-300 font-semibold uppercase tracking-wider">Move-In Payment Summary Total</span>
               <span className="text-amber-400 font-bold tabular-nums">{formatQAR(firstMonthTotal)}</span>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Terms notice */}
+      <p className="text-[10px] text-slate-600 mt-1">*Terms &amp; Conditions Apply.</p>
 
     </div>
   );
