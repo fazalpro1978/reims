@@ -445,7 +445,7 @@ body {
 .rpt-pay-toggle .rpt-pay-no.on  { background: #fee2e2; color: #991b1b; }
 
 @media print {
-  .rpt-img-add-btn, .rpt-img-del-btn, .rpt-url-popover, .rpt-pay-toggle { display: none !important; }
+  .rpt-img-add-btn, .rpt-img-del-btn, .rpt-url-popover, .rpt-pay-toggle, .rpt-nbhd-remove { display: none !important; }
   .rpt-row-nopay { display: none !important; }
 }
 
@@ -461,7 +461,7 @@ body {
 .rpt-nbhd-pillar-parks { color: #14532d; border-color: #86efac44; }
 .rpt-nbhd-pillar-comm  { color: #1e3a8a; border-color: #93c5fd44; }
 .rpt-nbhd-card {
-  padding: 4pt 0; border-bottom: 1px solid #f1f5f9;
+  padding: 4pt 0; border-bottom: 1px solid #f1f5f9; position: relative;
 }
 .rpt-nbhd-card:last-child { border-bottom: none; }
 .rpt-nbhd-name  { font-size: 9pt; font-weight: 600; color: #0f172a; line-height: 1.3; }
@@ -473,6 +473,15 @@ body {
 .rpt-nbhd-meta  { font-size: 8.5pt; color: #64748b; margin-top: 1.5pt; line-height: 1.4; }
 .rpt-nbhd-notes { font-size: 8pt; color: #94a3b8; margin-top: 1pt; font-style: italic; }
 .rpt-nbhd-empty { font-size: 8.5pt; color: #cbd5e1; font-style: italic; }
+.rpt-nbhd-remove {
+  position: absolute; top: 4pt; right: 0;
+  width: 14pt; height: 14pt; border-radius: 50%;
+  border: 1px solid #fca5a5; background: #fff1f2;
+  color: #dc2626; font-size: 8pt; font-weight: 700; line-height: 1;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+}
+.rpt-nbhd-card:hover .rpt-nbhd-remove { opacity: 1; }
 
 /* ── Smart Code identification badge ─────────────────────────────────────────── */
 .rpt-smart-badge {
@@ -532,6 +541,10 @@ interface ReportOpts {
 
 function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighborhood: NGuide | null; opts: ReportOpts }) {
   const secDep = data.securityDeposit || data.monthlyRent;
+
+  // Neighborhood card visibility — hidden IDs excluded from print
+  const [hiddenNCards, setHiddenNCards] = useState<Set<string>>(new Set());
+  const hideNCard = (id: string) => setHiddenNCards(prev => new Set([...prev, id]));
 
   // PAY / NO PAY per-row toggles — buttons are hidden on print; rows with NO PAY get rpt-row-nopay (also hidden on print)
   const [securityDepositPay, setSecurityDepositPay] = useState(true);
@@ -939,10 +952,12 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
 
       {/* ── 7. Neighborhood Guide ────────────────────────────────────── */}
       {opts.showNeighborhood && neighborhood && (neighborhood.lifestyle.length > 0 || neighborhood.parks.length > 0 || neighborhood.commute.length > 0) && (() => {
-        const renderPillarCards = (cards: NCard[]) => cards.length === 0
-          ? <p className="rpt-nbhd-empty">Not available</p>
-          : cards.map(c => (
+        const renderPillarCards = (cards: NCard[]) => {
+          const visible = cards.filter(c => !hiddenNCards.has(c.id));
+          if (visible.length === 0) return <p className="rpt-nbhd-empty">Not available</p>;
+          return visible.map(c => (
             <div key={c.id} className="rpt-nbhd-card">
+              <button className="rpt-nbhd-remove" onClick={() => hideNCard(c.id)} title="Remove from PDF">✕</button>
               <p className="rpt-nbhd-name">{c.name}</p>
               <span className="rpt-nbhd-sub">{c.subcategory}</span>
               <p className="rpt-nbhd-meta">
@@ -953,6 +968,7 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
               {c.notes && <p className="rpt-nbhd-notes">{c.notes}</p>}
             </div>
           ));
+        };
         return (
           <>
             <p className="rpt-sec-lbl">Neighborhood Guide</p>
