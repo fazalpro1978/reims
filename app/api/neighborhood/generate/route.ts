@@ -95,41 +95,21 @@ function classifyCommute(tags: Record<string, string>): string | null {
   return null;
 }
 
-// ── Overpass QL query ─────────────────────────────────────────────────────────
+// ── Overpass QL query — compact (uses nwr to merge node/way/relation) ─────────
 function buildQuery(lat: number, lon: number): string {
-  // Radius in metres per category group
-  const r1 = 2000; // lifestyle + parks (walkable)
-  const r2 = 5000; // hospitals + metro
-  const r3 = 20000; // airport
-
-  const lifestyleTags = [
-    `node["shop"~"mall|shopping_centre|supermarket|hypermarket"](around:${r1},${lat},${lon});`,
-    `way["shop"~"mall|shopping_centre|supermarket|hypermarket"](around:${r1},${lat},${lon});`,
-    `node["amenity"~"school|kindergarten|cinema|theatre|restaurant|fast_food|cafe|community_centre|pharmacy|clinic|doctors|dentist|place_of_worship"](around:${r1},${lat},${lon});`,
-    `way["amenity"~"school|kindergarten|cinema|theatre|community_centre|place_of_worship"](around:${r1},${lat},${lon});`,
-  ];
-
-  const parksTags = [
-    `node["leisure"~"park|garden|playground|sports_centre|pitch|beach_resort|swimming_pool|promenade"](around:${r1},${lat},${lon});`,
-    `way["leisure"~"park|garden|playground|sports_centre|pitch|beach_resort|promenade"](around:${r1},${lat},${lon});`,
-    `node["natural"="beach"](around:${r1},${lat},${lon});`,
-    `way["natural"="beach"](around:${r1},${lat},${lon});`,
-  ];
-
-  const commuteTags = [
-    `node["amenity"="hospital"](around:${r2},${lat},${lon});`,
-    `way["amenity"="hospital"](around:${r2},${lat},${lon});`,
-    `node["railway"="station"](around:${r2},${lat},${lon});`,
-    `node["station"="subway"](around:${r2},${lat},${lon});`,
-    `node["highway"="bus_stop"](around:${r1},${lat},${lon});`,
-    `node["amenity"="bus_station"](around:${r1},${lat},${lon});`,
-    `node["aeroway"~"aerodrome|terminal"](around:${r3},${lat},${lon});`,
-    `way["aeroway"~"aerodrome|terminal"](around:${r3},${lat},${lon});`,
-    `node["amenity"="ferry_terminal"](around:${r2},${lat},${lon});`,
-  ];
-
-  const lines = [...lifestyleTags, ...parksTags, ...commuteTags];
-  return `[out:json][timeout:30];\n(\n  ${lines.join('\n  ')}\n);\nout center tags;`;
+  // nwr = node + way + relation in one filter; keeps query count low to avoid 429
+  return `[out:json][timeout:25];
+(
+  nwr["shop"~"^(mall|shopping_centre|supermarket|hypermarket)$"](around:3000,${lat},${lon});
+  nwr["amenity"~"^(school|kindergarten|cinema|theatre|restaurant|fast_food|place_of_worship|clinic|doctors|pharmacy|community_centre)$"](around:2500,${lat},${lon});
+  nwr["leisure"~"^(park|garden|playground|sports_centre|pitch|beach_resort|promenade)$"](around:2500,${lat},${lon});
+  nwr["natural"="beach"](around:2500,${lat},${lon});
+  nwr["amenity"~"^(hospital|bus_station|ferry_terminal)$"](around:5000,${lat},${lon});
+  nwr["railway"="station"](around:5000,${lat},${lon});
+  nwr["highway"="bus_stop"](around:1500,${lat},${lon});
+  nwr["aeroway"~"^(aerodrome|terminal)$"](around:25000,${lat},${lon});
+);
+out center tags;`;
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
@@ -150,34 +130,38 @@ export async function GET(req: NextRequest) {
   type OverpassEl = { id: number; type: string; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> };
   type OverpassResp = { elements: OverpassEl[] };
 
-  // Try primary then mirror; use GET with URL-encoded data to avoid
-  // Next.js injecting Accept headers that Overpass rejects with 406.
+  // Three Overpass mirrors; use GET with explicit Accept to avoid Next.js
+  // injecting headers that cause 406. Brief delay between retries so a
+  // rate-limited primary doesn't immediately saturate the mirror.
   const ENDPOINTS = [
     'https://overpass-api.de/api/interpreter',
     'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.private.coffee/api/interpreter',
   ];
   const encodedQuery = encodeURIComponent(query);
   let overpassData: OverpassResp = { elements: [] };
   let lastErr = '';
 
-  for (const endpoint of ENDPOINTS) {
+  for (let i = 0; i < ENDPOINTS.length; i++) {
+    if (i > 0) await new Promise(r => setTimeout(r, 800));
+    const endpoint = ENDPOINTS[i];
     try {
       const res = await fetch(`${endpoint}?data=${encodedQuery}`, {
         method: 'GET',
-        headers: { Accept: 'application/json' },
-        signal: AbortSignal.timeout(35000),
+        headers: { Accept: 'application/json', 'User-Agent': 'REIMS/1.0 (realestate)' },
+        signal: AbortSignal.timeout(30000),
       });
       if (!res.ok) { lastErr = `HTTP ${res.status} from ${endpoint}`; continue; }
       overpassData = await res.json();
       lastErr = '';
       break;
     } catch (e: unknown) {
-      lastErr = e instanceof Error ? e.message : String(e);
+      lastErr = `${endpoint}: ${e instanceof Error ? e.message : String(e)}`;
     }
   }
 
   if (lastErr) {
-    return NextResponse.json({ error: `Overpass fetch failed: ${lastErr}` }, { status: 502 });
+    return NextResponse.json({ error: `Overpass unavailable (all mirrors): ${lastErr}` }, { status: 502 });
   }
 
   const elements = overpassData.elements ?? [];
