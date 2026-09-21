@@ -253,16 +253,133 @@ function CardForm({
 
 function parseLatLon(url: string): { lat: number; lon: number } | null {
   if (!url) return null;
-  // ?q=25.276,51.536  (most common from Google Maps share)
   let m = url.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
   if (m) return { lat: parseFloat(m[1]), lon: parseFloat(m[2]) };
-  // /@25.276,51.536,17z
   m = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*),\d+z/);
   if (m) return { lat: parseFloat(m[1]), lon: parseFloat(m[2]) };
-  // /place/.../@25.276,51.536
   m = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
   if (m) return { lat: parseFloat(m[1]), lon: parseFloat(m[2]) };
   return null;
+}
+
+// ── Browser-side Overpass helpers (no server round-trip) ──────────────────────
+
+function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
+  const φ1 = (lat1 * Math.PI) / 180, φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180, Δλ = ((lon2 - lon1) * Math.PI) / 180;
+  const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function fmtDist(m: number): string {
+  return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`;
+}
+
+type OsmTags = Record<string, string>;
+
+function getOsmName(tags: OsmTags): string {
+  return (tags['name:en'] || tags['name'] || '').trim();
+}
+
+function classifyLifestyle(tags: OsmTags): string | null {
+  const shop = tags['shop'] ?? '', amenity = tags['amenity'] ?? '', name = (tags['name'] ?? '').toLowerCase();
+  if (shop === 'mall' || shop === 'shopping_centre') return 'Shopping Mall';
+  if (shop === 'supermarket' || shop === 'hypermarket') return 'Hypermarket / Supermarket';
+  if (amenity === 'kindergarten') return 'Nursery / Preschool';
+  if (amenity === 'school') {
+    return (name.includes('international') || tags['school:type'] === 'international') ? 'International School' : 'Private School';
+  }
+  if (amenity === 'cinema' || amenity === 'theatre') return 'Cinema / Entertainment';
+  if (amenity === 'restaurant' || amenity === 'fast_food' || amenity === 'cafe') return 'Restaurant / Dining';
+  if (amenity === 'place_of_worship' && (tags['religion'] === 'muslim' || tags['religion'] === 'islam')) return 'Mosque';
+  if (amenity === 'clinic' || amenity === 'doctors' || amenity === 'pharmacy' || amenity === 'dentist') return 'Clinic / Medical Centre';
+  if (amenity === 'community_centre') return 'Community Centre';
+  return null;
+}
+
+function classifyParks(tags: OsmTags): string | null {
+  const leisure = tags['leisure'] ?? '', natural = tags['natural'] ?? '';
+  if (natural === 'beach' || leisure === 'beach_resort') return 'Public Beach';
+  if (leisure === 'garden') return 'Public Garden';
+  if (leisure === 'playground') return 'Playground';
+  if (leisure === 'sports_centre' || leisure === 'stadium' || leisure === 'pitch') return 'Sports Facility';
+  if (leisure === 'promenade') return 'Waterfront / Corniche';
+  if (leisure === 'park') return 'Family Park';
+  return null;
+}
+
+function classifyCommute(tags: OsmTags): string | null {
+  const amenity = tags['amenity'] ?? '', railway = tags['railway'] ?? '', highway = tags['highway'] ?? '', aeroway = tags['aeroway'] ?? '';
+  const name = (tags['name'] ?? '').toLowerCase();
+  if (aeroway === 'aerodrome' || aeroway === 'terminal' || name.includes('airport')) return 'Hamad International Airport';
+  if (amenity === 'hospital') return (tags['operator:type'] === 'public') ? 'Government Hospital' : 'Private Hospital';
+  if (amenity === 'ferry_terminal') return 'Ferry Terminal';
+  if (railway === 'station' || tags['station'] === 'subway' || name.includes('metro') || name.includes('station')) return 'Metro Station';
+  if (highway === 'bus_stop' || amenity === 'bus_station') return 'Bus Stop';
+  return null;
+}
+
+type OsmEl = { id: number; type: string; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: OsmTags };
+
+function processElements(elements: OsmEl[], originLat: number, originLon: number): NGuide {
+  const lifestyle: NCard[] = [], parks: NCard[] = [], commute: NCard[] = [];
+  const seen = new Set<string>();
+
+  for (const el of elements) {
+    const tags = el.tags ?? {};
+    const name = getOsmName(tags);
+    if (!name) continue;
+    const key = name.toLowerCase().replace(/\s+/g, '');
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const elLat = el.center?.lat ?? el.lat ?? 0;
+    const elLon = el.center?.lon ?? el.lon ?? 0;
+    const dist  = haversineM(originLat, originLon, elLat, elLon);
+
+    const card: NCard = {
+      id: `osm-${el.type}-${el.id}`,
+      name,
+      subcategory: '',
+      distance: fmtDist(dist),
+      rating: null,
+      notes: '',
+      mapsUrl: elLat && elLon ? `https://www.google.com/maps?q=${elLat},${elLon}` : '',
+    };
+
+    const lsCat = classifyLifestyle(tags);
+    if (lsCat) { lifestyle.push({ ...card, subcategory: lsCat }); continue; }
+    const pkCat = classifyParks(tags);
+    if (pkCat) { parks.push({ ...card, subcategory: pkCat }); continue; }
+    const cmCat = classifyCommute(tags);
+    if (cmCat) { commute.push({ ...card, subcategory: cmCat }); }
+  }
+
+  const byDist = (a: NCard, b: NCard) => {
+    const da = parseFloat(a.distance), db = parseFloat(b.distance);
+    return da - db;
+  };
+  return {
+    lifestyle: lifestyle.sort(byDist).slice(0, 15),
+    parks:     parks.sort(byDist).slice(0, 15),
+    commute:   commute.sort(byDist).slice(0, 15),
+  };
+}
+
+function buildOverpassQuery(lat: number, lon: number): string {
+  return `[out:json][timeout:25];
+(
+  nwr["shop"~"^(mall|shopping_centre|supermarket|hypermarket)$"](around:3000,${lat},${lon});
+  nwr["amenity"~"^(school|kindergarten|cinema|theatre|restaurant|fast_food|place_of_worship|clinic|doctors|pharmacy|community_centre)$"](around:2500,${lat},${lon});
+  nwr["leisure"~"^(park|garden|playground|sports_centre|pitch|beach_resort|promenade)$"](around:2500,${lat},${lon});
+  nwr["natural"="beach"](around:2500,${lat},${lon});
+  nwr["amenity"~"^(hospital|bus_station|ferry_terminal)$"](around:5000,${lat},${lon});
+  nwr["railway"="station"](around:5000,${lat},${lon});
+  nwr["highway"="bus_stop"](around:1500,${lat},${lon});
+  nwr["aeroway"~"^(aerodrome|terminal)$"](around:25000,${lat},${lon});
+);
+out center tags;`;
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -321,13 +438,33 @@ export default function NeighborhoodGuide({
     setGenerating(true);
     setGenMsg('');
     try {
-      const res = await authedFetch(`/api/neighborhood/generate?lat=${coords.lat}&lon=${coords.lon}`);
-      if (!res.ok) {
-        const { error } = await res.json().catch(() => ({}));
-        throw new Error(error ?? `HTTP ${res.status}`);
+      const { lat, lon } = coords;
+      const encoded = encodeURIComponent(buildOverpassQuery(lat, lon));
+      const MIRRORS = [
+        'https://overpass-api.de/api/interpreter',
+        'https://overpass.kumi.systems/api/interpreter',
+        'https://overpass.private.coffee/api/interpreter',
+      ];
+
+      let elements: OsmEl[] | null = null;
+      let lastErr = '';
+      for (const mirror of MIRRORS) {
+        try {
+          const r = await fetch(`${mirror}?data=${encoded}`, { headers: { Accept: 'application/json' } });
+          if (!r.ok) { lastErr = `${mirror}: HTTP ${r.status}`; continue; }
+          const json = await r.json();
+          elements = json.elements ?? [];
+          lastErr = '';
+          break;
+        } catch (e: unknown) {
+          lastErr = `${mirror}: ${e instanceof Error ? e.message : String(e)}`;
+        }
       }
-      const { lifestyle, parks, commute, count } = await res.json();
-      setGuide({ lifestyle, parks, commute });
+      if (elements === null) throw new Error(lastErr || 'All mirrors failed');
+
+      const result = processElements(elements, lat, lon);
+      const count  = result.lifestyle.length + result.parks.length + result.commute.length;
+      setGuide(result);
       setGenMsg(`Found ${count} place${count !== 1 ? 's' : ''} — review and save to keep`);
       setTimeout(() => setGenMsg(''), 6000);
     } catch (e: unknown) {
