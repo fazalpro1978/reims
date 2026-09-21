@@ -373,6 +373,18 @@ body {
 }
 .rpt-img-add-btn:hover { background: #c9a84c; }
 
+/* Remove-photo button — shown on hover over a filled cell */
+.rpt-img-del-btn {
+  position: absolute; top: 4pt; right: 4pt;
+  width: 15pt; height: 15pt;
+  background: rgba(15,23,42,0.78); color: #f1f5f9;
+  border: 1px solid rgba(255,255,255,0.22); border-radius: 50%;
+  font-size: 11pt; font-weight: 300; line-height: 1; cursor: pointer;
+  display: none; align-items: center; justify-content: center;
+  z-index: 3; padding: 0;
+}
+.rpt-img-cell:hover .rpt-img-del-btn { display: flex; }
+
 /* URL popover */
 .rpt-url-popover {
   position: fixed;
@@ -415,7 +427,7 @@ body {
 }
 .rpt-url-file-lnk:hover { color: #94a3b8; }
 @media print {
-  .rpt-img-add-btn, .rpt-url-popover { display: none !important; }
+  .rpt-img-add-btn, .rpt-img-del-btn, .rpt-url-popover { display: none !important; }
 }
 
 /* ── 7. Neighborhood Guide ───────────────────────────────────────────────────── */
@@ -518,7 +530,7 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
   const [urlDraft,      setUrlDraft     ] = useState('');
   const [urlPopoverPos, setUrlPopoverPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
-  function setSlot(index: number, url: string) {
+  function setSlot(index: number, url: string | null) {
     setPhotoSlots(prev => { const next = [...prev]; next[index] = url; return next; });
   }
 
@@ -528,11 +540,11 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
     reader.readAsDataURL(file);
   }
 
-  // Convert Google Drive share/view links → direct embed URL
+  // Convert Google Drive share/view links → embeddable CDN URL
+  // drive.google.com/uc?export=view is blocked; lh3.googleusercontent.com/d/ID works for public files
   function toEmbeddable(raw: string): string {
-    // https://drive.google.com/file/d/FILE_ID/view?...
     const m = raw.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-    if (m) return `https://drive.google.com/uc?id=${m[1]}&export=view`;
+    if (m) return `https://lh3.googleusercontent.com/d/${m[1]}`;
     return raw.trim();
   }
 
@@ -777,11 +789,18 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
                   <td key={ci} style={{ width: '33.33%' }}>
                     <div className="rpt-img-cell">
                       {src ? (
-                        <img
-                          src={src}
-                          alt={`Property photo ${idx + 1}`}
-                          loading="eager"
-                        />
+                        <>
+                          <img
+                            src={src}
+                            alt={`Property photo ${idx + 1}`}
+                            loading="eager"
+                          />
+                          <button
+                            className="rpt-img-del-btn"
+                            title="Remove photo"
+                            onClick={() => setSlot(idx, null)}
+                          >×</button>
+                        </>
                       ) : (
                         <div className="rpt-img-ph">
                           <span className="rpt-img-ph-txt">Photo {idx + 1}</span>
