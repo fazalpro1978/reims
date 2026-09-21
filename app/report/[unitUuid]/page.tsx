@@ -375,12 +375,12 @@ body {
 
 /* URL popover */
 .rpt-url-popover {
-  position: absolute; bottom: calc(100% + 6pt); left: 50%;
-  transform: translateX(-50%);
+  position: fixed;
+  transform: translate(-50%, calc(-100% - 8px));
   background: #1e293b; border: 1px solid #334155;
   border-radius: 5pt; padding: 7pt 8pt 6pt;
-  width: 180pt; z-index: 20;
-  box-shadow: 0 4pt 12pt rgba(0,0,0,0.35);
+  width: 220px; z-index: 9999;
+  box-shadow: 0 4pt 16pt rgba(0,0,0,0.5);
 }
 .rpt-url-popover-lbl {
   font-size: 6.5pt; font-weight: 700; color: #94a3b8;
@@ -516,6 +516,7 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
   // URL popover state
   const [urlPopoverIdx, setUrlPopoverIdx] = useState<number | null>(null);
   const [urlDraft,      setUrlDraft     ] = useState('');
+  const [urlPopoverPos, setUrlPopoverPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
   function setSlot(index: number, url: string) {
     setPhotoSlots(prev => { const next = [...prev]; next[index] = url; return next; });
@@ -785,9 +786,9 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
                         <div className="rpt-img-ph">
                           <span className="rpt-img-ph-txt">Photo {idx + 1}</span>
 
-                          {/* URL popover */}
+                          {/* URL popover — rendered fixed so overflow:hidden on cell doesn't clip it */}
                           {urlPopoverIdx === idx && (
-                            <div className="rpt-url-popover">
+                            <div className="rpt-url-popover" style={{ top: urlPopoverPos.top, left: urlPopoverPos.left }}>
                               <p className="rpt-url-popover-lbl">Paste photo URL</p>
                               <input
                                 autoFocus
@@ -811,7 +812,12 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
                           <button
                             className="rpt-img-add-btn"
                             title="Add photo"
-                            onClick={() => { setUrlDraft(''); setUrlPopoverIdx(urlPopoverIdx === idx ? null : idx); }}
+                            onClick={(e) => {
+                              const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                              setUrlPopoverPos({ top: r.top, left: r.left + r.width / 2 });
+                              setUrlDraft('');
+                              setUrlPopoverIdx(urlPopoverIdx === idx ? null : idx);
+                            }}
                           >+</button>
                           <input
                             type="file"
