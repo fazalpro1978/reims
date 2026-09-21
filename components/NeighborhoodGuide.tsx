@@ -249,22 +249,44 @@ function CardForm({
   );
 }
 
+// ── Coordinate parser ─────────────────────────────────────────────────────────
+
+function parseLatLon(url: string): { lat: number; lon: number } | null {
+  if (!url) return null;
+  // ?q=25.276,51.536  (most common from Google Maps share)
+  let m = url.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+  if (m) return { lat: parseFloat(m[1]), lon: parseFloat(m[2]) };
+  // /@25.276,51.536,17z
+  m = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*),\d+z/);
+  if (m) return { lat: parseFloat(m[1]), lon: parseFloat(m[2]) };
+  // /place/.../@25.276,51.536
+  m = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+  if (m) return { lat: parseFloat(m[1]), lon: parseFloat(m[2]) };
+  return null;
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function NeighborhoodGuide({
   unitUuid,
   zoneCode,
   isAdmin,
+  locationMapUrl = '',
 }: {
-  unitUuid: string;
-  zoneCode: number;
-  isAdmin: boolean;
+  unitUuid:        string;
+  zoneCode:        number;
+  isAdmin:         boolean;
+  locationMapUrl?: string;
 }) {
   const [guide, setGuide] = useState<NGuide>({ lifestyle: [], parks: [], commute: [] });
-  const [source, setSource]   = useState<'unit' | 'zone' | 'none'>('none');
-  const [loading, setLoading] = useState(true);
-  const [saving,  setSaving]  = useState(false);
-  const [saveMsg, setSaveMsg] = useState('');
+  const [source, setSource]       = useState<'unit' | 'zone' | 'none'>('none');
+  const [loading, setLoading]     = useState(true);
+  const [saving,  setSaving]      = useState(false);
+  const [saveMsg, setSaveMsg]     = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [genMsg,   setGenMsg]     = useState('');
+
+  const coords = parseLatLon(locationMapUrl);
 
   const [addingTo,   setAddingTo]  = useState<Pillar | null>(null);
   const [editingId,  setEditingId] = useState<string | null>(null);
@@ -290,6 +312,27 @@ export default function NeighborhoodGuide({
       .catch(() => setSource('none'))
       .finally(() => setLoading(false));
   }, [unitUuid, zoneCode]);
+
+  const generateFromLocation = async () => {
+    if (!coords) return;
+    setGenerating(true);
+    setGenMsg('');
+    try {
+      const res = await authedFetch(`/api/neighborhood/generate?lat=${coords.lat}&lon=${coords.lon}`);
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({}));
+        throw new Error(error ?? `HTTP ${res.status}`);
+      }
+      const { lifestyle, parks, commute, count } = await res.json();
+      setGuide({ lifestyle, parks, commute });
+      setGenMsg(`Found ${count} place${count !== 1 ? 's' : ''} — review and save to keep`);
+      setTimeout(() => setGenMsg(''), 6000);
+    } catch (e: unknown) {
+      setGenMsg('Auto-generate failed: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const doSave = async (asZoneLevel: boolean) => {
     setSaving(true);
@@ -370,6 +413,41 @@ export default function NeighborhoodGuide({
         <div className="px-4 py-6 text-center text-xs text-[#555555]">Loading neighborhood data…</div>
       ) : (
         <div className="px-4 py-3 space-y-4">
+
+          {/* Auto-generate banner — shown when a location URL with parseable coords exists */}
+          {isAdmin && coords && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/8 border border-emerald-500/20 text-[11px] text-emerald-300">
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span className="flex-1">
+                Location detected ({coords.lat.toFixed(5)}, {coords.lon.toFixed(5)})
+              </span>
+              <button
+                type="button"
+                onClick={generateFromLocation}
+                disabled={generating}
+                className="px-2.5 py-1 rounded-md font-bold bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50 transition-colors text-[10px] whitespace-nowrap"
+              >
+                {generating ? 'Searching…' : '⚡ Auto-generate'}
+              </button>
+            </div>
+          )}
+          {isAdmin && !coords && locationMapUrl && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/8 border border-amber-500/20 text-[11px] text-amber-300">
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              Location URL saved but coordinates could not be parsed — auto-generate unavailable.
+            </div>
+          )}
+          {genMsg && (
+            <div className={`px-3 py-2 rounded-lg text-[11px] font-medium ${genMsg.startsWith('Auto-generate failed') ? 'bg-red-500/10 border border-red-500/20 text-red-300' : 'bg-emerald-500/8 border border-emerald-500/20 text-emerald-300'}`}>
+              {genMsg}
+            </div>
+          )}
+
           {/* Zone guide banner */}
           {source === 'zone' && isAdmin && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/8 border border-blue-500/20 text-[11px] text-blue-300">

@@ -1099,7 +1099,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
 
       </SectionCard>
 
-      <NeighborhoodGuide unitUuid={unitUuid} zoneCode={zoneCode} isAdmin={isAdmin} />
+      <NeighborhoodGuide unitUuid={unitUuid} zoneCode={zoneCode} isAdmin={isAdmin} locationMapUrl={locationMapUrl} />
 
       <SectionCard title="External Links">
 
