@@ -1265,13 +1265,15 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   // Section-level visibility toggle (no calc impact)
   const [includeUtilities, setIncludeUtilities] = useState<boolean>(true);
   // Per-deposit row visibility (Include/Exclude)
-  const [kahramaaInclude,  setKahramaaInclude ] = useState<boolean>(true);
-  const [qatarCoolInclude, setQatarCoolInclude] = useState<boolean>(true);
-  const [marafeqInclude,   setMarafeqInclude  ] = useState<boolean>(true);
+  const [kahramaaInclude,      setKahramaaInclude     ] = useState<boolean>(true);
+  const [waterElecLimitInclude,setWaterElecLimitInclude] = useState<boolean>(true);
+  const [qatarCoolInclude,     setQatarCoolInclude    ] = useState<boolean>(true);
+  const [marafeqInclude,       setMarafeqInclude      ] = useState<boolean>(true);
   // Per-deposit PAY / NO PAY — controls sum calculation
-  const [kahramaaPay,  setKahramaaPay ] = useState<boolean>(true);
-  const [qatarCoolPay, setQatarCoolPay] = useState<boolean>(true);
-  const [marafeqPay,   setMarafeqPay  ] = useState<boolean>(true);
+  const [kahramaaPay,      setKahramaaPay     ] = useState<boolean>(true);
+  const [waterElecLimitPay,setWaterElecLimitPay] = useState<boolean>(true);
+  const [qatarCoolPay,     setQatarCoolPay    ] = useState<boolean>(true);
+  const [marafeqPay,       setMarafeqPay      ] = useState<boolean>(true);
 
   useEffect(() => {
     if (!unitUuid) return;
@@ -1349,14 +1351,14 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   const utilityRows: { label: string; amount: number; include: boolean; setInclude: (v: boolean) => void; pay: boolean; setPay: (v: boolean) => void }[] = [
     ...(kahramaaApplicable  ? [{ label: 'Kahramaa Deposit (Refundable)*',   amount: kahramaaAmount,   include: kahramaaInclude,  setInclude: setKahramaaInclude,  pay: kahramaaPay,  setPay: setKahramaaPay  }] : []),
     ...(waterElectricity === 'Included' && waterElecLimitApplicable
-      ? [{ label: 'Water & Electricity Limit', amount: waterElecLimitAmount, include: true, setInclude: () => {}, pay: true, setPay: () => {} }] : []),
+      ? [{ label: 'Water & Electricity Limit', amount: waterElecLimitAmount, include: waterElecLimitInclude, setInclude: setWaterElecLimitInclude, pay: waterElecLimitPay, setPay: setWaterElecLimitPay }] : []),
     ...(qatarCoolApplicable ? [{ label: 'Qatar Cool Deposit (Refundable)*', amount: qatarCoolAmount,  include: qatarCoolInclude, setInclude: setQatarCoolInclude, pay: qatarCoolPay, setPay: setQatarCoolPay }] : []),
     ...(marafeqApplicable   ? [{ label: 'Marafeq Deposit (Refundable)*',    amount: marafeqAmount,   include: marafeqInclude,   setInclude: setMarafeqInclude,   pay: marafeqPay,   setPay: setMarafeqPay   }] : []),
   ];
   // Sum is PAY-driven only — Include/Exclude has no calc impact
   const utilityTotal =
     (kahramaaApplicable  && kahramaaPay  ? kahramaaAmount  : 0) +
-    (waterElectricity === 'Included' && waterElecLimitApplicable ? waterElecLimitAmount : 0) +
+    (waterElectricity === 'Included' && waterElecLimitApplicable && waterElecLimitPay ? waterElecLimitAmount : 0) +
     (qatarCoolApplicable && qatarCoolPay ? qatarCoolAmount : 0) +
     (marafeqApplicable   && marafeqPay   ? marafeqAmount   : 0);
 
