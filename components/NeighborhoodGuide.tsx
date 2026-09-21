@@ -414,7 +414,7 @@ export default function NeighborhoodGuide({
     setAddingTo(null);
     setEditingId(null);
     if (!zoneCode) { setLoading(false); return; }
-    fetch(`/api/neighborhood?unitUuid=${encodeURIComponent(unitUuid)}&zoneCode=${zoneCode}`)
+    authedFetch(`/api/neighborhood?unitUuid=${encodeURIComponent(unitUuid)}&zoneCode=${zoneCode}`)
       .then(r => r.json())
       .then(({ data, source: s }) => {
         if (data) {
