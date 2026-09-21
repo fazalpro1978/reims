@@ -271,11 +271,13 @@ export default function NeighborhoodGuide({
   unitUuid,
   zoneCode,
   isAdmin,
+  canGenerate,
   locationMapUrl = '',
 }: {
   unitUuid:        string;
   zoneCode:        number;
   isAdmin:         boolean;
+  canGenerate?:    boolean; // true for superuser/admin even before admin-unlock; gates auto-generate + save
   locationMapUrl?: string;
 }) {
   const [guide, setGuide] = useState<NGuide>({ lifestyle: [], parks: [], commute: [] });
@@ -286,7 +288,8 @@ export default function NeighborhoodGuide({
   const [generating, setGenerating] = useState(false);
   const [genMsg,   setGenMsg]     = useState('');
 
-  const coords = parseLatLon(locationMapUrl);
+  const coords    = parseLatLon(locationMapUrl);
+  const canEdit   = isAdmin || (canGenerate ?? false); // auto-generate + save; card Add/Edit/Delete still require isAdmin
 
   const [addingTo,   setAddingTo]  = useState<Pillar | null>(null);
   const [editingId,  setEditingId] = useState<string | null>(null);
@@ -415,7 +418,7 @@ export default function NeighborhoodGuide({
         <div className="px-4 py-3 space-y-4">
 
           {/* Auto-generate banner — shown when a location URL with parseable coords exists */}
-          {isAdmin && coords && (
+          {canEdit && coords && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/8 border border-emerald-500/20 text-[11px] text-emerald-300">
               <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -434,7 +437,7 @@ export default function NeighborhoodGuide({
               </button>
             </div>
           )}
-          {isAdmin && !coords && locationMapUrl && (
+          {canEdit && !coords && locationMapUrl && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/8 border border-amber-500/20 text-[11px] text-amber-300">
               <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -533,7 +536,7 @@ export default function NeighborhoodGuide({
           })}
 
           {/* Save controls */}
-          {isAdmin && (
+          {canEdit && (
             <div className="flex items-center justify-between pt-2 border-t border-[#1e1e1e]">
               <div className="flex items-center gap-2">
                 <button
