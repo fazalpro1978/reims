@@ -136,32 +136,29 @@ export async function GET(req: NextRequest) {
   const ENDPOINTS = [
     'https://overpass-api.de/api/interpreter',
     'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.openstreetmap.fr/api/interpreter',
     'https://overpass.private.coffee/api/interpreter',
   ];
   const encodedQuery = encodeURIComponent(query);
-  let overpassData: OverpassResp = { elements: [] };
-  let lastErr = '';
 
-  for (let i = 0; i < ENDPOINTS.length; i++) {
-    if (i > 0) await new Promise(r => setTimeout(r, 800));
-    const endpoint = ENDPOINTS[i];
-    try {
-      const res = await fetch(`${endpoint}?data=${encodedQuery}`, {
-        method: 'GET',
-        headers: { Accept: 'application/json', 'User-Agent': 'REIMS/1.0 (realestate)' },
-        signal: AbortSignal.timeout(30000),
-      });
-      if (!res.ok) { lastErr = `HTTP ${res.status} from ${endpoint}`; continue; }
-      overpassData = await res.json();
-      lastErr = '';
-      break;
-    } catch (e: unknown) {
-      lastErr = `${endpoint}: ${e instanceof Error ? e.message : String(e)}`;
-    }
-  }
+  const tryEndpoint = (endpoint: string) =>
+    fetch(`${endpoint}?data=${encodedQuery}`, {
+      method: 'GET',
+      headers: { Accept: 'application/json', 'User-Agent': 'REIMS/1.0 (realestate)' },
+      signal: AbortSignal.timeout(25000),
+    }).then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status} from ${endpoint}`);
+      return r.json() as Promise<OverpassResp>;
+    });
 
-  if (lastErr) {
-    return NextResponse.json({ error: `Overpass unavailable (all mirrors): ${lastErr}` }, { status: 502 });
+  let overpassData: OverpassResp;
+  try {
+    overpassData = await Promise.any(ENDPOINTS.map(tryEndpoint));
+  } catch (e: unknown) {
+    const msgs = e instanceof AggregateError
+      ? (e.errors as unknown[]).map(x => x instanceof Error ? x.message : String(x)).join('; ')
+      : String(e);
+    return NextResponse.json({ error: `Overpass unavailable (all mirrors): ${msgs}` }, { status: 502 });
   }
 
   const elements = overpassData.elements ?? [];
