@@ -368,15 +368,15 @@ function processElements(elements: OsmEl[], originLat: number, originLon: number
 }
 
 function buildOverpassQuery(lat: number, lon: number): string {
-  return `[out:json][timeout:25];
+  return `[out:json][timeout:18];
 (
-  nwr["shop"~"^(mall|shopping_centre|supermarket|hypermarket)$"](around:3000,${lat},${lon});
-  nwr["amenity"~"^(school|kindergarten|cinema|theatre|restaurant|fast_food|place_of_worship|clinic|doctors|pharmacy|community_centre)$"](around:2500,${lat},${lon});
-  nwr["leisure"~"^(park|garden|playground|sports_centre|pitch|beach_resort|promenade)$"](around:2500,${lat},${lon});
-  nwr["natural"="beach"](around:2500,${lat},${lon});
-  nwr["amenity"~"^(hospital|bus_station|ferry_terminal)$"](around:5000,${lat},${lon});
-  nwr["railway"="station"](around:5000,${lat},${lon});
-  nwr["highway"="bus_stop"](around:1500,${lat},${lon});
+  nwr["shop"~"^(mall|shopping_centre|supermarket|hypermarket)$"](around:2500,${lat},${lon});
+  nwr["amenity"~"^(school|kindergarten|cinema|theatre|restaurant|fast_food|place_of_worship|clinic|doctors|pharmacy|community_centre)$"](around:2000,${lat},${lon});
+  nwr["leisure"~"^(park|garden|playground|sports_centre|pitch|beach_resort|promenade)$"](around:2000,${lat},${lon});
+  nwr["natural"="beach"](around:2000,${lat},${lon});
+  nwr["amenity"~"^(hospital|bus_station|ferry_terminal)$"](around:4000,${lat},${lon});
+  nwr["railway"="station"](around:4000,${lat},${lon});
+  nwr["highway"="bus_stop"](around:1200,${lat},${lon});
   nwr["aeroway"~"^(aerodrome|terminal)$"](around:25000,${lat},${lon});
 );
 out center tags;`;
@@ -443,6 +443,7 @@ export default function NeighborhoodGuide({
       const MIRRORS = [
         'https://overpass-api.de/api/interpreter',
         'https://overpass.kumi.systems/api/interpreter',
+        'https://overpass.openstreetmap.fr/api/interpreter',
         'https://overpass.private.coffee/api/interpreter',
       ];
 
@@ -450,7 +451,10 @@ export default function NeighborhoodGuide({
       let lastErr = '';
       for (const mirror of MIRRORS) {
         try {
-          const r = await fetch(`${mirror}?data=${encoded}`, { headers: { Accept: 'application/json' } });
+          const r = await fetch(`${mirror}?data=${encoded}`, {
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(22000),
+          });
           if (!r.ok) { lastErr = `${mirror}: HTTP ${r.status}`; continue; }
           const json = await r.json();
           elements = json.elements ?? [];
