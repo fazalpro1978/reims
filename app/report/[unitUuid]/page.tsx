@@ -1036,8 +1036,9 @@ export default function ReportPage() {
   useEffect(() => {
     if (!unitUuid) return;
     (async () => {
-      // Resolve role for feature gating
+      // Resolve role for feature gating — keep session for auth header below
       const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token ?? null;
       if (session?.user) {
         const { data: profile } = await supabase
           .from('profiles').select('role').eq('id', session.user.id).maybeSingle();
@@ -1099,9 +1100,13 @@ export default function ReportPage() {
           masterCode:          row.master_code        ?? '',
         });
 
-        // Fetch neighborhood guide — unit-specific first, zone fallback second
+        // Fetch neighborhood guide with auth header (requireAuth needs Bearer token)
         const zoneCode = row.zone_code ?? 0;
-        const nbRes = await fetch(`/api/neighborhood?unitUuid=${encodeURIComponent(unitUuid)}&zoneCode=${zoneCode}`);
+        const nbHeaders: HeadersInit = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+        const nbRes = await fetch(
+          `/api/neighborhood?unitUuid=${encodeURIComponent(unitUuid)}&zoneCode=${zoneCode}`,
+          { headers: nbHeaders },
+        );
         if (nbRes.ok) {
           const { data: nb } = await nbRes.json();
           if (nb) {

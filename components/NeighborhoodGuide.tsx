@@ -92,9 +92,9 @@ function StarRating({ value }: { value: number | null }) {
 }
 
 function CardRow({
-  card, pillar, isAdmin, onEdit, onDelete,
+  card, pillar, canEdit, onEdit, onDelete,
 }: {
-  card: NCard; pillar: Pillar; isAdmin: boolean;
+  card: NCard; pillar: Pillar; canEdit: boolean;
   onEdit: (c: NCard) => void; onDelete: (id: string) => void;
 }) {
   const accent = PILLAR_ACCENTS[pillar];
@@ -135,7 +135,7 @@ function CardRow({
           </a>
         )}
       </div>
-      {isAdmin && (
+      {canEdit && (
         <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             type="button" onClick={() => onEdit(card)}
@@ -616,7 +616,7 @@ export default function NeighborhoodGuide({
                       <span className="text-[9px] font-mono text-[#555555]">({cards.length})</span>
                     )}
                   </div>
-                  {isAdmin && !isAdding && (
+                  {canEdit && !isAdding && (
                     <button
                       type="button"
                       onClick={() => startAdd(pillar)}
@@ -649,7 +649,7 @@ export default function NeighborhoodGuide({
                         </div>
                       ) : (
                         <CardRow
-                          key={card.id} card={card} pillar={pillar} isAdmin={isAdmin}
+                          key={card.id} card={card} pillar={pillar} canEdit={canEdit}
                           onEdit={c => startEdit(pillar, c)}
                           onDelete={id => deleteCard(pillar, id)}
                         />
