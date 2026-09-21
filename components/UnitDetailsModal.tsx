@@ -1262,7 +1262,16 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   const [waterElectricity, setWaterElectricity] = useState<'Included' | 'Excluded'>('Excluded');
   const [waterElecLimitApplicable, setWaterElecLimitApplicable] = useState<boolean>(false);
   const [waterElecLimitAmount, setWaterElecLimitAmount] = useState<number>(0);
+  // Section-level visibility toggle (no calc impact)
   const [includeUtilities, setIncludeUtilities] = useState<boolean>(true);
+  // Per-deposit row visibility (Include/Exclude)
+  const [kahramaaInclude,  setKahramaaInclude ] = useState<boolean>(true);
+  const [qatarCoolInclude, setQatarCoolInclude] = useState<boolean>(true);
+  const [marafeqInclude,   setMarafeqInclude  ] = useState<boolean>(true);
+  // Per-deposit PAY / NO PAY — controls sum calculation
+  const [kahramaaPay,  setKahramaaPay ] = useState<boolean>(true);
+  const [qatarCoolPay, setQatarCoolPay] = useState<boolean>(true);
+  const [marafeqPay,   setMarafeqPay  ] = useState<boolean>(true);
 
   useEffect(() => {
     if (!unitUuid) return;
@@ -1329,16 +1338,22 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   ];
   const rentTotal = rentRows.reduce((s, r) => s + r.amount, 0);
 
-  const utilityRows = [
-    ...(kahramaaApplicable  ? [{ label: 'Kahramaa Deposit (Refundable)*',   amount: kahramaaAmount  }] : []),
+  // Utility rows for display (filtered by applicable + per-row Include toggle)
+  const utilityRows: { label: string; amount: number; include: boolean; setInclude: (v: boolean) => void; pay: boolean; setPay: (v: boolean) => void }[] = [
+    ...(kahramaaApplicable  ? [{ label: 'Kahramaa Deposit (Refundable)*',   amount: kahramaaAmount,   include: kahramaaInclude,  setInclude: setKahramaaInclude,  pay: kahramaaPay,  setPay: setKahramaaPay  }] : []),
     ...(waterElectricity === 'Included' && waterElecLimitApplicable
-      ? [{ label: 'Water & Electricity Limit',                              amount: waterElecLimitAmount }] : []),
-    ...(qatarCoolApplicable ? [{ label: 'Qatar Cool Deposit (Refundable)*', amount: qatarCoolAmount }] : []),
-    ...(marafeqApplicable   ? [{ label: 'Marafeq Deposit (Refundable)*',    amount: marafeqAmount   }] : []),
+      ? [{ label: 'Water & Electricity Limit', amount: waterElecLimitAmount, include: true, setInclude: () => {}, pay: true, setPay: () => {} }] : []),
+    ...(qatarCoolApplicable ? [{ label: 'Qatar Cool Deposit (Refundable)*', amount: qatarCoolAmount,  include: qatarCoolInclude, setInclude: setQatarCoolInclude, pay: qatarCoolPay, setPay: setQatarCoolPay }] : []),
+    ...(marafeqApplicable   ? [{ label: 'Marafeq Deposit (Refundable)*',    amount: marafeqAmount,   include: marafeqInclude,   setInclude: setMarafeqInclude,   pay: marafeqPay,   setPay: setMarafeqPay   }] : []),
   ];
-  const utilityTotal = utilityRows.reduce((s, r) => s + r.amount, 0);
+  // Sum is PAY-driven only — Include/Exclude has no calc impact
+  const utilityTotal =
+    (kahramaaApplicable  && kahramaaPay  ? kahramaaAmount  : 0) +
+    (waterElectricity === 'Included' && waterElecLimitApplicable ? waterElecLimitAmount : 0) +
+    (qatarCoolApplicable && qatarCoolPay ? qatarCoolAmount : 0) +
+    (marafeqApplicable   && marafeqPay   ? marafeqAmount   : 0);
 
-  const firstMonthTotal = rentTotal + (includeUtilities ? utilityTotal : 0);
+  const firstMonthTotal = rentTotal + utilityTotal;
 
   return (
     <div className="space-y-4">
@@ -1546,10 +1561,24 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
             </div>
             {includeUtilities && (
               <>
-                {utilityRows.length > 0 ? utilityRows.map(({ label, amount }) => (
-                  <div key={label} className="flex items-center justify-between text-xs">
-                    <span className="text-slate-400">{label}</span>
-                    <span className="text-slate-300 font-medium tabular-nums">{formatQAR(amount)}</span>
+                {utilityRows.length > 0 ? utilityRows.map(({ label, amount, include, setInclude, pay, setPay }) => (
+                  <div key={label} className={`text-xs ${!include ? 'opacity-40' : ''}`}>
+                    <div className="flex items-center justify-between gap-2 py-0.5">
+                      <span className="text-slate-400 flex-1 min-w-0">{label}</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {/* Include / Exclude — row visibility only */}
+                        <div className="flex rounded overflow-hidden border border-slate-700 text-[9px] font-semibold">
+                          <button onClick={() => setInclude(true)}  className={`px-1.5 py-0.5 transition-colors ${include  ? 'bg-slate-500 text-white'        : 'bg-slate-800 text-slate-600 hover:text-slate-400'}`}>Include</button>
+                          <button onClick={() => setInclude(false)} className={`px-1.5 py-0.5 transition-colors ${!include ? 'bg-slate-600 text-slate-300'    : 'bg-slate-800 text-slate-600 hover:text-slate-400'}`}>Exclude</button>
+                        </div>
+                        {/* PAY / NO PAY — controls sum */}
+                        <div className="flex rounded overflow-hidden border border-slate-700 text-[9px] font-semibold">
+                          <button onClick={() => setPay(true)}  className={`px-1.5 py-0.5 transition-colors ${pay  ? 'bg-amber-500 text-amber-950'     : 'bg-slate-800 text-slate-600 hover:text-slate-400'}`}>PAY</button>
+                          <button onClick={() => setPay(false)} className={`px-1.5 py-0.5 transition-colors ${!pay ? 'bg-red-900/70 text-red-300'       : 'bg-slate-800 text-slate-600 hover:text-slate-400'}`}>NO PAY</button>
+                        </div>
+                        <span className={`font-medium tabular-nums w-16 text-right ${pay ? 'text-slate-300' : 'text-slate-600 line-through'}`}>{formatQAR(amount)}</span>
+                      </div>
+                    </div>
                   </div>
                 )) : (
                   <p className="text-xs text-slate-600 italic">No applicable deposits</p>
