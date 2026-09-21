@@ -516,7 +516,9 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
   const utilityTotal = (data.kahramaaApplicable  ? (data.kahramaaAmount  || 0) : 0)
                      + (data.qatarCoolApplicable  ? (data.qatarCoolAmount || 0) : 0)
                      + (data.marafeqApplicable     ? (data.marafeqAmount   || 0) : 0);
-  const total = (data.monthlyRent || 0) + secDep + (data.contractCharges || 0) + (data.additionalCharges || 0) + utilityTotal;
+  const rentSubtotal = (data.monthlyRent || 0) + secDep + (data.contractCharges || 0) + (data.additionalCharges || 0)
+                     + (data.agencyFeeApplicable ? (data.agencyFeeAmount || 0) : 0);
+  const total = rentSubtotal + utilityTotal;
 
   // Per-cell photo slots — seeded from DB images, editable by the user
   const [photoSlots, setPhotoSlots] = useState<(string | null)[]>(() => {
@@ -662,6 +664,7 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
 
       {/* ── 5. Financial Summary Panel ────────────────────────────────── */}
       {opts.showFinancials && <>
+      <div style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}>
       <p className="rpt-sec-lbl">Financial Summary</p>
       <div className="rpt-fin-panel">
 
@@ -711,7 +714,7 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
         {/* Rent subtotal */}
         <div className="rpt-fin-row" style={{ borderTop: '1px solid #cbd5e1', marginTop: '2pt', paddingTop: '3pt' }}>
           <span className="rpt-fin-lbl" style={{ fontStyle: 'italic', color: '#64748b' }}>Subtotal</span>
-          <span className="rpt-fin-val" style={{ color: '#64748b' }}>QAR {fmt((data.monthlyRent || 0) + secDep + (data.contractCharges || 0) + (data.additionalCharges || 0))}</span>
+          <span className="rpt-fin-val" style={{ color: '#64748b' }}>QAR {fmt(rentSubtotal)}</span>
         </div>
 
         {/* ── Service & Utility Charges ── */}
@@ -749,6 +752,7 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
         </div>
       </div>
       <p style={{ fontSize: '7.5pt', color: '#94a3b8', marginTop: '4px', marginBottom: '0' }}>*Terms &amp; Conditions Apply.</p>
+      </div>{/* end break-inside wrapper */}
       </>}
 
       {/* ── 6. Media (Location removed for external roles) ────────────── */}
