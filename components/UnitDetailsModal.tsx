@@ -1290,6 +1290,13 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
         setWaterElectricity((data.water_electricity as 'Included' | 'Excluded') ?? 'Excluded');
         setWaterElecLimitApplicable(data.water_electricity_limit_applicable ?? false);
         setWaterElecLimitAmount(Number(data.water_electricity_limit_amount) || 0);
+        // Section defaults to Include only when at least one utility is applicable
+        const anyApplicable =
+          (data.kahramaa_applicable  ?? false) ||
+          (data.qatar_cool_applicable ?? false) ||
+          (data.marafeq_applicable    ?? false) ||
+          (data.water_electricity === 'Included');
+        setIncludeUtilities(anyApplicable);
       });
   }, [unitUuid]);
 
