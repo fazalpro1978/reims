@@ -474,14 +474,14 @@ body {
 .rpt-nbhd-notes { font-size: 8pt; color: #94a3b8; margin-top: 1pt; font-style: italic; }
 .rpt-nbhd-empty { font-size: 8.5pt; color: #cbd5e1; font-style: italic; }
 .rpt-nbhd-remove {
-  position: absolute; top: 4pt; right: 0;
-  width: 14pt; height: 14pt; border-radius: 50%;
+  position: absolute; top: 3pt; right: 0;
+  width: 13pt; height: 13pt; border-radius: 50%;
   border: 1px solid #fca5a5; background: #fff1f2;
-  color: #dc2626; font-size: 8pt; font-weight: 700; line-height: 1;
+  color: #dc2626; font-size: 7.5pt; font-weight: 700; line-height: 1;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
-  opacity: 0;
+  opacity: 0.35; transition: opacity 0.12s, background 0.12s;
 }
-.rpt-nbhd-card:hover .rpt-nbhd-remove { opacity: 1; }
+.rpt-nbhd-remove:hover { opacity: 1; background: #fee2e2; }
 
 /* ── Smart Code identification badge ─────────────────────────────────────────── */
 .rpt-smart-badge {
