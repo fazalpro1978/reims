@@ -47,38 +47,7 @@ export async function POST(req: Request) {
       { onConflict: 'config_key' },
     );
 
-  // ── 2. Purge: NULL all smart_codes and wipe sequence counters ────────────────
-  // Starting from zero eliminates musical-chairs unique-constraint collisions
-  // that occur when in-flight updates race against still-held legacy codes.
-  const { error: purgeError } = await admin
-    .from('units')
-    .update({ smart_code: null })
-    .not('id', 'is', null);
-
-  if (purgeError) {
-    return NextResponse.json({ error: `Purge failed: ${purgeError.message}` }, { status: 500 });
-  }
-
-  await admin
-    .from('cr_smart_code_sequences')
-    .delete()
-    .not('entity_code', 'is', null);
-
-  // ── 3. Fetch all units that have a master_code ───────────────────────────────
-  const { data: units, error: fetchError } = await admin
-    .from('units')
-    .select('id, master_code, config')
-    .not('master_code', 'is', null);
-
-  if (fetchError) {
-    return NextResponse.json({ error: fetchError.message }, { status: 500 });
-  }
-
-  if (!units || units.length === 0) {
-    return NextResponse.json({ purged: true, backfilled: 0, skipped: 0, total: 0 });
-  }
-
-  // ── 4. Load full type map into memory (one query, not N) ─────────────────────
+  // ── 2. Load type map ─────────────────────────────────────────────────────────
   const { data: typeMapRows } = await admin
     .from('cr_config_type_map')
     .select('config_key, type_code');
@@ -88,10 +57,40 @@ export async function POST(req: Request) {
     typeCache.set(row.config_key as string, row.type_code as string);
   }
 
-  // ── 5. Backfill ──────────────────────────────────────────────────────────────
-  // Bucket key = entity|agent|zone|typeCode — mirrors the full 10-char code prefix.
-  // Starting from zero with all codes NULLed means no collisions are possible.
+  // ── 3. Scan existing smart codes to seed per-bucket sequence maximums ─────────
+  // This prevents collisions: new assignments continue from the DB's current high-water mark,
+  // never overlapping codes that are already assigned and immutable.
+  const { data: existing } = await admin
+    .from('units')
+    .select('smart_code')
+    .not('smart_code', 'is', null);
+
   const seqMap = new Map<string, number>();
+  for (const row of (existing ?? [])) {
+    const sc = row.smart_code as string | null;
+    if (!sc || sc.length !== 14) continue;
+    const bucket = sc.slice(0, 10);   // Cat(1)+Entity(3)+Agent(2)+Zone(2)+TypeCode(2)
+    const seq = parseInt(sc.slice(10), 10);
+    if (!isNaN(seq) && seq > (seqMap.get(bucket) ?? 0)) seqMap.set(bucket, seq);
+  }
+
+  // ── 4. Fetch only units missing a smart_code (master_code required for parsing) ─
+  const { data: units, error: fetchError } = await admin
+    .from('units')
+    .select('id, master_code, config')
+    .is('smart_code', null)
+    .not('master_code', 'is', null);
+
+  if (fetchError) {
+    return NextResponse.json({ error: fetchError.message }, { status: 500 });
+  }
+
+  if (!units || units.length === 0) {
+    return NextResponse.json({ backfilled: 0, skipped: 0, total: 0 });
+  }
+
+  // ── 5. Backfill null smart_codes ─────────────────────────────────────────────
+  // seqMap already seeded from existing codes — no purge, no collisions.
   let backfilled = 0;
   let skipped = 0;
   const errors: string[] = [];
@@ -175,7 +174,6 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({
-    purged: true,
     backfilled,
     skipped,
     total: units.length,
