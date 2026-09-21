@@ -1274,12 +1274,18 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   const [waterElecLimitPay,setWaterElecLimitPay] = useState<boolean>(true);
   const [qatarCoolPay,     setQatarCoolPay    ] = useState<boolean>(true);
   const [marafeqPay,       setMarafeqPay      ] = useState<boolean>(true);
+  // Agency Commission (from unit_commissions) — PAY/NO PAY only
+  const [agencyFeeApplicable, setAgencyFeeApplicableLocal] = useState<boolean>(false);
+  const [agencyFeeAmount,     setAgencyFeeAmountLocal    ] = useState<number>(0);
+  const [agencyFeePay,        setAgencyFeePay            ] = useState<boolean>(true);
 
   useEffect(() => {
     if (!unitUuid) return;
-    supabase.from('units').select('rent,agency_fee,service_charges,kahramaa_applicable,kahramaa_amount,qatar_cool_applicable,qatar_cool_amount,marafeq_applicable,marafeq_amount,water_electricity,water_electricity_limit_applicable,water_electricity_limit_amount').eq('id', unitUuid).single()
-      .then(({ data }) => {
-        if (!data) return;
+    Promise.all([
+      supabase.from('units').select('rent,agency_fee,service_charges,kahramaa_applicable,kahramaa_amount,qatar_cool_applicable,qatar_cool_amount,marafeq_applicable,marafeq_amount,water_electricity,water_electricity_limit_applicable,water_electricity_limit_amount').eq('id', unitUuid).single(),
+      supabase.from('unit_commissions').select('agency_fee_applicable,agency_fee_amount').eq('unit_id', unitUuid).single(),
+    ]).then(([{ data }, { data: commData }]) => {
+      if (data) {
         setMonthlyRent(Number(data.rent) ?? unit.rent);
         setContractCharges(Number(data.agency_fee) ?? unit.agencyFee);
         setAdditionalCharges(Number(data.service_charges) ?? unit.serviceCharges);
@@ -1292,14 +1298,18 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
         setWaterElectricity((data.water_electricity as 'Included' | 'Excluded') ?? 'Excluded');
         setWaterElecLimitApplicable(data.water_electricity_limit_applicable ?? false);
         setWaterElecLimitAmount(Number(data.water_electricity_limit_amount) || 0);
-        // Section defaults to Include only when at least one utility is applicable
         const anyApplicable =
           (data.kahramaa_applicable  ?? false) ||
           (data.qatar_cool_applicable ?? false) ||
           (data.marafeq_applicable    ?? false) ||
           (data.water_electricity === 'Included');
         setIncludeUtilities(anyApplicable);
-      });
+      }
+      if (commData) {
+        setAgencyFeeApplicableLocal(commData.agency_fee_applicable ?? false);
+        setAgencyFeeAmountLocal(Number(commData.agency_fee_amount) || 0);
+      }
+    });
   }, [unitUuid]);
 
   const handleSave = async () => {
@@ -1345,7 +1355,8 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
     { label: 'Contract Charges',                amount: contractCharges },
     { label: 'Additional Charges',              amount: additionalCharges },
   ];
-  const rentTotal = rentRows.reduce((s, r) => s + r.amount, 0);
+  const rentTotal = rentRows.reduce((s, r) => s + r.amount, 0)
+    + (agencyFeeApplicable && agencyFeePay && agencyFeeAmount > 0 ? agencyFeeAmount : 0);
 
   // Utility rows for display (filtered by applicable + per-row Include toggle)
   const utilityRows: { label: string; amount: number; include: boolean; setInclude: (v: boolean) => void; pay: boolean; setPay: (v: boolean) => void }[] = [
@@ -1549,6 +1560,18 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
                 <span className="text-slate-300 font-medium tabular-nums">{formatQAR(amount)}</span>
               </div>
             ))}
+            {agencyFeeApplicable && agencyFeeAmount > 0 && (
+              <div className="flex items-center justify-between gap-2 text-xs py-0.5">
+                <span className="text-slate-400 flex-1 min-w-0">Agency Commission</span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex rounded overflow-hidden border border-slate-700 text-[9px] font-semibold">
+                    <button onClick={() => setAgencyFeePay(true)}  className={`px-1.5 py-0.5 transition-colors ${agencyFeePay  ? 'bg-amber-500 text-amber-950'  : 'bg-slate-800 text-slate-600 hover:text-slate-400'}`}>PAY</button>
+                    <button onClick={() => setAgencyFeePay(false)} className={`px-1.5 py-0.5 transition-colors ${!agencyFeePay ? 'bg-red-900/70 text-red-300'    : 'bg-slate-800 text-slate-600 hover:text-slate-400'}`}>NO PAY</button>
+                  </div>
+                  <span className={`font-medium tabular-nums w-16 text-right ${agencyFeePay ? 'text-slate-300' : 'text-slate-600 line-through'}`}>{formatQAR(agencyFeeAmount)}</span>
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between text-xs pt-1 mt-0.5 border-t border-slate-800">
               <span className="text-slate-500 italic">Subtotal</span>
               <span className="text-slate-400 font-medium tabular-nums">{formatQAR(rentTotal)}</span>
