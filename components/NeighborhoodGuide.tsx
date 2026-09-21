@@ -447,24 +447,25 @@ export default function NeighborhoodGuide({
         'https://overpass.private.coffee/api/interpreter',
       ];
 
-      let elements: OsmEl[] | null = null;
-      let lastErr = '';
-      for (const mirror of MIRRORS) {
-        try {
-          const r = await fetch(`${mirror}?data=${encoded}`, {
-            headers: { Accept: 'application/json' },
-            signal: AbortSignal.timeout(22000),
-          });
-          if (!r.ok) { lastErr = `${mirror}: HTTP ${r.status}`; continue; }
-          const json = await r.json();
-          elements = json.elements ?? [];
-          lastErr = '';
-          break;
-        } catch (e: unknown) {
-          lastErr = `${mirror}: ${e instanceof Error ? e.message : String(e)}`;
-        }
+      const tryMirror = (mirror: string) =>
+        fetch(`${mirror}?data=${encoded}`, {
+          headers: { Accept: 'application/json' },
+          signal: AbortSignal.timeout(22000),
+        }).then(r => {
+          if (!r.ok) throw new Error(`${mirror}: HTTP ${r.status}`);
+          return r.json() as Promise<{ elements: OsmEl[] }>;
+        });
+
+      let elements: OsmEl[];
+      try {
+        const json = await Promise.any(MIRRORS.map(tryMirror));
+        elements = json.elements ?? [];
+      } catch (e: unknown) {
+        const msgs = e instanceof AggregateError
+          ? e.errors.map((x: unknown) => x instanceof Error ? x.message : String(x)).join('; ')
+          : String(e);
+        throw new Error(`Overpass fetch failed (all mirrors): ${msgs}`);
       }
-      if (elements === null) throw new Error(lastErr || 'All mirrors failed');
 
       const result = processElements(elements, lat, lon);
       const count  = result.lifestyle.length + result.parks.length + result.commute.length;
