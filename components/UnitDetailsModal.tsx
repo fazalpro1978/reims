@@ -1492,7 +1492,7 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
                     {monthFreeDays >= 28 ? `≈ ${Math.round(monthFreeDays / 30 * 10) / 10} month${monthFreeDays >= 60 ? 's' : ''}` : ''}
                   </span>
                   <span className="text-xs font-medium text-amber-400 ml-1">
-                    = QAR {formatQAR(Math.round(monthlyRent / 30 * monthFreeDays))} credit
+                    = {formatQAR(Math.round(monthlyRent / 30 * monthFreeDays))} credit
                   </span>
                 </div>
               )}
@@ -1524,7 +1524,7 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
                   />
                   <span className="text-xs text-[#555555]">/ 30 days</span>
                   <span className="text-xs font-medium text-amber-400 ml-1">
-                    = QAR {formatQAR(Math.round(monthlyRent / 30 * proRataDays))}
+                    = {formatQAR(Math.round(monthlyRent / 30 * proRataDays))}
                   </span>
                 </div>
               )}
