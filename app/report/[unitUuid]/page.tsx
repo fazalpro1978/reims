@@ -547,7 +547,7 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
 
   // Neighborhood card visibility — hidden IDs excluded from print
   const [hiddenNCards, setHiddenNCards] = useState<Set<string>>(new Set());
-  const hideNCard = (id: string) => setHiddenNCards(prev => new Set([...prev, id]));
+  const hideNCard = (id: string) => setHiddenNCards(prev => { const s = new Set(prev); s.add(id); return s; });
 
   // PAY / NO PAY per-row toggles — buttons are hidden on print; rows with NO PAY get rpt-row-nopay (also hidden on print)
   const [securityDepositPay, setSecurityDepositPay] = useState(true);
