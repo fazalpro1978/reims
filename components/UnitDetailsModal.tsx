@@ -1274,6 +1274,12 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   const [waterElecLimitPay,setWaterElecLimitPay] = useState<boolean>(true);
   const [qatarCoolPay,     setQatarCoolPay    ] = useState<boolean>(true);
   const [marafeqPay,       setMarafeqPay      ] = useState<boolean>(true);
+  // Month Free
+  const [monthFreeApplicable, setMonthFreeApplicable] = useState<boolean>(false);
+  const [monthFreeDays,       setMonthFreeDays      ] = useState<number>(30);
+  // Pro-Rata Basis
+  const [proRataApplicable,   setProRataApplicable  ] = useState<boolean>(false);
+  const [proRataDays,         setProRataDays        ] = useState<number>(1);
   // Security Deposit PAY / NO PAY
   const [securityDepositPay,  setSecurityDepositPay      ] = useState<boolean>(true);
   // Agency Commission (from unit_commissions) — PAY/NO PAY only; shown only when paid_by = 'Client'
@@ -1285,14 +1291,17 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   useEffect(() => {
     if (!unitUuid) return;
     Promise.all([
-      supabase.from('units').select('rent,agency_fee,service_charges,kahramaa_applicable,kahramaa_amount,qatar_cool_applicable,qatar_cool_amount,marafeq_applicable,marafeq_amount,water_electricity,water_electricity_limit_applicable,water_electricity_limit_amount').eq('id', unitUuid).single(),
+      supabase.from('units').select('rent,agency_fee,service_charges,month_free_applicable,month_free_days,pro_rata_applicable,kahramaa_applicable,kahramaa_amount,qatar_cool_applicable,qatar_cool_amount,marafeq_applicable,marafeq_amount,water_electricity,water_electricity_limit_applicable,water_electricity_limit_amount').eq('id', unitUuid).single(),
       supabase.from('unit_commissions').select('agency_fee_applicable,agency_fee_amount,paid_by').eq('unit_id', unitUuid).single(),
     ]).then(([{ data }, { data: commData }]) => {
       if (data) {
         setMonthlyRent(Number(data.rent) ?? unit.rent);
         setContractCharges(Number(data.agency_fee) ?? unit.agencyFee);
         setAdditionalCharges(Number(data.service_charges) ?? unit.serviceCharges);
-        setKahramaaApplicable(data.kahramaa_applicable   ?? false);
+        setMonthFreeApplicable(data.month_free_applicable ?? false);
+        setMonthFreeDays(Number(data.month_free_days) || 30);
+        setProRataApplicable(data.pro_rata_applicable   ?? false);
+        setKahramaaApplicable(data.kahramaa_applicable  ?? false);
         setKahramaaAmount(Number(data.kahramaa_amount)   || 2000);
         setQatarCoolApplicable(data.qatar_cool_applicable ?? false);
         setQatarCoolAmount(Number(data.qatar_cool_amount) || 3000);
@@ -1328,6 +1337,9 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
           rent: monthlyRent,
           agency_fee: contractCharges,
           service_charges: additionalCharges,
+          month_free_applicable: monthFreeApplicable,
+          month_free_days:       monthFreeApplicable ? monthFreeDays : null,
+          pro_rata_applicable:   proRataApplicable,
           kahramaa_applicable:    kahramaaApplicable,
           kahramaa_amount:        kahramaaApplicable    ? kahramaaAmount    : null,
           qatar_cool_applicable:  qatarCoolApplicable,
@@ -1449,6 +1461,72 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
                 onChange={(e) => setAdditionalCharges(Math.max(0, Number(e.target.value)))}
                 className="w-32 text-right text-sm font-semibold text-[#e0e0e0] bg-[#111111] border border-[#333333] rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] tabular-nums"
               />
+            </div>
+          }
+        />
+
+        {/* Month Free */}
+        <FieldRow
+          label="Month Free"
+          value={
+            <div className="flex flex-col gap-2">
+              <ApplicableToggle
+                value={monthFreeApplicable}
+                onChange={setMonthFreeApplicable}
+                trueLabel="Applicable"
+                falseLabel="Not Applicable"
+              />
+              {monthFreeApplicable && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={monthFreeDays}
+                    onChange={(e) => setMonthFreeDays(Math.max(1, Number(e.target.value)))}
+                    className="w-20 text-right text-sm font-semibold text-[#e0e0e0] bg-[#111111] border border-[#333333] rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] tabular-nums"
+                  />
+                  <span className="text-xs text-[#666666]">days free</span>
+                  <span className="text-xs text-[#555555]">
+                    {monthFreeDays >= 28 ? `≈ ${Math.round(monthFreeDays / 30 * 10) / 10} month${monthFreeDays >= 60 ? 's' : ''}` : ''}
+                  </span>
+                  <span className="text-xs font-medium text-amber-400 ml-1">
+                    = QAR {formatQAR(Math.round(monthlyRent / 30 * monthFreeDays))} credit
+                  </span>
+                </div>
+              )}
+            </div>
+          }
+        />
+
+        {/* Pro-Rata Basis */}
+        <FieldRow
+          label="Pro-Rata Basis"
+          value={
+            <div className="flex flex-col gap-2">
+              <ApplicableToggle
+                value={proRataApplicable}
+                onChange={setProRataApplicable}
+                trueLabel="Applicable"
+                falseLabel="Not Applicable"
+              />
+              {proRataApplicable && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-[#666666]">Days occupied</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={31}
+                    value={proRataDays}
+                    onChange={(e) => setProRataDays(Math.max(1, Math.min(31, Number(e.target.value))))}
+                    className="w-16 text-right text-sm font-semibold text-[#e0e0e0] bg-[#111111] border border-[#333333] rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] tabular-nums"
+                  />
+                  <span className="text-xs text-[#555555]">/ 30 days</span>
+                  <span className="text-xs font-medium text-amber-400 ml-1">
+                    = QAR {formatQAR(Math.round(monthlyRent / 30 * proRataDays))}
+                  </span>
+                </div>
+              )}
             </div>
           }
         />

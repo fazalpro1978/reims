@@ -32,6 +32,9 @@ interface ReportData {
   monthlyRent:         number;
   contractCharges:     number;  // agency_fee column — "Contract Charges" in modal
   additionalCharges:   number;  // service_charges column — "Additional Charges" in modal
+  monthFreeApplicable: boolean;
+  monthFreeDays:       number;
+  proRataApplicable:   boolean;
   securityDeposit:     number;  // deposit_amount or 1× rent
   electricityWater:    string;
   agencyFeeApplicable:   boolean; // from unit_commissions
@@ -750,6 +753,25 @@ function ReportDocument({ data, neighborhood, opts }: { data: ReportData; neighb
             <span className="rpt-fin-val">QAR {fmt(data.additionalCharges)}</span>
           </div>
         )}
+        {data.monthFreeApplicable && data.monthFreeDays > 0 && (
+          <div className="rpt-fin-row" style={{ color: '#15803d' }}>
+            <span className="rpt-fin-lbl" style={{ color: '#15803d' }}>
+              Month Free
+              <span style={{ fontSize: '7.5pt', color: '#16a34a', marginLeft: '4pt' }}>
+                ({data.monthFreeDays} days)
+              </span>
+            </span>
+            <span className="rpt-fin-val" style={{ color: '#15803d' }}>
+              — QAR {fmt(Math.round((data.monthlyRent / 30) * data.monthFreeDays))}
+            </span>
+          </div>
+        )}
+        {data.proRataApplicable && (
+          <div className="rpt-fin-row" style={{ color: '#0369a1' }}>
+            <span className="rpt-fin-lbl" style={{ color: '#0369a1' }}>Pro-Rata Basis</span>
+            <span className="rpt-fin-val" style={{ color: '#0369a1', fontSize: '7.5pt' }}>Applicable — confirm days with tenant</span>
+          </div>
+        )}
         {data.electricityWater && (
           <div className="rpt-fin-row">
             <span className="rpt-fin-lbl">Electricity &amp; Water</span>
@@ -1093,6 +1115,9 @@ export default function ReportPage() {
           monthlyRent:         rent,
           contractCharges:     Number(row.agency_fee)      || 0,
           additionalCharges:   Number(row.service_charges) || 0,
+          monthFreeApplicable: row.month_free_applicable   ?? false,
+          monthFreeDays:       Number(row.month_free_days) || 30,
+          proRataApplicable:   row.pro_rata_applicable     ?? false,
           securityDeposit:     Number(row.deposit_amount)  || rent,
           electricityWater:    row.electricity_water ?? '',
           agencyFeeApplicable:   commRow?.agency_fee_applicable ?? false,
