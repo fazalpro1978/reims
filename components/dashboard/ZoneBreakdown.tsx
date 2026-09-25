@@ -43,10 +43,10 @@ export default function ZoneBreakdown() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
           {/* Header */}
           <div style={rowStyle(false)}>
-            <span style={{ ...cellStyle, color: '#44445a', width: '40%' }}>Zone</span>
-            <span style={{ ...cellStyle, color: '#44445a', width: '30%' }}>Occupancy</span>
-            <span style={{ ...cellStyle, color: '#44445a', width: '15%', textAlign: 'right' }}>Total</span>
-            <span style={{ ...cellStyle, color: '#44445a', width: '15%', textAlign: 'right' }}>Avail.</span>
+            <span style={{ ...cellStyle, color: '#44445a', minWidth: 0 }}>Zone</span>
+            <span style={{ ...cellStyle, color: '#44445a', minWidth: 0 }}>Occupancy</span>
+            <span style={{ ...cellStyle, color: '#44445a', textAlign: 'right' }}>Total</span>
+            <span style={{ ...cellStyle, color: '#44445a', textAlign: 'right' }}>Avail.</span>
           </div>
 
           {zones.map((z, i) => {
@@ -66,14 +66,22 @@ export default function ZoneBreakdown() {
                 onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#17171f'}
                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
               >
-                {/* Zone name */}
-                <span style={{ ...cellStyle, width: '40%', color: '#c8c8e8', fontWeight: 600 }}>
+                {/* Zone name — truncates on overflow */}
+                <span style={{
+                  ...cellStyle,
+                  minWidth: 0,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  color: '#c8c8e8',
+                  fontWeight: 600,
+                }}>
                   {z.zone}
                 </span>
 
                 {/* Fill bar */}
-                <div style={{ width: '30%', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ flex: 1, height: 4, background: '#1e1e2e', borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                  <div style={{ flex: 1, height: 4, background: '#1e1e2e', borderRadius: 2, overflow: 'hidden', minWidth: 40 }}>
                     <div style={{
                       height: '100%',
                       width: `${fillPct}%`,
@@ -81,20 +89,19 @@ export default function ZoneBreakdown() {
                       borderRadius: 2,
                     }} />
                   </div>
-                  <span style={{ fontSize: 10, color: '#44445a', width: 26, flexShrink: 0 }}>
+                  <span style={{ fontSize: 10, color: '#44445a', width: 30, flexShrink: 0, textAlign: 'right' }}>
                     {occupancy}%
                   </span>
                 </div>
 
                 {/* Total */}
-                <span style={{ ...cellStyle, width: '15%', textAlign: 'right', color: '#e2e2ee', fontVariantNumeric: 'tabular-nums' }}>
+                <span style={{ ...cellStyle, textAlign: 'right', color: '#e2e2ee', fontVariantNumeric: 'tabular-nums' }}>
                   {z.total}
                 </span>
 
                 {/* Available */}
                 <span style={{
                   ...cellStyle,
-                  width: '15%',
                   textAlign: 'right',
                   color: availPct > 0 ? '#2dd496' : '#44445a',
                   fontVariantNumeric: 'tabular-nums',
@@ -148,7 +155,8 @@ const headingStyle: React.CSSProperties = {
 
 function rowStyle(interactive: boolean): React.CSSProperties {
   return {
-    display: 'flex',
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 130px) 40px 40px',
     alignItems: 'center',
     gap: 8,
     padding: '8px 6px',
