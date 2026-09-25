@@ -2571,7 +2571,8 @@ function OperationalTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: strin
 
   const handleSave = async () => {
     setSaveStatus('saving');
-    const { error } = await supabase.from('unit_operational').update({
+    const { error } = await supabase.from('unit_operational').upsert({
+      unit_id:           unitUuid,
       focal_point_name:  focalName       || null,
       focal_point_phone: focalPhone      || null,
       focal_point_email: focalEmail      || null,
@@ -2583,7 +2584,7 @@ function OperationalTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: strin
         ...(assetDocPaths.inventory_checklist ? { inventory_checklist: assetDocPaths.inventory_checklist, inventory_checklist_name: assetDocNames.inventory_checklist } : {}),
         ...(assetDocPaths.handover_cert       ? { handover_cert: assetDocPaths.handover_cert, handover_cert_name: assetDocNames.handover_cert } : {}),
       },
-    }).eq('unit_id', unitUuid);
+    }, { onConflict: 'unit_id' });
     if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
     await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'operational', payload: { focalName, focalPhone, focalEmail, operatorRemarks, maintenanceNotes, accessLockbox } });
     setSaveStatus('saved');
