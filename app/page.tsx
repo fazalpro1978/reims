@@ -59,7 +59,7 @@ function DashboardInner() {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '280px 1fr 1fr',
+              gridTemplateColumns: '360px 1fr 1fr',
               gap: 12,
               marginBottom: 12,
             }}

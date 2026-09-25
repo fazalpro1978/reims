@@ -174,7 +174,7 @@ export default function StatusDonut() {
                     transition: 'width .4s ease',
                   }} />
                 </div>
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#e2e2ee', width: 22, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#e2e2ee', width: 32, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                   {count}
                 </span>
               </div>
