@@ -12,6 +12,7 @@ import ZoneBreakdown from '@/components/dashboard/ZoneBreakdown';
 import TopListings from '@/components/dashboard/TopListings';
 import ActivityFeed from '@/components/dashboard/ActivityFeed';
 import AxiomStatus from '@/components/dashboard/AxiomStatus';
+import SynergyStats from '@/components/dashboard/SynergyStats';
 import AlertsStrip from '@/components/dashboard/AlertsStrip';
 import RevenuePanel from '@/components/dashboard/RevenuePanel';
 import TeamRoster from '@/components/dashboard/TeamRoster';
@@ -73,6 +74,9 @@ function DashboardInner() {
           <div style={{ marginTop: 4, marginBottom: 4 }}>
             <CircleOfExcellence />
           </div>
+
+          {/* Phase 3 — Synergy Pipeline (staff/admin only) */}
+          {!isAgent && <SynergyStats />}
 
           {/* Phase 3 — Activity + AXIOM (staff/admin only) */}
           {!isAgent && (
