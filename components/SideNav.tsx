@@ -240,7 +240,7 @@ const NAV_SECTIONS = [
 ];
 
 const BOTTOM_ITEMS = [
-  { id: 'settings', label: 'Settings',      href: '/settings', icon: 'settings', soon: true },
+  { id: 'settings', label: 'Settings',      href: '/settings', icon: 'settings', soon: false },
   { id: 'help',     label: 'Help & Support', href: '/help',     icon: 'help',     soon: true },
 ];
 

@@ -3,6 +3,7 @@
 import { useState, useEffect, FormEvent, Suspense } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { getPrefs } from '@/lib/userPrefs';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -80,7 +81,7 @@ function LoginForm() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) router.replace('/');
+      if (session) router.replace(getPrefs().defaultLanding || '/');
     });
   }, [router]);
 
@@ -105,7 +106,7 @@ function LoginForm() {
         ? 'Incorrect email or password. Please try again.'
         : authErr.message);
     } else {
-      router.replace('/');
+      router.replace(getPrefs().defaultLanding || '/');
     }
   }
 

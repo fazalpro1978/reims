@@ -18,6 +18,8 @@ import RevenuePanel from '@/components/dashboard/RevenuePanel';
 import TeamRoster from '@/components/dashboard/TeamRoster';
 import SplashScreen from '@/components/dashboard/SplashScreen';
 import CircleOfExcellence from '@/components/dashboard/CircleOfExcellence';
+import QuickAccess from '@/components/dashboard/QuickAccess';
+import { useUserPrefs } from '@/hooks/useUserPrefs';
 
 const SPLASH_KEY = 'vanguard_splash_done_v2';
 
@@ -26,6 +28,8 @@ function DashboardInner() {
   const isAgent           = role === 'agent';
   const router            = useRouter();
   const { openNav }       = useNav();
+  const { prefs }         = useUserPrefs();
+  const hidden            = (id: string) => prefs.hiddenWidgets.includes(id);
 
   const [showSplash, setShowSplash] = useState(false);
 
@@ -54,32 +58,40 @@ function DashboardInner() {
         <TopBar onMenuClick={openNav} />
         <main style={{ maxWidth: 1400, margin: '0 auto', padding: '32px 24px 80px' }}>
           <GreetingBar />
-          <KPIStrip />
+
+          {/* Quick access bar — pinned module shortcuts */}
+          <QuickAccess />
+
+          {!hidden('kpi-strip') && <KPIStrip />}
 
           {/* Phase 2 — Portfolio panels (visible to all roles) */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '360px 1fr 1fr',
-              gap: 12,
-              marginBottom: 12,
-            }}
-          >
-            <StatusDonut />
-            <ZoneBreakdown />
-            <TopListings />
-          </div>
+          {(!hidden('status-donut') || !hidden('zone-breakdown') || !hidden('top-listings')) && (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '360px 1fr 1fr',
+                gap: 12,
+                marginBottom: 12,
+              }}
+            >
+              {!hidden('status-donut')   && <StatusDonut />}
+              {!hidden('zone-breakdown') && <ZoneBreakdown />}
+              {!hidden('top-listings')   && <TopListings />}
+            </div>
+          )}
 
           {/* Circle of Excellence — visible to all authenticated users */}
-          <div style={{ marginTop: 4, marginBottom: 4 }}>
-            <CircleOfExcellence />
-          </div>
+          {!hidden('circle-of-excellence') && (
+            <div style={{ marginTop: 4, marginBottom: 4 }}>
+              <CircleOfExcellence />
+            </div>
+          )}
 
           {/* Phase 3 — Synergy Pipeline (staff/admin only) */}
-          {!isAgent && <SynergyStats />}
+          {!isAgent && !hidden('synergy-stats') && <SynergyStats />}
 
           {/* Phase 3 — Activity + AXIOM (staff/admin only) */}
-          {!isAgent && (
+          {!isAgent && (!hidden('activity-feed') || !hidden('axiom-status')) && (
             <div
               style={{
                 display: 'grid',
@@ -88,19 +100,21 @@ function DashboardInner() {
                 marginTop: 4,
               }}
             >
-              <ActivityFeed />
-              <AxiomStatus />
+              {!hidden('activity-feed') && <ActivityFeed />}
+              {!hidden('axiom-status')  && <AxiomStatus />}
             </div>
           )}
 
           {/* Phase 4 — Alerts + Revenue + Team (staff/admin only) */}
-          {!isAgent && (
+          {!isAgent && (!hidden('alerts-strip') || !hidden('revenue-panel') || !hidden('team-roster')) && (
             <div style={{ marginTop: 4 }}>
-              <AlertsStrip />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <RevenuePanel />
-                <TeamRoster />
-              </div>
+              {!hidden('alerts-strip') && <AlertsStrip />}
+              {(!hidden('revenue-panel') || !hidden('team-roster')) && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  {!hidden('revenue-panel') && <RevenuePanel />}
+                  {!hidden('team-roster')   && <TeamRoster />}
+                </div>
+              )}
             </div>
           )}
         </main>
