@@ -127,9 +127,16 @@ function normaliseEnums(row: Record<string, unknown>): Record<string, unknown> {
     const lower = out.kitchen.toLowerCase();
     out.kitchen = lower in KITCHEN_MAP ? KITCHEN_MAP[lower] : out.kitchen;
   }
-  // Convert 'Yes'/'No' string from Validation table to boolean for the DB column
-  if (typeof out.parking === 'string') {
-    out.parking = ['yes', 'true', '1', 'y'].includes(String(out.parking).toLowerCase());
+  // Convert string booleans to proper booleans for all boolean DB columns
+  const BOOLEAN_COLUMNS = [
+    'parking', 'month_free_applicable', 'pro_rata_applicable',
+    'kahramaa_applicable', 'water_electricity_limit_applicable',
+    'qatar_cool_applicable', 'marafeq_applicable', 'booking_validity_period',
+  ];
+  for (const col of BOOLEAN_COLUMNS) {
+    if (col in out && typeof out[col] !== 'boolean') {
+      out[col] = ['yes', 'true', '1', 'y'].includes(String(out[col] ?? '').toLowerCase());
+    }
   }
   // NOT NULL array columns — default to empty array when absent or null
   if (!Array.isArray(out.view_types)) out.view_types = [];
@@ -411,9 +418,10 @@ export async function POST(req: NextRequest) {
         }
 
         if (Object.keys(upsertPayload).length > 1) {
-          await admin
+          const { error: opErr } = await admin
             .from('unit_operational')
             .upsert(upsertPayload, { onConflict: 'unit_id' });
+          if (opErr) errors.push(`unit_operational upsert ${upsertPayload.unit_id}: ${opErr.message}`);
         }
       }
     }
