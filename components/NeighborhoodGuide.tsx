@@ -280,13 +280,13 @@ const OVERPASS_MIRRORS = [
 function buildOverpassQuery(lat: number, lon: number): string {
   return `[out:json][timeout:18];
 (
-  nwr["shop"~"^(mall|shopping_centre|supermarket|hypermarket)$"](around:2500,${lat},${lon});
-  nwr["amenity"~"^(school|kindergarten|cinema|theatre|restaurant|fast_food|place_of_worship|clinic|doctors|pharmacy|community_centre)$"](around:2000,${lat},${lon});
-  nwr["leisure"~"^(park|garden|playground|sports_centre|pitch|beach_resort|promenade)$"](around:2000,${lat},${lon});
-  nwr["natural"="beach"](around:2000,${lat},${lon});
-  nwr["amenity"~"^(hospital|bus_station|ferry_terminal)$"](around:4000,${lat},${lon});
-  nwr["railway"="station"](around:4000,${lat},${lon});
-  nwr["highway"="bus_stop"](around:1200,${lat},${lon});
+  nwr["shop"~"^(mall|shopping_centre|supermarket|hypermarket)$"](around:1750,${lat},${lon});
+  nwr["amenity"~"^(school|kindergarten|cinema|theatre|restaurant|fast_food|place_of_worship|clinic|doctors|pharmacy|community_centre)$"](around:1750,${lat},${lon});
+  nwr["leisure"~"^(park|garden|playground|sports_centre|pitch|beach_resort|promenade)$"](around:1750,${lat},${lon});
+  nwr["natural"="beach"](around:1750,${lat},${lon});
+  nwr["amenity"~"^(hospital|bus_station|ferry_terminal)$"](around:3500,${lat},${lon});
+  nwr["railway"="station"](around:3500,${lat},${lon});
+  nwr["highway"="bus_stop"](around:1500,${lat},${lon});
   nwr["aeroway"~"^(aerodrome|terminal)$"](around:25000,${lat},${lon});
 );
 out center tags;`;
@@ -382,17 +382,21 @@ function processElements(elements: OsmEl[], originLat: number, originLon: number
 export default function NeighborhoodGuide({
   unitUuid,
   zoneCode,
+  zoneName = '',
   isAdmin,
   canGenerate,
   locationMapUrl = '',
   onDirtyChange,
+  onGuideLoaded,
 }: {
-  unitUuid:         string;
-  zoneCode:         number;
-  isAdmin:          boolean;
-  canGenerate?:     boolean;
-  locationMapUrl?:  string;
-  onDirtyChange?:   (dirty: boolean) => void;
+  unitUuid:        string;
+  zoneCode:        number;
+  zoneName?:       string;
+  isAdmin:         boolean;
+  canGenerate?:    boolean;
+  locationMapUrl?: string;
+  onDirtyChange?:  (dirty: boolean) => void;
+  onGuideLoaded?:  (guide: NGuide) => void;
 }) {
   const [guide, setGuide] = useState<NGuide>({ lifestyle: [], parks: [], commute: [] });
   const [source, setSource]       = useState<'unit' | 'zone' | 'none'>('none');
@@ -423,8 +427,10 @@ export default function NeighborhoodGuide({
       .then(r => r.json())
       .then(({ data, source: s }) => {
         if (data) {
-          setGuide({ lifestyle: data.lifestyle_data ?? [], parks: data.parks_data ?? [], commute: data.commute_data ?? [] });
+          const loaded: NGuide = { lifestyle: data.lifestyle_data ?? [], parks: data.parks_data ?? [], commute: data.commute_data ?? [] };
+          setGuide(loaded);
           setSource(s);
+          onGuideLoaded?.(loaded);
         } else {
           setSource('none');
         }
@@ -433,41 +439,100 @@ export default function NeighborhoodGuide({
       .finally(() => setLoading(false));
   }, [unitUuid, zoneCode]);
 
-  const generateFromLocation = async () => {
-    if (!coords) return;
+  const runOverpass = async (lat: number, lon: number): Promise<NGuide> => {
+    const encoded = encodeURIComponent(buildOverpassQuery(lat, lon));
+    const tryMirror = (mirror: string) =>
+      fetch(`${mirror}?data=${encoded}`, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(25000),
+      }).then(r => {
+        if (!r.ok) throw new Error(`${mirror}: HTTP ${r.status}`);
+        return r.json() as Promise<{ elements: OsmEl[] }>;
+      });
+
+    let json: { elements: OsmEl[] };
+    try {
+      json = await Promise.any(OVERPASS_MIRRORS.map(tryMirror));
+    } catch (e: unknown) {
+      const msgs = e instanceof AggregateError
+        ? (e.errors as unknown[]).map(x => x instanceof Error ? x.message : String(x)).join('; ')
+        : String(e);
+      throw new Error(msgs);
+    }
+    return processElements(json.elements ?? [], lat, lon);
+  };
+
+  const geocodeZoneName = async (name: string): Promise<{ lat: number; lon: number } | null> => {
+    try {
+      const query = encodeURIComponent(`${name}, Qatar`);
+      const r = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1&countrycodes=qa`,
+        { headers: { 'User-Agent': 'REIMS-PropertyApp/1.0', Accept: 'application/json' }, signal: AbortSignal.timeout(8000) },
+      );
+      if (!r.ok) return null;
+      const rows = await r.json() as { lat: string; lon: string }[];
+      if (!rows[0]) return null;
+      return { lat: parseFloat(rows[0].lat), lon: parseFloat(rows[0].lon) };
+    } catch {
+      return null;
+    }
+  };
+
+  const handleGenerate = async () => {
     setGenerating(true);
     setGenMsg('');
     try {
-      const { lat, lon } = coords;
-      const encoded = encodeURIComponent(buildOverpassQuery(lat, lon));
+      let lat: number, lon: number;
 
-      const tryMirror = (mirror: string) =>
-        fetch(`${mirror}?data=${encoded}`, {
-          headers: { Accept: 'application/json' },
-          signal: AbortSignal.timeout(25000),
-        }).then(r => {
-          if (!r.ok) throw new Error(`${mirror}: HTTP ${r.status}`);
-          return r.json() as Promise<{ elements: OsmEl[] }>;
-        });
-
-      let json: { elements: OsmEl[] };
-      try {
-        json = await Promise.any(OVERPASS_MIRRORS.map(tryMirror));
-      } catch (e: unknown) {
-        const msgs = e instanceof AggregateError
-          ? (e.errors as unknown[]).map(x => x instanceof Error ? x.message : String(x)).join('; ')
-          : String(e);
-        throw new Error(msgs);
+      if (coords) {
+        // Best path: exact coords from location URL
+        lat = coords.lat; lon = coords.lon;
+        setGenMsg('Searching nearby places (1.75 km radius)…');
+      } else if (zoneName) {
+        // Fallback: geocode zone/district name via Nominatim
+        setGenMsg(`Locating ${zoneName}…`);
+        const geocoded = await geocodeZoneName(zoneName);
+        if (geocoded) {
+          lat = geocoded.lat; lon = geocoded.lon;
+          setGenMsg('Location found — searching nearby places…');
+        } else {
+          // Last resort: Claude AI via server-side API
+          setGenMsg('Generating AI-based guide…');
+          const res = await authedFetch('/api/neighbourhood-guide/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ zoneCode, zoneName, force: true }),
+          });
+          if (!res.ok) throw new Error(`Server generation failed (HTTP ${res.status})`);
+          // Reload from DB
+          const r2 = await authedFetch(`/api/neighborhood?unitUuid=${encodeURIComponent(unitUuid)}&zoneCode=${zoneCode}`);
+          const { data } = await r2.json();
+          if (data) {
+            const result: NGuide = { lifestyle: data.lifestyle_data ?? [], parks: data.parks_data ?? [], commute: data.commute_data ?? [] };
+            setGuide(result);
+            setSource('zone');
+            onGuideLoaded?.(result);
+            const count = result.lifestyle.length + result.parks.length + result.commute.length;
+            setGenMsg(`AI guide generated with ${count} place${count !== 1 ? 's' : ''} — review and edit as needed`);
+            setTimeout(() => setGenMsg(''), 8000);
+          }
+          return;
+        }
+      } else {
+        setGenMsg('No location data available — paste a Google Maps URL first');
+        setTimeout(() => setGenMsg(''), 5000);
+        return;
       }
 
-      const result = processElements(json.elements ?? [], lat, lon);
+      const result = await runOverpass(lat, lon);
       const count  = result.lifestyle.length + result.parks.length + result.commute.length;
       setGuide(result);
+      onGuideLoaded?.(result);
       markDirty(true);
-      setGenMsg(`Found ${count} place${count !== 1 ? 's' : ''} — review and save to keep`);
-      setTimeout(() => setGenMsg(''), 6000);
+      setGenMsg(`Found ${count} place${count !== 1 ? 's' : ''} within 1.75 km — review and save to keep`);
+      setTimeout(() => setGenMsg(''), 7000);
     } catch (e: unknown) {
-      setGenMsg('Auto-generate failed: ' + (e instanceof Error ? e.message : String(e)));
+      setGenMsg('Generate failed: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
       setGenerating(false);
     }
@@ -486,6 +551,7 @@ export default function NeighborhoodGuide({
       if (error) throw new Error(error);
       setSource(asZoneLevel ? 'zone' : 'unit');
       markDirty(false);
+      onGuideLoaded?.(guide);
       setSaveMsg(asZoneLevel ? `Saved as Zone ${zoneCode} shared guide` : 'Guide saved for this property');
       setTimeout(() => setSaveMsg(''), 3500);
     } catch (e: unknown) {
@@ -531,9 +597,35 @@ export default function NeighborhoodGuide({
   return (
     <div className="rounded-xl border border-[#2a2a2a] overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-2.5 bg-[#111111] border-b border-[#2a2a2a] flex items-center justify-between">
-        <h3 className="text-xs font-semibold text-[#666666] uppercase tracking-wider">Neighborhood Guide</h3>
-        <div className="flex items-center gap-2">
+      <div className="px-4 py-2.5 bg-[#111111] border-b border-[#2a2a2a] flex items-center gap-3">
+        <h3 className="text-xs font-semibold text-[#666666] uppercase tracking-wider flex-1">Neighbourhood Guide</h3>
+        {!loading && canEdit && (
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={generating}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-600/90 hover:bg-emerald-500 text-white disabled:opacity-50 transition-colors whitespace-nowrap shrink-0"
+            title={coords ? 'Auto-generate from location coordinates (1.75 km radius)' : zoneName ? `Geocode and generate for ${zoneName}` : 'Generate using AI'}
+          >
+            {generating ? (
+              <>
+                <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Generating…
+              </>
+            ) : (
+              <>
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Generate Guide
+              </>
+            )}
+          </button>
+        )}
+        <div className="flex items-center gap-2 shrink-0">
           {!loading && (
             <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border ${
               source === 'unit' ? 'border-[#c9a84c]/30 bg-[#c9a84c]/8 text-[#c9a84c]' :
@@ -554,32 +646,22 @@ export default function NeighborhoodGuide({
       ) : (
         <div className="px-4 py-3 space-y-4">
 
-          {/* Auto-generate banner — shown when a location URL with parseable coords exists */}
+          {/* Location source info */}
           {canEdit && coords && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/8 border border-emerald-500/20 text-[11px] text-emerald-300">
-              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/8 border border-emerald-500/20 text-[11px] text-emerald-300">
+              <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              <span className="flex-1">
-                Location detected ({coords.lat.toFixed(5)}, {coords.lon.toFixed(5)})
-              </span>
-              <button
-                type="button"
-                onClick={generateFromLocation}
-                disabled={generating}
-                className="px-2.5 py-1 rounded-md font-bold bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50 transition-colors text-[10px] whitespace-nowrap"
-              >
-                {generating ? 'Searching…' : '⚡ Auto-generate'}
-              </button>
+              Exact coordinates detected — guide will use OpenStreetMap within 1.75 km radius
             </div>
           )}
-          {canEdit && !coords && locationMapUrl && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/8 border border-amber-500/20 text-[11px] text-amber-300">
-              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          {canEdit && !locationMapUrl && zoneName && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/8 border border-blue-500/20 text-[11px] text-blue-300">
+              <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
-              Location URL saved but coordinates could not be parsed — auto-generate unavailable.
+              No location URL — guide will geocode &quot;{zoneName}&quot; or use AI generation
             </div>
           )}
           {genMsg && (

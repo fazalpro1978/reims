@@ -1,4 +1,5 @@
 import { UnitListing } from '../types/inventory';
+import type { NGuide } from '../components/NeighborhoodGuide';
 
 export const formatQAR = (n: number): string => `QAR ${n.toLocaleString('en-US')}`;
 
@@ -11,7 +12,7 @@ export function generateShareText(unit: UnitListing): string {
   );
 }
 
-export function generatePublicShareText(unit: UnitListing): string {
+export function generatePublicShareText(unit: UnitListing, neighbourhood?: NGuide | null): string {
   const hasSmartCode = Boolean(unit.smartCode);
   return [
     `Connecting you with property, the Privé way`,
@@ -58,6 +59,22 @@ export function generatePublicShareText(unit: UnitListing): string {
       ...(unit.mediaUrl       ? [`  Media  ${unit.mediaUrl}`]       : []),
       ``,
     ] : []),
+    ...(() => {
+      if (!neighbourhood) return [];
+      const highlights: string[] = [];
+      const topLifestyle = neighbourhood.lifestyle.slice(0, 3);
+      const topParks     = neighbourhood.parks.slice(0, 2);
+      const topCommute   = neighbourhood.commute.slice(0, 2);
+      const allTop = [...topLifestyle, ...topParks, ...topCommute];
+      if (!allTop.length) return [];
+      highlights.push(`NEIGHBOURHOOD HIGHLIGHTS`);
+      for (const p of allTop) {
+        const dist = p.distance ? ` (${p.distance})` : '';
+        highlights.push(`  ${p.subcategory.padEnd(28)} ${p.name}${dist}`);
+      }
+      highlights.push(``);
+      return highlights;
+    })(),
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
     `Privé Group Real Estate`,
     `Tel / WhatsApp: +974 7707 5959  |  admin@privegroupre.com`,

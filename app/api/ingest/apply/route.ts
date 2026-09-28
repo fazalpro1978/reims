@@ -454,6 +454,40 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ── 3. Auto-generate neighbourhood guides for zones without one ─────────
+    // Fire-and-forget: check which zone_codes in this batch have no zone-level guide,
+    // then call the generate API for each missing zone. Non-blocking.
+    if (errors.length === 0 && (inserted + updated) > 0) {
+      const zoneMap = new Map<number, string>();
+      for (const rec of records) {
+        const zc = Number(rec.payload?.zone_code ?? 0);
+        if (zc && !zoneMap.has(zc)) {
+          zoneMap.set(zc, String(rec.payload?.zone ?? ''));
+        }
+      }
+      if (zoneMap.size > 0) {
+        admin
+          .from('unit_neighborhood')
+          .select('zone_code')
+          .in('zone_code', Array.from(zoneMap.keys()))
+          .eq('is_zone_level', true)
+          .then(({ data: existing }) => {
+            const covered = new Set((existing ?? []).map((r: { zone_code: number }) => r.zone_code));
+            const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
+            for (const [zoneCode, zoneName] of zoneMap.entries()) {
+              if (!covered.has(zoneCode) && zoneName) {
+                fetch(`${baseUrl}/api/neighbourhood-guide/generate`, {
+                  method:  'POST',
+                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''}` },
+                  body:    JSON.stringify({ zoneCode, zoneName }),
+                }).catch(() => {});
+              }
+            }
+          })
+          .catch(() => {});
+      }
+    }
+
     return NextResponse.json({ inserted, updated, acknowledged, errors });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Apply failed' }, { status: 500 });

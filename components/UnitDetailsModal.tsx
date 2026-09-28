@@ -200,7 +200,7 @@ function LockIcon() {
   );
 }
 
-function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, onAdminLock, onUnitSaved, onDirtyChange }: {
+function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, onAdminLock, onUnitSaved, onDirtyChange, onGuideLoaded }: {
   unit: UnitListing;
   unitUuid: string;
   isAdmin: boolean;
@@ -209,6 +209,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
   onAdminLock?: () => void;
   onUnitSaved?: (updates: Partial<UnitListing>) => void;
   onDirtyChange?: (dirty: boolean) => void;
+  onGuideLoaded?: (guide: import('./NeighborhoodGuide').NGuide) => void;
 }) {
   const { role } = useAuth();
   const isReadOnly = role !== 'superuser' && role !== 'administrator';
@@ -1111,7 +1112,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
 
       </SectionCard>
 
-      <NeighborhoodGuide unitUuid={unitUuid} zoneCode={zoneCode} isAdmin={isAdmin} canGenerate={!isReadOnly} locationMapUrl={locationMapUrl} onDirtyChange={onDirtyChange} />
+      <NeighborhoodGuide unitUuid={unitUuid} zoneCode={zoneCode} zoneName={unit.zone} isAdmin={isAdmin} canGenerate={!isReadOnly} locationMapUrl={locationMapUrl} onDirtyChange={onDirtyChange} onGuideLoaded={onGuideLoaded} />
 
       <SectionCard title="External Links">
 
@@ -2821,6 +2822,8 @@ export default function UnitDetailsModal({ unit, onClose, onUnitSaved }: UnitDet
 
   // Warn before close if neighborhood guide was auto-generated but not saved
   const [neighborhoodDirty, setNeighborhoodDirty] = useState(false);
+  // Latest neighbourhood guide — passed up from NeighborhoodGuide for WhatsApp share
+  const neighbourhoodGuideRef = useRef<import('./NeighborhoodGuide').NGuide | null>(null);
 
   const handleAdminUnlock = () => {
     if (canAdminUnlock) {
@@ -2886,7 +2889,9 @@ export default function UnitDetailsModal({ unit, onClose, onUnitSaved }: UnitDet
   };
 
   const handleWhatsApp = () => {
-    const text = isAgent ? generateAgentShareText(unit) : generatePublicShareText(unit);
+    const text = isAgent
+      ? generateAgentShareText(unit)
+      : generatePublicShareText(unit, neighbourhoodGuideRef.current);
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -3077,7 +3082,7 @@ export default function UnitDetailsModal({ unit, onClose, onUnitSaved }: UnitDet
 
         {/* ── Tab Content (scrollable) ── */}
         <div className="flex-1 overflow-y-auto px-6 py-5 bg-[#181818]" role="tabpanel">
-          {activeTab === 'property'    && <PropertyTab unit={unit} unitUuid={unitUuid} isAdmin={isAdmin} onRequestAdmin={() => setShowAdminDialog(true)} onStatusSaved={setDisplayStatus} onAdminLock={() => setIsAdmin(false)} onUnitSaved={onUnitSaved} onDirtyChange={setNeighborhoodDirty} />}
+          {activeTab === 'property'    && <PropertyTab unit={unit} unitUuid={unitUuid} isAdmin={isAdmin} onRequestAdmin={() => setShowAdminDialog(true)} onStatusSaved={setDisplayStatus} onAdminLock={() => setIsAdmin(false)} onUnitSaved={onUnitSaved} onDirtyChange={setNeighborhoodDirty} onGuideLoaded={g => { neighbourhoodGuideRef.current = g; }} />}
           {activeTab === 'financials'  && <FinancialsTab unit={unit} unitUuid={unitUuid} />}
           {activeTab === 'commission'  && <CommissionTab unit={unit} unitUuid={unitUuid} />}
           {activeTab === 'operational' && <OperationalTab unit={unit} unitUuid={unitUuid} />}
