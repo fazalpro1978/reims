@@ -232,6 +232,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
   const [viewTypes, setViewTypes] = useState<ViewType[]>(unit.viewTypes ?? []);
   const [floor, setFloor] = useState<string>(unit.floor !== undefined ? String(unit.floor) : '');
   const [sizeSqm, setSizeSqm] = useState<string>(unit.size !== undefined ? String(unit.size) : '');
+  const [bathrooms, setBathrooms] = useState<string>(unit.bathrooms !== undefined ? String(unit.bathrooms) : '');
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState('');
   const [realtors, setRealtors] = useState<{ id: string; name: string; moci: string; classification?: string }[]>([]);
@@ -425,6 +426,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
           media_url:        mediaUrl || null,
           floor:            floor !== '' ? Number(floor) : null,
           size_sqm:         sizeSqm !== '' ? Number(sizeSqm) : null,
+          bathrooms:        bathrooms !== '' ? Number(bathrooms) : null,
           booking_validity:        bookingValidity,
           booking_validity_period: bookingValidity === 'Applicable' ? bookingValidityPeriod : null,
           booking_fee:             bookingValidity === 'Applicable' ? bookingFee : null,
@@ -935,10 +937,15 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
           </>
         )}
 
-        {/* Bathrooms — read-only */}
-        <FieldRow label="Bathrooms" value={
-          <span className="font-mono text-sm">{unit.bathrooms % 1 === 0 ? unit.bathrooms : unit.bathrooms.toFixed(1)}</span>
-        } />
+        {/* Bathrooms */}
+        <FieldRow
+          label="Bathrooms"
+          value={
+            isReadOnly
+              ? <span className="text-sm text-[#d0d0d0] font-mono">{bathrooms || '—'}</span>
+              : <input type="number" min={0} step={0.5} value={bathrooms} onChange={e => setBathrooms(e.target.value)} placeholder="e.g. 2" className={`${inp} w-28`} />
+          }
+        />
 
         {/* Floor */}
         <FieldRow
