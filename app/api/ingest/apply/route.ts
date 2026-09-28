@@ -26,6 +26,7 @@ const UNITS_COLUMNS = new Set([
   'location_map_url', 'media_url', 'asset_history_links',
   'listed_date', 'unit_code', 'amenities', 'view', 'view_types', 'design_type',
   'kahramaa_applicable', 'kahramaa_amount',
+  'water_electricity', 'water_electricity_limit_applicable', 'water_electricity_limit_amount',
   'qatar_cool_applicable', 'qatar_cool_amount',
   'marafeq_applicable', 'marafeq_amount',
   'smart_code', 'master_code',
