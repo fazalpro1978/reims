@@ -350,7 +350,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
   useEffect(() => {
     if (!unitUuid) return;
     supabase.from('units')
-      .select('realtor_name,realtor_moci,property,unit_no,zone,zone_code,type,config,parking,kitchen,furnishing,status,location_map_url,media_url,amenities,view_types,floor,size_sqm,booking_validity,booking_validity_period,booking_fee')
+      .select('realtor_name,realtor_moci,property,unit_no,zone,zone_code,type,config,parking,kitchen,furnishing,status,location_map_url,media_url,amenities,view_types,floor,size_sqm,bathrooms,booking_validity,booking_validity_period,booking_fee')
       .eq('id', unitUuid).single()
       .then(({ data }) => {
         if (!data) return;
@@ -375,6 +375,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
         }
         if (data.floor != null) setFloor(String(data.floor));
         if (data.size_sqm != null) setSizeSqm(String(data.size_sqm));
+        if (data.bathrooms != null) setBathrooms(String(data.bathrooms));
         const rawVT = data.view_types;
         if (Array.isArray(rawVT)) setViewTypes(rawVT as ViewType[]);
         else if (typeof rawVT === 'string') {
@@ -467,6 +468,9 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
       zoneCode,
       locationMapUrl: locationMapUrl || undefined,
       mediaUrl:   mediaUrl || undefined,
+      bathrooms:  bathrooms !== '' ? Number(bathrooms) : undefined,
+      floor:      floor !== '' ? Number(floor) : undefined,
+      size:       sizeSqm !== '' ? Number(sizeSqm) : undefined,
     });
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus('idle'), 2500);

@@ -97,9 +97,14 @@ const ALLOWED_FIELDS = new Set([
   'legal_duration', 'contract_start_date', 'contract_end_date',
   'location_map_url', 'media_url', 'asset_history_links',
   'listed_date', 'amenities', 'view_types', 'view',
+  'floor', 'size_sqm',
+  'booking_validity', 'booking_validity_period', 'booking_fee',
   'kahramaa_applicable', 'kahramaa_amount',
+  'water_electricity', 'water_electricity_limit_applicable', 'water_electricity_limit_amount',
+  'month_free_applicable', 'month_free_days',
   'qatar_cool_applicable', 'qatar_cool_amount',
   'marafeq_applicable', 'marafeq_amount',
+  'pro_rata_applicable',
   'remarks', 'notes',
 ]);
 
