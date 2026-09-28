@@ -474,7 +474,7 @@ export async function POST(req: NextRequest) {
           .then(({ data: existing }) => {
             const covered = new Set((existing ?? []).map((r: { zone_code: number }) => r.zone_code));
             const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
-            for (const [zoneCode, zoneName] of zoneMap.entries()) {
+            for (const [zoneCode, zoneName] of Array.from(zoneMap.entries())) {
               if (!covered.has(zoneCode) && zoneName) {
                 fetch(`${baseUrl}/api/neighbourhood-guide/generate`, {
                   method:  'POST',
