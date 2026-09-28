@@ -374,7 +374,7 @@ export async function POST(req: NextRequest) {
       );
       let unitIdByNatural = new Map<string, string>();
       if (naturalKeyRows.length > 0) {
-        const props = [...new Set(naturalKeyRows.map((r) => r.property as string).filter(Boolean))];
+        const props = Array.from(new Set(naturalKeyRows.map((r) => r.property as string).filter(Boolean)));
         const { data: naturalUnits } = await admin
           .from('units')
           .select('id, property, unit_no')
