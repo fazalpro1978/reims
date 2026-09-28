@@ -361,15 +361,36 @@ export async function POST(req: NextRequest) {
 
       const { data: unitIdRows } = await admin
         .from('units')
-        .select('id, unit_code')
-        .in('unit_code', opCodes);
+        .select('id, unit_code, property, unit_no')
+        .in('unit_code', opCodes.length > 0 ? opCodes : ['__none__']);
 
-      const unitIdMap = new Map(
+      const unitIdByCode = new Map(
         (unitIdRows ?? []).map((r: { id: string; unit_code: string }) => [r.unit_code, r.id]),
       );
 
+      // For rows without a unit_code, look up by property + unit_no
+      const naturalKeyRows = operationalRows.filter(
+        (r) => !r.unit_code || String(r.unit_code).trim() === '',
+      );
+      let unitIdByNatural = new Map<string, string>();
+      if (naturalKeyRows.length > 0) {
+        const props = [...new Set(naturalKeyRows.map((r) => r.property as string).filter(Boolean))];
+        const { data: naturalUnits } = await admin
+          .from('units')
+          .select('id, property, unit_no')
+          .in('property', props);
+        unitIdByNatural = new Map(
+          (naturalUnits ?? []).map((r: { id: string; property: string; unit_no: string }) => [
+            `${r.property}||${r.unit_no}`, r.id,
+          ]),
+        );
+      }
+
       for (const row of operationalRows) {
-        const unitId = unitIdMap.get(row.unit_code as string);
+        const code = typeof row.unit_code === 'string' ? row.unit_code.trim() : '';
+        const unitId = code
+          ? unitIdByCode.get(code)
+          : unitIdByNatural.get(`${row.property}||${row.unit_no}`);
         if (!unitId) continue;
 
         const upsertPayload: Record<string, unknown> = { unit_id: unitId };
