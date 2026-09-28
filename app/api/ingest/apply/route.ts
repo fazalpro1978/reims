@@ -12,9 +12,9 @@ const INGEST_KEY = process.env.INGEST_API_KEY ?? '';
 
 type VettedRecord = { id: string; payload: Record<string, unknown> };
 
-// Exhaustive set of columns that exist in public.units (initial schema + parity migration).
-// Any dInges payload field not in this set (e.g. area_sqft, notes, bedrooms, floor)
-// is stripped before insert/update to prevent Supabase schema-cache errors.
+// Exhaustive set of columns that exist in public.units (keep in sync with DB migrations).
+// Fields extracted by dInges but not in this set (e.g. area_sqft, notes, bedrooms) are
+// stripped before insert/update to prevent Supabase schema-cache errors.
 const UNITS_COLUMNS = new Set([
   'realtor_name', 'realtor_moci',
   'property', 'unit_no', 'zone_code', 'zone', 'type', 'config',
@@ -25,10 +25,17 @@ const UNITS_COLUMNS = new Set([
   'legal_duration', 'contract_start_date', 'contract_end_date',
   'location_map_url', 'media_url', 'asset_history_links',
   'listed_date', 'unit_code', 'amenities', 'view', 'view_types', 'design_type',
+  // Physical attributes (migration 20260728_unit_floor_size)
+  'floor', 'size_sqm',
+  // Month-free incentive + pro-rata (migration 20260922_month_free_pro_rata)
+  'month_free_applicable', 'month_free_days', 'pro_rata_applicable',
+  // Utility charges (migration 20260913_units_new_fields)
   'kahramaa_applicable', 'kahramaa_amount',
   'water_electricity', 'water_electricity_limit_applicable', 'water_electricity_limit_amount',
   'qatar_cool_applicable', 'qatar_cool_amount',
   'marafeq_applicable', 'marafeq_amount',
+  // Booking terms (migration 20260913_units_new_fields)
+  'booking_validity', 'booking_validity_period', 'booking_fee',
   'smart_code', 'master_code',
   'updated_at',
 ]);
@@ -75,6 +82,8 @@ const KITCHEN_MAP: Record<string, string | null> = {
 const NUMERIC_COLUMNS = [
   'zone_code', 'bathrooms', 'rent', 'service_charges', 'deposit_amount',
   'agency_fee', 'kahramaa_amount', 'qatar_cool_amount', 'marafeq_amount',
+  'size_sqm', 'floor', 'month_free_days',
+  'water_electricity_limit_amount', 'booking_fee',
 ];
 
 // NOT NULL columns that have a DB DEFAULT of 0 or a safe fallback.
