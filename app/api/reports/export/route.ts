@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
   // Build CSV
   const header = cols.map(c => csvCell(c.label)).join(',');
   const body_  = rows.map(row =>
-    cols.map(c => csvCell((row as Record<string, unknown>)[c.dbCol])).join(',')
+    cols.map(c => csvCell((row as unknown as Record<string, unknown>)[c.dbCol])).join(',')
   ).join('\n');
 
   const now       = new Date();
