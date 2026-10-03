@@ -32,10 +32,11 @@ export default function GreetingBar() {
   const firstName = user?.fullName?.split(' ')[0] ?? user?.email?.split('@')[0] ?? '';
 
   const actions = [
-    can('units.add')      && { label: '+ Add Unit',        onClick: () => router.push('/inventory?action=add'),    primary: true  },
-    can('report.generate')&& { label: 'Generate Report',   onClick: () => setShowReport(true),                    primary: false },
-    can('admin.access')   && { label: 'AXIOM Import',      onClick: () => router.push('/ingest-queue'),                                primary: false },
-  ].filter(Boolean) as { label: string; onClick: () => void; primary: boolean }[];
+    can('units.add')      && { label: '+ Add Unit',      onClick: () => router.push('/inventory?action=add'),  primary: true,  live: false },
+    can('report.generate')&& { label: 'Live Report',     onClick: () => window.open('/reports/live', '_blank'), primary: false, live: true  },
+    can('report.generate')&& { label: 'Generate Report', onClick: () => setShowReport(true),                   primary: false, live: false },
+    can('admin.access')   && { label: 'AXIOM Import',    onClick: () => router.push('/ingest-queue'),           primary: false, live: false },
+  ].filter(Boolean) as { label: string; onClick: () => void; primary: boolean; live: boolean }[];
 
   return (
     <>
@@ -63,7 +64,13 @@ export default function GreetingBar() {
 
       {/* Right — quick actions */}
       {actions.length > 0 && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <style>{`
+            @keyframes _livePulse {
+              0%,100% { box-shadow: 0 0 0 0 rgba(45,212,150,.35), 0 0 8px rgba(45,212,150,.2); }
+              50%      { box-shadow: 0 0 0 4px rgba(45,212,150,0), 0 0 14px rgba(45,212,150,.4); }
+            }
+          `}</style>
           {actions.map(a => (
             <button
               key={a.label}
@@ -76,21 +83,34 @@ export default function GreetingBar() {
                 letterSpacing: '.04em',
                 textTransform: 'uppercase',
                 cursor: 'pointer',
-                border: a.primary ? '1px solid rgba(201,168,76,.35)' : '1px solid #2e2e3e',
-                background: a.primary ? 'rgba(201,168,76,.12)' : '#17171f',
-                color: a.primary ? '#c9a84c' : '#7878a8',
+                border: a.primary
+                  ? '1px solid rgba(201,168,76,.35)'
+                  : a.live
+                    ? '1px solid rgba(45,212,150,.5)'
+                    : '1px solid #2e2e3e',
+                background: a.primary
+                  ? 'rgba(201,168,76,.12)'
+                  : a.live
+                    ? 'rgba(45,212,150,.08)'
+                    : '#17171f',
+                color: a.primary ? '#c9a84c' : a.live ? '#2dd496' : '#7878a8',
                 transition: 'all .12s',
+                animation: a.live ? '_livePulse 2s ease-in-out infinite' : undefined,
               }}
               onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.color = a.primary ? '#d9b85c' : '#e2e2ee';
-                (e.currentTarget as HTMLElement).style.borderColor = a.primary ? 'rgba(201,168,76,.6)' : '#44445a';
+                (e.currentTarget as HTMLElement).style.color =
+                  a.primary ? '#d9b85c' : a.live ? '#3de8a8' : '#e2e2ee';
+                (e.currentTarget as HTMLElement).style.borderColor =
+                  a.primary ? 'rgba(201,168,76,.6)' : a.live ? 'rgba(45,212,150,.8)' : '#44445a';
               }}
               onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.color = a.primary ? '#c9a84c' : '#7878a8';
-                (e.currentTarget as HTMLElement).style.borderColor = a.primary ? 'rgba(201,168,76,.35)' : '#2e2e3e';
+                (e.currentTarget as HTMLElement).style.color =
+                  a.primary ? '#c9a84c' : a.live ? '#2dd496' : '#7878a8';
+                (e.currentTarget as HTMLElement).style.borderColor =
+                  a.primary ? 'rgba(201,168,76,.35)' : a.live ? 'rgba(45,212,150,.5)' : '#2e2e3e';
               }}
             >
-              {a.label}
+              {a.live ? '● ' : ''}{a.label}
             </button>
           ))}
         </div>
