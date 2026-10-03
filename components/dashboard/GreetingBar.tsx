@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
+import ReportExportModal from '../ReportExportModal';
 
 const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -19,8 +20,9 @@ function formatDate(d: Date) {
 
 export default function GreetingBar() {
   const { user, can } = useAuth();
-  const router        = useRouter();
-  const [now, setNow] = useState(new Date());
+  const router              = useRouter();
+  const [now, setNow]       = useState(new Date());
+  const [showReport, setShowReport] = useState(false);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60_000);
@@ -31,11 +33,13 @@ export default function GreetingBar() {
 
   const actions = [
     can('units.add')      && { label: '+ Add Unit',        onClick: () => router.push('/inventory?action=add'),    primary: true  },
-    can('report.generate')&& { label: 'Generate Report',   onClick: () => router.push('/inventory'),               primary: false },
+    can('report.generate')&& { label: 'Generate Report',   onClick: () => setShowReport(true),                    primary: false },
     can('admin.access')   && { label: 'AXIOM Import',      onClick: () => router.push('/ingest-queue'),                                primary: false },
   ].filter(Boolean) as { label: string; onClick: () => void; primary: boolean }[];
 
   return (
+    <>
+      {showReport && <ReportExportModal onClose={() => setShowReport(false)} />}
     <div
       style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -92,5 +96,6 @@ export default function GreetingBar() {
         </div>
       )}
     </div>
+    </>
   );
 }
