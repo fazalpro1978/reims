@@ -56,7 +56,19 @@ export default function ReportExportModal({ onClose }: Props) {
   }, [onClose]);
 
   const selectedCatsCount = Object.values(selected).filter(s => s.size > 0).length;
-  const totalCols         = Object.values(selected).reduce((n, s) => n + s.size, 0);
+
+  // Compute unique DB columns that will actually appear in the export (deduped)
+  const uniqueExportCols = (() => {
+    const seen = new Set<string>(['property', 'unit_no']); // mandatory always included
+    for (const cat of REPORT_CATEGORIES) {
+      const sel = selected[cat.key];
+      if (!sel || sel.size === 0) continue;
+      for (const col of cat.columns) {
+        if (sel.has(col.key)) seen.add(col.db);
+      }
+    }
+    return seen.size;
+  })();
 
   const toggleCategory = useCallback((catKey: string) => {
     setSelected(prev => {
@@ -306,7 +318,7 @@ export default function ReportExportModal({ onClose }: Props) {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
         }}>
           <div style={{ fontSize: 11, color: MUTED }}>
-            {selectedCatsCount} {selectedCatsCount === 1 ? 'category' : 'categories'} · {totalCols} columns selected
+            {selectedCatsCount} {selectedCatsCount === 1 ? 'category' : 'categories'} · {uniqueExportCols} unique columns
             {unitCount !== null && ` · ${unitCount.toLocaleString()} rows`}
           </div>
 

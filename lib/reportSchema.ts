@@ -55,7 +55,6 @@ export const REPORT_CATEGORIES: ReportCategoryDef[] = [
       { key: 'rent',             label: 'Rent (QAR)', db: 'rent' },
       { key: 'location_map_url', label: 'Map URL',    db: 'location_map_url' },
       { key: 'media_url',        label: 'Media URL',  db: 'media_url' },
-      { key: 'notes',            label: 'Notes',      db: 'notes' },
     ],
   },
   {
@@ -150,8 +149,8 @@ export const REPORT_CATEGORIES: ReportCategoryDef[] = [
       { key: 'status',                 label: 'Status',               db: 'status' },
       { key: 'furnishing',             label: 'Furnishing',           db: 'furnishing' },
       { key: 'rent',                   label: 'Rent (QAR)',           db: 'rent' },
-      { key: 'notes',                  label: 'Notes',                db: 'notes' },
-      { key: 'remarks',                label: 'Remarks',              db: 'remarks' },
+      { key: 'service_charges',        label: 'Service Charges (QAR)',db: 'service_charges' },
+      { key: 'deposit_amount',         label: 'Deposit (QAR)',        db: 'deposit_amount' },
       { key: 'booking_fee',            label: 'Booking Fee (QAR)',    db: 'booking_fee' },
       { key: 'booking_validity',       label: 'Booking Validity',     db: 'booking_validity' },
       { key: 'booking_validity_period',label: 'Booking Period',       db: 'booking_validity_period' },
