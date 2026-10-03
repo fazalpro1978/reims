@@ -466,25 +466,25 @@ export async function POST(req: NextRequest) {
         }
       }
       if (zoneMap.size > 0) {
-        admin
-          .from('unit_neighborhood')
-          .select('zone_code')
-          .in('zone_code', Array.from(zoneMap.keys()))
-          .eq('is_zone_level', true)
-          .then(({ data: existing }) => {
-            const covered = new Set((existing ?? []).map((r: { zone_code: number }) => r.zone_code));
-            const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
-            for (const [zoneCode, zoneName] of Array.from(zoneMap.entries())) {
-              if (!covered.has(zoneCode) && zoneName) {
-                fetch(`${baseUrl}/api/neighbourhood-guide/generate`, {
-                  method:  'POST',
-                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''}` },
-                  body:    JSON.stringify({ zoneCode, zoneName }),
-                }).catch(() => {});
-              }
+        Promise.resolve(
+          admin
+            .from('unit_neighborhood')
+            .select('zone_code')
+            .in('zone_code', Array.from(zoneMap.keys()))
+            .eq('is_zone_level', true)
+        ).then(({ data: existing }) => {
+          const covered = new Set((existing ?? []).map((r: { zone_code: number }) => r.zone_code));
+          const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
+          for (const [zoneCode, zoneName] of Array.from(zoneMap.entries())) {
+            if (!covered.has(zoneCode) && zoneName) {
+              fetch(`${baseUrl}/api/neighbourhood-guide/generate`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''}` },
+                body:    JSON.stringify({ zoneCode, zoneName }),
+              }).catch(() => {});
             }
-          })
-          .catch(() => {});
+          }
+        }).catch(() => {});
       }
     }
 
