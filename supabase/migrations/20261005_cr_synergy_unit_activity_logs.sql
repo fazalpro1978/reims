@@ -19,10 +19,13 @@ CREATE INDEX IF NOT EXISTS cr_sual_unit_lead
 CREATE INDEX IF NOT EXISTS cr_sual_author
   ON public.cr_synergy_unit_activity_logs (author_id);
 
+-- Explicit grants required — Supabase does not auto-grant on migration-created tables.
+GRANT ALL ON public.cr_synergy_unit_activity_logs TO service_role;
+GRANT ALL ON public.cr_synergy_unit_activity_logs TO authenticated;
+
 ALTER TABLE public.cr_synergy_unit_activity_logs ENABLE ROW LEVEL SECURITY;
 
--- All authenticated users may read logs for units they can see;
--- service role bypasses RLS for API writes.
+-- Authenticated users may read all logs; service_role bypasses RLS for API writes.
 CREATE POLICY "authenticated read"
   ON public.cr_synergy_unit_activity_logs
   FOR SELECT
