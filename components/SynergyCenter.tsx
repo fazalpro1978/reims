@@ -901,14 +901,208 @@ function InquiryForm({ onSave, onCancel, initial, formError, mergeFields, mergeR
   );
 }
 
+// ─── Unit Diary / Activity Ledger ────────────────────────────────────────────
+
+interface UnitLogEntry {
+  id: string;
+  author_name: string;
+  pipeline_stage: string;
+  note: string;
+  created_at: string;
+}
+
+function UnitDiary({
+  unitCode, leadId, pipelineStage, authFetch,
+}: {
+  unitCode: string;
+  leadId: string;
+  pipelineStage: string;
+  authFetch: (url: string, init?: RequestInit) => Promise<Response>;
+}) {
+  const [open,    setOpen]    = useState(false);
+  const [logs,    setLogs]    = useState<UnitLogEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [note,    setNote]    = useState('');
+  const [saving,  setSaving]  = useState(false);
+  const [err,     setErr]     = useState<string | null>(null);
+  const loadedRef = useRef(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const loadLogs = async () => {
+    setLoading(true);
+    try {
+      const res  = await authFetch(
+        `/api/synergy/unit-logs?unit_code=${encodeURIComponent(unitCode)}&lead_id=${encodeURIComponent(leadId)}`,
+      );
+      const data = await res.json();
+      setLogs(data.logs ?? []);
+    } catch {
+      setErr('Failed to load diary.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpen = () => {
+    setOpen(o => !o);
+    if (!loadedRef.current) {
+      loadedRef.current = true;
+      loadLogs();
+    }
+  };
+
+  const handleSave = async () => {
+    if (!note.trim()) return;
+    setSaving(true);
+    setErr(null);
+    try {
+      const res  = await authFetch('/api/synergy/unit-logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ unit_code: unitCode, lead_id: leadId, pipeline_stage: pipelineStage, note: note.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Save failed');
+      setLogs(prev => [...prev, data.log]);
+      setNote('');
+      if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const res  = await authFetch(`/api/synergy/unit-logs?id=${id}`, { method: 'DELETE' });
+    if (res.ok) setLogs(prev => prev.filter(l => l.id !== id));
+  };
+
+  function fmtTs(iso: string) {
+    const d = new Date(iso);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    return `${dd}${mm} ${hh}:${mi}`;
+  }
+
+  const autoResize = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setNote(e.target.value);
+    e.target.style.height = 'auto';
+    e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+  };
+
+  return (
+    <div>
+      {/* Diary trigger icon */}
+      <button
+        onClick={handleOpen}
+        title={`Unit Diary — ${unitCode} / ${leadId}`}
+        className={`p-1.5 rounded-lg transition-colors ${
+          open
+            ? 'text-[#c9a84c] bg-[#c9a84c15] border border-[#c9a84c44]'
+            : 'text-[#444] hover:text-[#c9a84c] hover:bg-[#c9a84c10]'
+        } ${logs.length > 0 && !open ? 'text-[#c9a84c88]' : ''}`}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="w-3.5 h-3.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+        </svg>
+      </button>
+
+      {/* Collapsible diary drawer */}
+      {open && (
+        <div className="mt-2.5 border border-[#c9a84c22] rounded-xl overflow-hidden bg-[#0d0b06]">
+          {/* Drawer header */}
+          <div className="flex items-center justify-between px-3 py-2 border-b border-[#1a1500] bg-[#0f0d08]">
+            <div className="flex items-center gap-2">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#c9a84c" strokeWidth={1.75} className="w-3 h-3 shrink-0">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+              </svg>
+              <span className="text-[10px] font-bold text-[#c9a84c] uppercase tracking-wider">Unit Diary</span>
+              <span className="font-mono text-[9px] text-[#6a5a2a] bg-[#1a1500] px-1.5 py-0.5 rounded">{unitCode}</span>
+            </div>
+            <span className="text-[9px] font-semibold text-[#6a5a2a] uppercase tracking-wide border border-[#2a1f00] px-1.5 py-0.5 rounded-full">
+              {pipelineStage}
+            </span>
+          </div>
+
+          {/* Log entries */}
+          <div className="max-h-48 overflow-y-auto px-3 py-2 space-y-2">
+            {loading && (
+              <div className="flex justify-center py-4">
+                <span className="w-3.5 h-3.5 border border-[#c9a84c] border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+            {!loading && logs.length === 0 && (
+              <p className="text-[11px] text-[#3a3020] text-center py-3 italic">No entries yet — add the first note below.</p>
+            )}
+            {logs.map(log => (
+              <div key={log.id} className="group flex gap-2.5 items-start">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#c9a84c44] mt-1.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] text-[#c8b878] leading-snug break-words">{log.note}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[9px] font-mono text-[#4a3a18]">{fmtTs(log.created_at)}</span>
+                    <span className="text-[9px] text-[#3a3020]">{log.author_name}</span>
+                    <span className="text-[9px] text-[#2a2010] border border-[#2a1f00] px-1 rounded">{log.pipeline_stage}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDelete(log.id)}
+                  title="Delete entry"
+                  className="opacity-0 group-hover:opacity-100 text-[#4a3a18] hover:text-[#f87171] transition-all p-0.5 shrink-0"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3 h-3">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* New entry composer */}
+          <div className="border-t border-[#1a1500] px-3 py-2.5 bg-[#0b0900]">
+            {err && <p className="text-[10px] text-[#f87171] mb-1.5">{err}</p>}
+            <div className="flex gap-2 items-end">
+              <textarea
+                ref={textareaRef}
+                value={note}
+                onChange={autoResize}
+                onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSave(); }}
+                placeholder="Log observation, viewing outcome, negotiation note…"
+                rows={1}
+                className="flex-1 bg-[#0f0d08] border border-[#2a1f00] text-[#c8b878] text-[11px] rounded-lg px-2.5 py-2 placeholder-[#3a2f10] focus:outline-none focus:border-[#c9a84c44] resize-none leading-snug"
+              />
+              <button
+                onClick={handleSave}
+                disabled={saving || !note.trim()}
+                title="Save note (Ctrl+Enter)"
+                className="flex items-center gap-1 px-2.5 py-2 bg-[#c9a84c] hover:bg-[#dfc070] disabled:opacity-40 disabled:cursor-not-allowed text-[#0a0800] text-[10px] font-bold rounded-lg transition-colors shrink-0"
+              >
+                {saving
+                  ? <span className="w-3 h-3 border-2 border-[#0a0800] border-t-transparent rounded-full animate-spin" />
+                  : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                }
+              </button>
+            </div>
+            <p className="text-[9px] text-[#3a2f10] mt-1">Ctrl+Enter to save</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Matching Units Grid ───────────────────────────────────────────────────────
 
 const SCORE_THRESHOLD_ACTIONS  = 50;   // "View Details" deep-link
 const SCORE_THRESHOLD_PREMIUM  = 80;   // Full sharing suite
 
-function MatchingGrid({ inquiryId, clientEmail }: {
-  inquiryId:   string;
-  clientEmail?: string;
+function MatchingGrid({ inquiryId, clientEmail, pipelineStage }: {
+  inquiryId:      string;
+  clientEmail?:   string;
+  pipelineStage?: string;
 }) {
   const { role: userRole, can } = useAuth();
   const extRole     = userRole ?? 'staff';
@@ -1216,6 +1410,15 @@ function MatchingGrid({ inquiryId, clientEmail }: {
                           <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                         </svg>
                       </button>
+                      {/* Unit Diary icon */}
+                      {m.unit_code && (
+                        <UnitDiary
+                          unitCode={m.unit_code}
+                          leadId={inquiryId}
+                          pipelineStage={pipelineStage ?? 'new'}
+                          authFetch={authFetch}
+                        />
+                      )}
                     </div>
                     <ScoreBar score={score} />
                   </div>
@@ -1527,7 +1730,7 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
         {/* Tab content */}
         <div className="flex-1 overflow-hidden p-5">
           {tab === 'matches' ? (
-            <MatchingGrid inquiryId={inquiry.id} clientEmail={inquiry.client_email ?? undefined} />
+            <MatchingGrid inquiryId={inquiry.id} clientEmail={inquiry.client_email ?? undefined} pipelineStage={inquiry.status} />
           ) : (
             <div className="space-y-3 text-sm overflow-y-auto h-full">
               {/* Unit assignment — up to 3 slots, all optional */}
