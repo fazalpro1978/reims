@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   const [configs, entities, agents, zones] = await Promise.all([
     getAll('cr_property_type_configs?select=*&order=core_type,sub_type,configuration'),
     getAll('cr_entity_codes?select=*&order=company_name'),
-    getAll('cr_agents?select=*&order=agent_code'),
+    getAll('profiles?select=agent_code,full_name,email&agent_code=not.is.null&is_active=eq.true&order=agent_code'),
     getAll('cr_zone_codes?select=*&order=zone_code'),
   ]);
   return NextResponse.json({ configs, entities, agents, zones });
