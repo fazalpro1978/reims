@@ -37,8 +37,10 @@ export default function UserManagement() {
   const { user: me } = useAuth();
   const [users,   setUsers  ] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving,  setSaving ] = useState<string | null>(null);
-  const [error,   setError  ] = useState('');
+  const [saving,     setSaving    ] = useState<string | null>(null);
+  const [introducing, setIntroducing] = useState<string | null>(null);
+  const [introMsg,    setIntroMsg  ] = useState<{ id: string; ok: boolean } | null>(null);
+  const [error,       setError     ] = useState('');
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -76,6 +78,21 @@ export default function UserManagement() {
   }
 
   const canAssignSuperuser = me?.role === 'superuser';
+  const isSuperuser        = me?.role === 'superuser';
+
+  async function sendIntro(id: string) {
+    setIntroducing(id); setIntroMsg(null); setError('');
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    const res = await fetch('/api/admin/users/introduce', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id }),
+    });
+    setIntroMsg({ id, ok: res.ok });
+    setIntroducing(null);
+    setTimeout(() => setIntroMsg(null), 4000);
+  }
 
   if (loading) {
     return (
@@ -102,6 +119,7 @@ export default function UserManagement() {
               <th className="text-left px-4 py-3 w-[160px]">Role</th>
               <th className="text-left px-4 py-3">Platforms</th>
               <th className="text-center px-4 py-3 w-[90px]">Status</th>
+              {isSuperuser && <th className="text-center px-4 py-3 w-[60px]"></th>}
             </tr>
           </thead>
           <tbody>
@@ -187,6 +205,30 @@ export default function UserManagement() {
                       {isSaving ? '…' : u.is_active ? 'Active' : 'Inactive'}
                     </button>
                   </td>
+
+                  {isSuperuser && (
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        disabled={isSelf || introducing === u.id}
+                        onClick={() => sendIntro(u.id)}
+                        title="Send introduction email"
+                        className="w-7 h-7 rounded-lg flex items-center justify-center mx-auto transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#c9a84c18] border border-transparent hover:border-[#c9a84c30]"
+                        style={{ color: introMsg?.id === u.id ? (introMsg.ok ? '#10b981' : '#ef4444') : '#555' }}
+                      >
+                        {introducing === u.id ? (
+                          <div className="w-3.5 h-3.5 rounded-full border border-current border-t-transparent animate-spin" />
+                        ) : introMsg?.id === u.id ? (
+                          introMsg.ok ? (
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          ) : (
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+                          )
+                        ) : (
+                          <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="16" height="13" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M2 7l8 5 8-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                        )}
+                      </button>
+                    </td>
+                  )}
                 </tr>
               );
             })}
