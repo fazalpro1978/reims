@@ -21,10 +21,15 @@ import { authedFetch } from '../lib/authedFetch';
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 function SaveBar({ status, onSave, errorMsg }: { status: SaveStatus; onSave: () => void; errorMsg?: string }) {
+  const label =
+    status === 'saving' ? 'Saving…'
+    : status === 'saved'  ? '✓ Saved to database'
+    : status === 'error'  ? `✕ ${errorMsg ?? 'Save failed'}`
+    : '';
   return (
     <div className="sticky top-0 z-20 flex items-center justify-between gap-3 py-2.5 px-4 -mx-6 bg-[#111111] border-b border-[#2a2a2a] mb-1">
       <span className={`text-[10px] font-bold uppercase tracking-widest ${status === 'error' ? 'text-red-400' : status === 'saved' ? 'text-emerald-400' : 'text-[#666666]'}`}>
-        {status === 'saving' ? 'Saving…' : status === 'saved' ? '✓ Saved to database' : status === 'error' ? `✕ ${errorMsg ?? 'Save failed'}` : 'Unsaved changes'}
+        {label}
       </span>
       <button
         onClick={onSave}
@@ -405,6 +410,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
     setSaveStatus('saving');
     setSaveError('');
 
+    try {
     // Use service-role API route to bypass Supabase RLS on the units table
     const res = await authedFetch('/api/save-unit', {
       method: 'POST',
@@ -475,6 +481,10 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
     });
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus('idle'), 2500);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Network error — please retry');
+      setSaveStatus('error');
+    }
   };
 
   const sel = 'w-full text-sm text-[#d0d0d0] bg-[#111111] border border-[#333333] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] cursor-pointer';
@@ -1341,42 +1351,49 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   }, [unitUuid]);
 
   const handleSave = async () => {
+    if (!unitUuid) return;
     setSaveStatus('saving');
     setSaveError('');
-    const res = await authedFetch('/api/save-unit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        unitUuid,
-        fields: {
-          rent: monthlyRent,
-          rent_ff: monthlyRentFf,
-          agency_fee: contractCharges,
-          service_charges: additionalCharges,
-          month_free_applicable: monthFreeApplicable,
-          month_free_days:       monthFreeApplicable ? monthFreeDays : null,
-          pro_rata_applicable:   proRataApplicable,
-          kahramaa_applicable:    kahramaaApplicable,
-          kahramaa_amount:        kahramaaApplicable    ? kahramaaAmount    : null,
-          qatar_cool_applicable:  qatarCoolApplicable,
-          qatar_cool_amount:      qatarCoolApplicable  ? qatarCoolAmount  : null,
-          marafeq_applicable:     marafeqApplicable,
-          marafeq_amount:         marafeqApplicable    ? marafeqAmount    : null,
-          water_electricity:                  waterElectricity,
-          water_electricity_limit_applicable: waterElecLimitApplicable,
-          water_electricity_limit_amount:     waterElecLimitApplicable ? waterElecLimitAmount : null,
-        },
-      }),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      setSaveError(body.error ?? `HTTP ${res.status}`);
+    try {
+      const res = await authedFetch('/api/save-unit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          unitUuid,
+          fields: {
+            rent:            monthlyRent,
+            rent_ff:         monthlyRentFf,
+            deposit_amount:  monthlyRent,
+            agency_fee:      contractCharges,
+            service_charges: additionalCharges,
+            month_free_applicable: monthFreeApplicable,
+            month_free_days:       monthFreeApplicable ? monthFreeDays : null,
+            pro_rata_applicable:   proRataApplicable,
+            kahramaa_applicable:    kahramaaApplicable,
+            kahramaa_amount:        kahramaaApplicable    ? kahramaaAmount    : null,
+            qatar_cool_applicable:  qatarCoolApplicable,
+            qatar_cool_amount:      qatarCoolApplicable  ? qatarCoolAmount  : null,
+            marafeq_applicable:     marafeqApplicable,
+            marafeq_amount:         marafeqApplicable    ? marafeqAmount    : null,
+            water_electricity:                  waterElectricity,
+            water_electricity_limit_applicable: waterElecLimitApplicable,
+            water_electricity_limit_amount:     waterElecLimitApplicable ? waterElecLimitAmount : null,
+          },
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setSaveError(body.error ?? `HTTP ${res.status}`);
+        setSaveStatus('error');
+        return;
+      }
+      await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'financials', payload: { monthlyRent, contractCharges, additionalCharges, kahramaaApplicable, kahramaaAmount, qatarCoolApplicable, qatarCoolAmount, marafeqApplicable, marafeqAmount, waterElectricity, waterElecLimitApplicable, waterElecLimitAmount } });
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2500);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Network error — please retry');
       setSaveStatus('error');
-      return;
     }
-    await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'financials', payload: { monthlyRent, contractCharges, additionalCharges, kahramaaApplicable, kahramaaAmount, qatarCoolApplicable, qatarCoolAmount, marafeqApplicable, marafeqAmount, waterElectricity, waterElecLimitApplicable, waterElecLimitAmount } });
-    setSaveStatus('saved');
-    setTimeout(() => setSaveStatus('idle'), 2500);
   };
 
   const securityDeposit = monthlyRent; // 1 month's rent — refundable
@@ -1846,22 +1863,28 @@ function ClientInfoSection({ unitUuid }: { unitUuid: string }) {
   const handleSave = async () => {
     if (!unitUuid) return;
     setSaveStatus('saving');
-    const { error } = await supabase.from('unit_clients').upsert({
-      unit_id:              unitUuid,
-      client_type:          clientType,
-      full_name:            fullName || null,
-      qid_cr_number:        idNumber || null,
-      nationality:          nationality || null,
-      mobile_number:        mobile || null,
-      email:                email || null,
-      employer:             employerDetails || null,
-      authorized_signatory: clientType === 'Company' ? authorizedSignatory || null : null,
-      emergency_contact:    emergencyContact || null,
-      notes:                notes || null,
-    }, { onConflict: 'unit_id' });
-    if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
-    setSaveStatus('saved');
-    setTimeout(() => setSaveStatus('idle'), 2500);
+    setSaveError('');
+    try {
+      const { error } = await supabase.from('unit_clients').upsert({
+        unit_id:              unitUuid,
+        client_type:          clientType,
+        full_name:            fullName || null,
+        qid_cr_number:        idNumber || null,
+        nationality:          nationality || null,
+        mobile_number:        mobile || null,
+        email:                email || null,
+        employer:             employerDetails || null,
+        authorized_signatory: clientType === 'Company' ? authorizedSignatory || null : null,
+        emergency_contact:    emergencyContact || null,
+        notes:                notes || null,
+      }, { onConflict: 'unit_id' });
+      if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2500);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Network error — please retry');
+      setSaveStatus('error');
+    }
   };
 
   const inp = 'w-full text-sm text-[#d0d0d0] bg-[#111111] border border-[#333333] rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] placeholder:text-[#444444]';
@@ -2022,31 +2045,37 @@ function LegalDurationSection({ unit, unitUuid }: { unit: UnitListing; unitUuid:
   };
 
   const handleSave = async () => {
+    if (!unitUuid) return;
     setSaveStatus('saving');
     setSaveError('');
     const legalDuration = `${durationValue} ${durationUnit}`;
-    const res = await authedFetch('/api/save-unit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        unitUuid,
-        fields: {
-          listed_date:         listedDate || null,
-          contract_start_date: contractStartDate || null,
-          contract_end_date:   contractEndDate || null,
-          legal_duration:      legalDuration,
-        },
-      }),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      setSaveError(body.error ?? `HTTP ${res.status}`);
+    try {
+      const res = await authedFetch('/api/save-unit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          unitUuid,
+          fields: {
+            listed_date:         listedDate || null,
+            contract_start_date: contractStartDate || null,
+            contract_end_date:   contractEndDate || null,
+            legal_duration:      legalDuration,
+          },
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setSaveError(body.error ?? `HTTP ${res.status}`);
+        setSaveStatus('error');
+        return;
+      }
+      await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'commission', field: 'Legal Duration', payload: { listedDate, contractStartDate, contractEndDate, legalDuration } });
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2500);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Network error — please retry');
       setSaveStatus('error');
-      return;
     }
-    await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'commission', field: 'Legal Duration', payload: { listedDate, contractStartDate, contractEndDate, legalDuration } });
-    setSaveStatus('saved');
-    setTimeout(() => setSaveStatus('idle'), 2500);
   };
 
   const formatTimestamp = (iso: string) =>
@@ -2216,42 +2245,48 @@ function CommissionTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   }, [unitUuid]);
 
   const handleSave = async () => {
+    if (!unitUuid) return;
     setSaveStatus('saving');
     setSaveError('');
-    // unit_commissions uses anon key — no RLS block on this table
-    const { error } = await supabase.from('unit_commissions').upsert({
-      unit_id:               unitUuid,
-      agency_fee_applicable: agencyFeeApplicable,
-      agency_fee_amount:     agencyFeeApplicable ? agencyFeeAmount : null,
-      paid_by:               agencyFeeApplicable ? paidBy : null,
-      paid_by_other:         paidBy === 'Other' ? paidByOther : null,
-      property_reg_status:   regStatus,
-      registration_by:       registrationBy || null,
-      doc_urls: Object.fromEntries(
-        (Object.entries(commDocs) as [string, DocEntry][])
-          .filter(([, v]) => v.path || v.url)
-          .map(([k, v]) => [k, { path: v.path || null, name: v.name || null, url: v.url || null }])
-      ),
-    }, { onConflict: 'unit_id' });
-    if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
-    // moci_contract_number lives on units — use service-role API to bypass RLS
-    const res = await authedFetch('/api/save-unit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        unitUuid,
-        fields: { moci_contract_number: contractNumber || null },
-      }),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      setSaveError(body.error ?? `HTTP ${res.status}`);
+    try {
+      // unit_commissions uses anon key — no RLS block on this table
+      const { error } = await supabase.from('unit_commissions').upsert({
+        unit_id:               unitUuid,
+        agency_fee_applicable: agencyFeeApplicable,
+        agency_fee_amount:     agencyFeeApplicable ? agencyFeeAmount : null,
+        paid_by:               agencyFeeApplicable ? paidBy : null,
+        paid_by_other:         paidBy === 'Other' ? paidByOther : null,
+        property_reg_status:   regStatus,
+        registration_by:       registrationBy || null,
+        doc_urls: Object.fromEntries(
+          (Object.entries(commDocs) as [string, DocEntry][])
+            .filter(([, v]) => v.path || v.url)
+            .map(([k, v]) => [k, { path: v.path || null, name: v.name || null, url: v.url || null }])
+        ),
+      }, { onConflict: 'unit_id' });
+      if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
+      // moci_contract_number lives on units — use service-role API to bypass RLS
+      const res = await authedFetch('/api/save-unit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          unitUuid,
+          fields: { moci_contract_number: contractNumber || null },
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setSaveError(body.error ?? `HTTP ${res.status}`);
+        setSaveStatus('error');
+        return;
+      }
+      await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'commission', payload: { agencyFeeApplicable, agencyFeeAmount: agencyFeeApplicable ? agencyFeeAmount : null, paidBy: agencyFeeApplicable ? paidBy : null, regStatus, contractNumber } });
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2500);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Network error — please retry');
       setSaveStatus('error');
-      return;
     }
-    await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'commission', payload: { agencyFeeApplicable, agencyFeeAmount: agencyFeeApplicable ? agencyFeeAmount : null, paidBy: agencyFeeApplicable ? paidBy : null, regStatus, contractNumber } });
-    setSaveStatus('saved');
-    setTimeout(() => setSaveStatus('idle'), 2500);
   };
 
   const autoRegistered = ACTIVE_STATUSES.has(unit.status) && regStatus === 'Registered';
@@ -2605,26 +2640,33 @@ function OperationalTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: strin
   }, [unitUuid]);
 
   const handleSave = async () => {
+    if (!unitUuid) return;
     setSaveStatus('saving');
-    const { error } = await supabase.from('unit_operational').upsert({
-      unit_id:           unitUuid,
-      focal_point_name:  focalName       || null,
-      focal_point_phone: focalPhone      || null,
-      focal_point_email: focalEmail      || null,
-      operator_remarks:  operatorRemarks || null,
-      maintenance_notes: maintenanceNotes || null,
-      access_lockbox:    accessLockbox   || null,
-      doc_urls: {
-        ...(assetDocPaths.inspection_report   ? { inspection_report: assetDocPaths.inspection_report, inspection_report_name: assetDocNames.inspection_report } : {}),
-        ...(assetDocPaths.inventory_checklist ? { inventory_checklist: assetDocPaths.inventory_checklist, inventory_checklist_name: assetDocNames.inventory_checklist } : {}),
-        ...(assetDocPaths.handover_cert       ? { handover_cert: assetDocPaths.handover_cert, handover_cert_name: assetDocNames.handover_cert } : {}),
-      },
-    }, { onConflict: 'unit_id' });
-    if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
-    await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'operational', payload: { focalName, focalPhone, focalEmail, operatorRemarks, maintenanceNotes, accessLockbox } });
-    setSaveStatus('saved');
-    setLogRefreshKey(k => k + 1);
-    setTimeout(() => setSaveStatus('idle'), 2500);
+    setSaveError('');
+    try {
+      const { error } = await supabase.from('unit_operational').upsert({
+        unit_id:           unitUuid,
+        focal_point_name:  focalName       || null,
+        focal_point_phone: focalPhone      || null,
+        focal_point_email: focalEmail      || null,
+        operator_remarks:  operatorRemarks || null,
+        maintenance_notes: maintenanceNotes || null,
+        access_lockbox:    accessLockbox   || null,
+        doc_urls: {
+          ...(assetDocPaths.inspection_report   ? { inspection_report: assetDocPaths.inspection_report, inspection_report_name: assetDocNames.inspection_report } : {}),
+          ...(assetDocPaths.inventory_checklist ? { inventory_checklist: assetDocPaths.inventory_checklist, inventory_checklist_name: assetDocNames.inventory_checklist } : {}),
+          ...(assetDocPaths.handover_cert       ? { handover_cert: assetDocPaths.handover_cert, handover_cert_name: assetDocNames.handover_cert } : {}),
+        },
+      }, { onConflict: 'unit_id' });
+      if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
+      await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'operational', payload: { focalName, focalPhone, focalEmail, operatorRemarks, maintenanceNotes, accessLockbox } });
+      setSaveStatus('saved');
+      setLogRefreshKey(k => k + 1);
+      setTimeout(() => setSaveStatus('idle'), 2500);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Network error — please retry');
+      setSaveStatus('error');
+    }
   };
 
   // ── Load full audit log from DB ────────────────────────────────────────────
