@@ -414,7 +414,7 @@ export default function ClientsDirectory({ onMenuClick }: { onMenuClick?: () => 
             { label: 'Total Clients',      value: total,                                                                              color: 'text-[#e0e0e0]' },
             { label: 'WhatsApp Opted-in',  value: clients.filter(c => c.whatsapp_opt_in).length,                                     color: 'text-[#22c55e]' },
             { label: 'Email Opted-in',     value: clients.filter(c => c.email_opt_in).length,                                        color: 'text-[#38bdf8]' },
-            { label: 'Active Inquiries',   value: clients.filter(c => (c.inquiries ?? []).some(i => !['won','lost','cancelled','closed'].includes(i.status))).length, color: 'text-[#f43f5e]' },
+            { label: 'Total Clients',       value: total,                                              color: 'text-[#c9a84c]' },
           ].map(s => (
             <div key={s.label} className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-xl p-4">
               <p className="text-[11px] text-[#555] uppercase tracking-wider mb-1">{s.label}</p>
@@ -468,8 +468,6 @@ export default function ClientsDirectory({ onMenuClick }: { onMenuClick?: () => 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {clients.map(c => {
               const isBulked = bulkSelected.has(c.id);
-              const inqCount = (c.inquiries ?? []).length;
-              const activeCount = (c.inquiries ?? []).filter(i => !['won','lost','cancelled','closed'].includes(i.status)).length;
               return (
                 <div
                   key={c.id}
@@ -523,10 +521,8 @@ export default function ClientsDirectory({ onMenuClick }: { onMenuClick?: () => 
                   )}
 
                   <div className="flex items-center justify-between pt-2 border-t border-[#131313]">
-                    <span className="text-[10px] text-[#383838]">{inqCount} inq{inqCount !== 1 ? 's' : ''}</span>
-                    {activeCount > 0 && (
-                      <span className="text-[10px] font-bold text-[#f43f5e]">{activeCount} active</span>
-                    )}
+                    <span className="text-[10px] text-[#383838]">Since {new Date(c.created_at).toLocaleDateString()}</span>
+                    <span className="text-[10px] text-[#333]">{c.source}</span>
                   </div>
                 </div>
               );

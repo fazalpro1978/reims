@@ -20,13 +20,7 @@ export async function GET(req: NextRequest) {
 
   let query = admin
     .from('clients')
-    .select(`
-      *,
-      inquiries!client_id (
-        id, ref_no, status, listing_type, property_type, config,
-        budget_min, budget_max, created_at, follow_up_date
-      )
-    `, { count: 'exact' })
+    .select('*', { count: 'exact' })
     .order('updated_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
