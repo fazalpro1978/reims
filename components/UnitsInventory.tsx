@@ -408,6 +408,7 @@ export default function UnitsInventory({
         listingType:         row.listing_type as ListingType,
         status:              row.status as Status,
         rent:                Number(row.rent),
+        rentFf:              row.rent_ff != null ? Number(row.rent_ff) : null,
         serviceCharges:      Number(row.service_charges),
         depositAmount:       Number(row.deposit_amount),
         agencyFee:           Number(row.agency_fee),

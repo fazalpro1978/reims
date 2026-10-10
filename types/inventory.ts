@@ -86,7 +86,8 @@ export interface UnitListing {
   size?: number;       // Unit size in square metres
 
   // ── Financials ────────────────────────────────────────────────────────────
-  rent: number;               // QAR / month
+  rent: number;               // QAR / month (Semi-Furnished price)
+  rentFf?: number | null;     // QAR / month (Fully Furnished price, when dual pricing applies)
   serviceCharges: number;     // QAR / month
   depositAmount: number;      // QAR one-time
   agencyFee: number;          // QAR

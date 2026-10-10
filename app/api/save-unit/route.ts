@@ -92,7 +92,7 @@ const ALLOWED_FIELDS = new Set([
   'realtor_name', 'realtor_moci',
   'property', 'unit_no', 'zone_code', 'zone', 'type', 'config',
   'bathrooms', 'parking', 'kitchen', 'furnishing', 'listing_type', 'status',
-  'rent', 'service_charges', 'deposit_amount', 'agency_fee',
+  'rent', 'rent_ff', 'service_charges', 'deposit_amount', 'agency_fee',
   'moci_contract_number', 'moci_contract_status',
   'legal_duration', 'contract_start_date', 'contract_end_date',
   'location_map_url', 'media_url', 'asset_history_links',

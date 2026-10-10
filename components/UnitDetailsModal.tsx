@@ -1261,6 +1261,7 @@ function DepositRow({ label, applicable, onToggle, amount, onAmount }: {
 
 function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string }) {
   const [monthlyRent, setMonthlyRent] = useState<number>(unit.rent);
+  const [monthlyRentFf, setMonthlyRentFf] = useState<number | null>(unit.rentFf ?? null);
   const [contractCharges, setContractCharges] = useState<number>(unit.agencyFee);
   const [additionalCharges, setAdditionalCharges] = useState<number>(unit.serviceCharges);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
@@ -1304,11 +1305,12 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
   useEffect(() => {
     if (!unitUuid) return;
     Promise.all([
-      supabase.from('units').select('rent,agency_fee,service_charges,month_free_applicable,month_free_days,pro_rata_applicable,kahramaa_applicable,kahramaa_amount,qatar_cool_applicable,qatar_cool_amount,marafeq_applicable,marafeq_amount,water_electricity,water_electricity_limit_applicable,water_electricity_limit_amount').eq('id', unitUuid).single(),
+      supabase.from('units').select('rent,rent_ff,agency_fee,service_charges,month_free_applicable,month_free_days,pro_rata_applicable,kahramaa_applicable,kahramaa_amount,qatar_cool_applicable,qatar_cool_amount,marafeq_applicable,marafeq_amount,water_electricity,water_electricity_limit_applicable,water_electricity_limit_amount').eq('id', unitUuid).single(),
       supabase.from('unit_commissions').select('agency_fee_applicable,agency_fee_amount,paid_by').eq('unit_id', unitUuid).single(),
     ]).then(([{ data }, { data: commData }]) => {
       if (data) {
         setMonthlyRent(Number(data.rent) ?? unit.rent);
+        setMonthlyRentFf(data.rent_ff != null ? Number(data.rent_ff) : null);
         setContractCharges(Number(data.agency_fee) ?? unit.agencyFee);
         setAdditionalCharges(Number(data.service_charges) ?? unit.serviceCharges);
         setMonthFreeApplicable(data.month_free_applicable ?? false);
@@ -1348,6 +1350,7 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
         unitUuid,
         fields: {
           rent: monthlyRent,
+          rent_ff: monthlyRentFf,
           agency_fee: contractCharges,
           service_charges: additionalCharges,
           month_free_applicable: monthFreeApplicable,
@@ -1414,9 +1417,9 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
       {/* ── Rent & Charges breakdown ── */}
       <SectionCard title="Rent & Charges">
 
-        {/* Monthly Rent — editable */}
+        {/* Monthly Rent — editable (Semi-Furnished / standard price) */}
         <FieldRow
-          label="Monthly Rent"
+          label={monthlyRentFf != null ? 'Monthly Rent (SF)' : 'Monthly Rent'}
           value={
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-[#666666] select-none">QAR</span>
@@ -1431,6 +1434,26 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
             </div>
           }
         />
+
+        {/* Monthly Rent FF — shown only when dual pricing applies */}
+        {monthlyRentFf != null && (
+          <FieldRow
+            label="Monthly Rent (FF)"
+            value={
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-[#666666] select-none">QAR</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={monthlyRentFf}
+                  onChange={(e) => setMonthlyRentFf(Math.max(0, Number(e.target.value)))}
+                  className="w-32 text-right text-sm font-bold text-[#e0e0e0] bg-[#111111] border border-[#333333] rounded-md px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] tabular-nums"
+                />
+                <span className="text-xs text-[#555555]">/ month</span>
+              </div>
+            }
+          />
+        )}
 
         {/* Contract Charges — editable */}
         <FieldRow
