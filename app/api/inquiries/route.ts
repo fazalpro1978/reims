@@ -91,6 +91,10 @@ export async function POST(req: NextRequest) {
       notes:              body.notes              || null,
     };
 
+    // Immutable creator audit trail — set for every role, never overwritten
+    row.created_by_name  = auth.auth.fullName;
+    row.created_by_email = auth.auth.email;
+
     // All non-admin roles: auto-assign to the creating user for ownership tracking
     if (auth.auth.role === 'staff' || isExternal(auth.auth.role)) {
       row.staff_email       = auth.auth.email;

@@ -57,6 +57,8 @@ interface Inquiry {
   last_matched_at?: string;
   match_count: number;
   created_at: string;
+  created_by_name?: string | null;
+  created_by_email?: string | null;
 }
 
 interface InquiryMatch {
@@ -1898,8 +1900,14 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
   const [allStats, setAllStats]         = useState({ total: 0, new: 0, open: 0, won: 0, matches: 0 });
   const [agents, setAgents]             = useState<AgentProfile[]>([]);
   const [loading, setLoading]           = useState(true);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [search, setSearch]             = useState('');
+  const [statusFilter, setStatusFilter]       = useState<string>('all');
+  const [search, setSearch]                   = useState('');
+  const [filterListingType, setFilterListingType] = useState('');
+  const [filterBudgetMin, setFilterBudgetMin]     = useState('');
+  const [filterBudgetMax, setFilterBudgetMax]     = useState('');
+  const [filterFollowUp, setFilterFollowUp]       = useState('');
+  const [filterMoveIn, setFilterMoveIn]           = useState('');
+  const [showAdvFilters, setShowAdvFilters]       = useState(false);
   const [showForm, setShowForm]         = useState(false);
   const [formError, setFormError]       = useState<string | null>(null);
   const [extractedFields, setExtractedFields] = useState<Record<string, string>>({});
@@ -1997,12 +2005,35 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
     }
   };
 
+  const advFilterCount = [filterListingType, filterBudgetMin, filterBudgetMax, filterFollowUp, filterMoveIn].filter(Boolean).length;
+
   const filtered = inquiries.filter(i => {
-    const matchStatus = statusFilter === 'all' || i.status === statusFilter;
-    const matchSearch = !search || i.client_name.toLowerCase().includes(search.toLowerCase())
-      || i.ref_no?.toLowerCase().includes(search.toLowerCase())
-      || i.client_phone?.includes(search);
-    return matchStatus && matchSearch;
+    if (statusFilter !== 'all' && i.status !== statusFilter) return false;
+
+    if (search) {
+      const q = search.toLowerCase();
+      const ag = i.assigned_agent ? agents.find(a => a.agent_code === i.assigned_agent) : null;
+      const consultantMatch = !!(
+        i.assigned_agent?.toLowerCase().includes(q) ||
+        ag?.full_name?.toLowerCase().includes(q)
+      );
+      const zoneMatch = (i.preferred_zones ?? []).some(z => z.toLowerCase().includes(q));
+      const textMatch = [
+        i.client_name, i.client_phone, i.client_email, i.ref_no,
+        i.config, i.property_type, i.listing_type,
+        i.staff_name,          // handler
+        i.created_by_name,     // creator (audit trail — always the original submitter)
+      ].some(v => v?.toLowerCase().includes(q));
+      if (!textMatch && !consultantMatch && !zoneMatch) return false;
+    }
+
+    if (filterListingType && i.listing_type !== filterListingType) return false;
+    if (filterBudgetMin   && (i.budget_max ?? Infinity) < Number(filterBudgetMin)) return false;
+    if (filterBudgetMax   && (i.budget_min ?? 0)        > Number(filterBudgetMax)) return false;
+    if (filterFollowUp    && i.follow_up_date !== filterFollowUp) return false;
+    if (filterMoveIn      && (i.move_in_date  ?? '').slice(0, 10) !== filterMoveIn) return false;
+
+    return true;
   });
 
   // Stats tiles always show ALL-record counts (from server allStats), not just the filtered list
@@ -2068,30 +2099,124 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
           </div>
 
           {/* ── Filter row ── */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1 min-w-[180px]">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#444] pointer-events-none">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Search by name, ref no. or phone…"
-                className="w-full bg-[#0d0d0d] border border-[#1e1e1e] text-[#e0e0e0] text-sm rounded-lg pl-9 pr-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-[#f43f5e44] placeholder-[#444]"
-              />
+          <div className="flex flex-col gap-2.5">
+
+            {/* Row 1: search + filter toggle + status pills */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1 min-w-[180px]">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#444] pointer-events-none">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  value={search} onChange={e => setSearch(e.target.value)}
+                  placeholder="Search by name, phone, email, zone, config, consultant, handler…"
+                  className="w-full bg-[#0d0d0d] border border-[#1e1e1e] text-[#e0e0e0] text-sm rounded-lg pl-9 pr-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-[#f43f5e44] placeholder-[#444]"
+                />
+              </div>
+
+              {/* Advanced filters toggle */}
+              <button
+                onClick={() => setShowAdvFilters(v => !v)}
+                className={`relative flex items-center gap-2 shrink-0 text-xs font-semibold px-3.5 py-2.5 rounded-lg border transition-colors ${showAdvFilters || advFilterCount > 0 ? 'bg-[#f43f5e18] border-[#f43f5e44] text-[#f43f5e]' : 'border-[#1e1e1e] text-[#555] hover:border-[#333] hover:text-[#888]'}`}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M7 12h10M11 20h2" />
+                </svg>
+                Filters
+                {advFilterCount > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-[#f43f5e] text-white text-[9px] font-black flex items-center justify-center">{advFilterCount}</span>
+                )}
+              </button>
+
+              {/* Status pills */}
+              <div className="flex gap-1.5 flex-wrap">
+                {PIPELINE_STATUSES.map(s => {
+                  const m = s === 'all' ? null : STATUS_META[s];
+                  const active = statusFilter === s;
+                  return (
+                    <button key={s} onClick={() => setStatusFilter(s)}
+                      style={active && m ? { background: m.bg, borderColor: m.color, color: m.color } : {}}
+                      className={`shrink-0 text-xs px-3 py-1.5 rounded-full border font-medium transition-colors capitalize ${active && !m ? 'bg-[#f43f5e] text-white border-[#f43f5e]' : !active ? 'border-[#1e1e1e] text-[#555] hover:border-[#333] hover:text-[#888]' : ''}`}>
+                      {s === 'all' ? 'All' : STATUS_META[s].label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div className="flex gap-1.5 flex-wrap">
-              {PIPELINE_STATUSES.map(s => {
-                const m = s === 'all' ? null : STATUS_META[s];
-                const active = statusFilter === s;
-                return (
-                  <button key={s} onClick={() => setStatusFilter(s)}
-                    style={active && m ? { background: m.bg, borderColor: m.color, color: m.color } : {}}
-                    className={`shrink-0 text-xs px-3 py-1.5 rounded-full border font-medium transition-colors capitalize ${active && !m ? 'bg-[#f43f5e] text-white border-[#f43f5e]' : !active ? 'border-[#1e1e1e] text-[#555] hover:border-[#333] hover:text-[#888]' : ''}`}>
-                    {s === 'all' ? 'All' : STATUS_META[s].label}
-                  </button>
-                );
-              })}
-            </div>
+
+            {/* Row 2: advanced filter chips (collapsible) */}
+            {showAdvFilters && (
+              <div className="flex flex-wrap gap-2 p-3 bg-[#0d0d0d] border border-[#1e1e1e] rounded-xl">
+
+                {/* Listing Type */}
+                <div className="flex flex-col gap-1 min-w-[120px]">
+                  <label className="text-[10px] text-[#555] uppercase tracking-wider font-semibold">Listing Type</label>
+                  <select
+                    value={filterListingType}
+                    onChange={e => setFilterListingType(e.target.value)}
+                    className="bg-[#111] border border-[#2a2a2a] text-[#e0e0e0] text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#f43f5e66]"
+                  >
+                    <option value="">All</option>
+                    <option value="Rent">Rent</option>
+                    <option value="Sale">Sale</option>
+                  </select>
+                </div>
+
+                {/* Budget Min */}
+                <div className="flex flex-col gap-1 min-w-[120px]">
+                  <label className="text-[10px] text-[#555] uppercase tracking-wider font-semibold">Budget Min (QAR)</label>
+                  <input
+                    type="number" min={0} value={filterBudgetMin}
+                    onChange={e => setFilterBudgetMin(e.target.value)}
+                    placeholder="e.g. 4000"
+                    className="bg-[#111] border border-[#2a2a2a] text-[#e0e0e0] text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#f43f5e66] placeholder-[#444]"
+                  />
+                </div>
+
+                {/* Budget Max */}
+                <div className="flex flex-col gap-1 min-w-[120px]">
+                  <label className="text-[10px] text-[#555] uppercase tracking-wider font-semibold">Budget Max (QAR)</label>
+                  <input
+                    type="number" min={0} value={filterBudgetMax}
+                    onChange={e => setFilterBudgetMax(e.target.value)}
+                    placeholder="e.g. 10000"
+                    className="bg-[#111] border border-[#2a2a2a] text-[#e0e0e0] text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#f43f5e66] placeholder-[#444]"
+                  />
+                </div>
+
+                {/* Follow-up Date */}
+                <div className="flex flex-col gap-1 min-w-[140px]">
+                  <label className="text-[10px] text-[#555] uppercase tracking-wider font-semibold">Follow-up Date</label>
+                  <input
+                    type="date" value={filterFollowUp}
+                    onChange={e => setFilterFollowUp(e.target.value)}
+                    className="bg-[#111] border border-[#2a2a2a] text-[#e0e0e0] text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#f43f5e66] [color-scheme:dark]"
+                  />
+                </div>
+
+                {/* Move-in Date */}
+                <div className="flex flex-col gap-1 min-w-[140px]">
+                  <label className="text-[10px] text-[#555] uppercase tracking-wider font-semibold">Move-in Date</label>
+                  <input
+                    type="date" value={filterMoveIn}
+                    onChange={e => setFilterMoveIn(e.target.value)}
+                    className="bg-[#111] border border-[#2a2a2a] text-[#e0e0e0] text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#f43f5e66] [color-scheme:dark]"
+                  />
+                </div>
+
+                {/* Clear advanced filters */}
+                {advFilterCount > 0 && (
+                  <div className="flex flex-col justify-end min-w-fit">
+                    <button
+                      onClick={() => { setFilterListingType(''); setFilterBudgetMin(''); setFilterBudgetMax(''); setFilterFollowUp(''); setFilterMoveIn(''); }}
+                      className="text-[10px] text-[#f43f5e] hover:text-[#fb7185] font-semibold py-1.5 transition-colors"
+                    >
+                      Clear filters
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* ── Showing count ── */}
