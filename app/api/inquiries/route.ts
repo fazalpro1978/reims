@@ -102,6 +102,40 @@ export async function POST(req: NextRequest) {
       row.staff_assigned_at = new Date().toISOString();
     }
 
+    // Auto-link or create client record (dedup by phone)
+    if (row.client_phone) {
+      const { data: existing } = await admin
+        .from('clients')
+        .select('id')
+        .eq('phone', row.client_phone as string)
+        .maybeSingle();
+
+      if (existing) {
+        row.client_id = existing.id;
+        // Keep canonical name current with latest inquiry
+        await admin.from('clients').update({
+          full_name:  row.client_name,
+          email:      row.client_email ?? null,
+          updated_at: new Date().toISOString(),
+        }).eq('id', existing.id);
+      } else {
+        const { data: newClient } = await admin
+          .from('clients')
+          .insert({
+            full_name:       row.client_name,
+            phone:           row.client_phone,
+            email:           row.client_email  ?? null,
+            nationality:     row.client_nationality ?? null,
+            source:          'synergy',
+            whatsapp_opt_in: false,
+            email_opt_in:    false,
+          })
+          .select('id')
+          .single();
+        if (newClient) row.client_id = newClient.id;
+      }
+    }
+
     const { data, error } = await admin
       .from('inquiries')
       .insert(row)

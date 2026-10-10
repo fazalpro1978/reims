@@ -96,6 +96,15 @@ function IcIngest() {
     </svg>
   );
 }
+function IcContacts() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px] shrink-0">
+      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
+    </svg>
+  );
+}
 function IcSynergy() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px] shrink-0">
@@ -172,6 +181,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   hash:       <IcHash />,
   ingest:     <IcIngest />,
   synergy:    <IcSynergy />,
+  contacts:   <IcContacts />,
   grid:       <IcGrid />,
   building:   <IcBuilding />,
   users:      <IcUsers />,
@@ -189,6 +199,7 @@ const NAV_ICON_COLOR: Record<string, string> = {
   hash:       '#e879f9',
   ingest:     '#f97316',
   synergy:    '#f43f5e',
+  contacts:   '#c9a84c',
   grid:       '#22d3ee',
   building:   '#a78bfa',
   users:      '#4ade80',
@@ -225,7 +236,8 @@ const NAV_SECTIONS = [
   {
     label: 'Operations',
     items: [
-      { id: 'synergy',    label: 'Synergy Center',    href: '/synergy',    icon: 'synergy',  soon: false, roles: ['superuser','administrator','staff','agent','broker','third_party'] },
+      { id: 'synergy',    label: 'Synergy Center',    href: '/synergy',    icon: 'synergy',   soon: false, roles: ['superuser','administrator','staff','agent','broker','third_party'] },
+      { id: 'clients',    label: 'Client Directory',  href: '/clients',    icon: 'contacts',  soon: false, roles: ['superuser','administrator','staff'] },
       { id: 'contracts',  label: 'Contracts & Legal', href: '/contracts',  icon: 'document', soon: false, roles: ['superuser','administrator'] },
       { id: 'financials', label: 'Financials',        href: '/financials', icon: 'chart',    soon: true,  roles: ['superuser','administrator'] },
       { id: 'reports',    label: 'Reports',           href: '/reports',    icon: 'report',   soon: true,  roles: ['superuser','administrator','staff'] },
