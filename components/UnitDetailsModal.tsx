@@ -1844,7 +1844,7 @@ function ClientInfoSection({ unitUuid }: { unitUuid: string }) {
 
   useEffect(() => {
     if (!unitUuid) return;
-    supabase.from('unit_clients').select('*').eq('unit_id', unitUuid).single()
+    supabase.from('unit_clients').select('*').eq('unit_id', unitUuid).maybeSingle()
       .then(({ data }) => {
         if (!data) return;
         setClientType((data.client_type as ClientType) ?? 'Individual');
@@ -3146,11 +3146,24 @@ export default function UnitDetailsModal({ unit, onClose, onUnitSaved }: UnitDet
         </div>
 
         {/* ── Tab Content (scrollable) ── */}
+        {/* Tabs stay mounted — only hidden — so local state (PAY/NO PAY toggles, etc.) survives tab switching */}
         <div className="flex-1 overflow-y-auto px-6 py-5 bg-[#181818]" role="tabpanel">
-          {activeTab === 'property'    && <PropertyTab unit={unit} unitUuid={unitUuid} isAdmin={isAdmin} onRequestAdmin={() => setShowAdminDialog(true)} onStatusSaved={setDisplayStatus} onAdminLock={() => setIsAdmin(false)} onUnitSaved={onUnitSaved} onDirtyChange={setNeighborhoodDirty} onGuideLoaded={g => { neighbourhoodGuideRef.current = g; }} />}
-          {activeTab === 'financials'  && <FinancialsTab unit={unit} unitUuid={unitUuid} />}
-          {activeTab === 'commission'  && <CommissionTab unit={unit} unitUuid={unitUuid} />}
-          {activeTab === 'operational' && <OperationalTab unit={unit} unitUuid={unitUuid} />}
+          <div className={activeTab !== 'property' ? 'hidden' : ''}>
+            <PropertyTab unit={unit} unitUuid={unitUuid} isAdmin={isAdmin} onRequestAdmin={() => setShowAdminDialog(true)} onStatusSaved={setDisplayStatus} onAdminLock={() => setIsAdmin(false)} onUnitSaved={onUnitSaved} onDirtyChange={setNeighborhoodDirty} onGuideLoaded={g => { neighbourhoodGuideRef.current = g; }} />
+          </div>
+          {!isAgent && (
+            <div className={activeTab !== 'financials' ? 'hidden' : ''}>
+              <FinancialsTab unit={unit} unitUuid={unitUuid} />
+            </div>
+          )}
+          {!isAgent && (
+            <div className={activeTab !== 'commission' ? 'hidden' : ''}>
+              <CommissionTab unit={unit} unitUuid={unitUuid} />
+            </div>
+          )}
+          <div className={activeTab !== 'operational' ? 'hidden' : ''}>
+            <OperationalTab unit={unit} unitUuid={unitUuid} />
+          </div>
         </div>
 
         {/* ── Admin Unlock Dialog — role-based, no PIN ── */}

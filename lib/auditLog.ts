@@ -39,7 +39,7 @@ export async function logEvent(e: AuditEvent): Promise<void> {
       action_type: e.action,
       operator:    OPERATOR,
       tab_context: e.tab      ?? null,
-      field:       e.field    ?? null,
+      field:       e.field    ?? '',
       old_value:   e.oldValue ?? null,
       new_value:   e.newValue ?? null,
       payload:     e.payload  ?? {},
