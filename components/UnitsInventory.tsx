@@ -761,23 +761,27 @@ export default function UnitsInventory({
       return;
     }
     setToast({ type: 'success', msg: 'Duplicating…' });
+    try {
+      const res = await authedFetch('/api/duplicate-unit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ unitUuid: unit.uuid }),
+      });
+      const body = await res.json().catch(() => ({}));
 
-    const res = await authedFetch('/api/duplicate-unit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ unitUuid: unit.uuid }),
-    });
-    const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setToast({ type: 'error', msg: `Duplicate failed: ${body.error ?? `HTTP ${res.status}`}` });
+        setTimeout(() => setToast(null), 5000);
+        return;
+      }
 
-    if (!res.ok) {
-      setToast({ type: 'error', msg: `Duplicate failed: ${body.error ?? `HTTP ${res.status}`}` });
+      setToast({ type: 'success', msg: `Duplicated as ${body.newCode} — edit to update details.` });
       setTimeout(() => setToast(null), 5000);
-      return;
+      setRefreshKey(k => k + 1);
+    } catch (err) {
+      setToast({ type: 'error', msg: `Duplicate failed: ${err instanceof Error ? err.message : 'Network error'}` });
+      setTimeout(() => setToast(null), 5000);
     }
-
-    setToast({ type: 'success', msg: `Duplicated as ${body.newCode} — edit to update details.` });
-    setTimeout(() => setToast(null), 5000);
-    setRefreshKey(k => k + 1);
   }, []);
 
   const handleViewDetails = useCallback((unit: UnitListing) => {
@@ -817,23 +821,30 @@ export default function UnitsInventory({
     }
     if (!deleteTarget?.uuid) return;
     setDeleting(true);
-    const res = await authedFetch('/api/delete-unit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ unitUuid: deleteTarget.uuid }),
-    });
-    setDeleting(false);
-    setDeleteTarget(null);
-    setDeletePin('');
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      setToast({ type: 'error', msg: `Delete failed: ${body.error ?? `HTTP ${res.status}`}` });
+    try {
+      const res = await authedFetch('/api/delete-unit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ unitUuid: deleteTarget.uuid }),
+      });
+      setDeleting(false);
+      const captured = deleteTarget;
+      setDeleteTarget(null);
+      setDeletePin('');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setToast({ type: 'error', msg: `Delete failed: ${body.error ?? `HTTP ${res.status}`}` });
+        setTimeout(() => setToast(null), 5000);
+        return;
+      }
+      setToast({ type: 'success', msg: `Deleted — ${captured.property} ${captured.unitNo}` });
+      setTimeout(() => setToast(null), 4000);
+      setRefreshKey(k => k + 1);
+    } catch (err) {
+      setDeleting(false);
+      setToast({ type: 'error', msg: `Delete failed: ${err instanceof Error ? err.message : 'Network error'}` });
       setTimeout(() => setToast(null), 5000);
-      return;
     }
-    setToast({ type: 'success', msg: `Deleted — ${deleteTarget.property} ${deleteTarget.unitNo}` });
-    setTimeout(() => setToast(null), 4000);
-    setRefreshKey(k => k + 1);
   };
 
   // ── Pagination page numbers (show at most 7 pages) ────────────────────────

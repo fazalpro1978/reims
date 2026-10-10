@@ -711,7 +711,17 @@ export default function Properties({ onMenuClick }: { onMenuClick?: () => void }
 
   const deleteProperty = async (id: string) => {
     if (!confirm('Delete this listing?')) return;
-    await fetch(`/api/properties/${id}`, { method: 'DELETE' });
+    try {
+      const res = await fetch(`/api/properties/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setSyncMsg(`Delete failed: ${j.error ?? `HTTP ${res.status}`}`);
+        return;
+      }
+    } catch (err) {
+      setSyncMsg(`Delete failed: ${err instanceof Error ? err.message : 'Network error'}`);
+      return;
+    }
     setDrawer(null); await load();
   };
 

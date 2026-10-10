@@ -61,20 +61,25 @@ export default function UserManagement() {
 
   async function patch(id: string, updates: Partial<{ role: Role; is_active: boolean; platforms: string[] }>) {
     setSaving(id); setError('');
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
-    const res = await fetch('/api/admin/users', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ id, ...updates }),
-    });
-    const json = await res.json();
-    if (res.ok) {
-      setUsers(prev => prev.map(u => u.id === id ? { ...u, ...json.user } : u));
-    } else {
-      setError(json.error ?? 'Update failed');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch('/api/admin/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id, ...updates }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setUsers(prev => prev.map(u => u.id === id ? { ...u, ...json.user } : u));
+      } else {
+        setError(json.error ?? 'Update failed');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Network error — please retry');
+    } finally {
+      setSaving(null);
     }
-    setSaving(null);
   }
 
   const canAssignSuperuser = me?.role === 'superuser';
@@ -82,16 +87,21 @@ export default function UserManagement() {
 
   async function sendIntro(id: string) {
     setIntroducing(id); setIntroMsg(null); setError('');
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
-    const res = await fetch('/api/admin/users/introduce', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ id }),
-    });
-    setIntroMsg({ id, ok: res.ok });
-    setIntroducing(null);
-    setTimeout(() => setIntroMsg(null), 4000);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch('/api/admin/users/introduce', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id }),
+      });
+      setIntroMsg({ id, ok: res.ok });
+    } catch {
+      setIntroMsg({ id, ok: false });
+    } finally {
+      setIntroducing(null);
+      setTimeout(() => setIntroMsg(null), 4000);
+    }
   }
 
   if (loading) {
