@@ -1269,7 +1269,7 @@ function DepositRow({ label, applicable, onToggle, amount, onAmount }: {
   );
 }
 
-function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string }) {
+function FinancialsTab({ unit, unitUuid, onUnitSaved }: { unit: UnitListing; unitUuid: string; onUnitSaved?: (updates: Partial<UnitListing>) => void }) {
   const [monthlyRent, setMonthlyRent] = useState<number>(unit.rent);
   const [monthlyRentFf, setMonthlyRentFf] = useState<number | null>(unit.rentFf ?? null);
   const [contractCharges, setContractCharges] = useState<number>(unit.agencyFee);
@@ -1388,6 +1388,19 @@ function FinancialsTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string
         return;
       }
       await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'financials', payload: { monthlyRent, contractCharges, additionalCharges, kahramaaApplicable, kahramaaAmount, qatarCoolApplicable, qatarCoolAmount, marafeqApplicable, marafeqAmount, waterElectricity, waterElecLimitApplicable, waterElecLimitAmount } });
+      onUnitSaved?.({
+        rent:               monthlyRent,
+        rentFf:             monthlyRentFf,
+        depositAmount:      monthlyRent,
+        agencyFee:          contractCharges,
+        serviceCharges:     additionalCharges,
+        kahramaaApplicable,
+        kahramaaAmount,
+        qatarCoolApplicable,
+        qatarCoolAmount,
+        marafeqApplicable,
+        marafeqAmount,
+      });
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2500);
     } catch (err) {
@@ -2576,7 +2589,7 @@ function SystemUpdateLog({ entries }: { entries: LogEntry[] }) {
   );
 }
 
-function OperationalTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: string }) {
+function OperationalTab({ unit, unitUuid, onFocalSaved }: { unit: UnitListing; unitUuid: string; onFocalSaved?: (focal: { name: string; phone: string; email: string; operatorRemarks: string }) => void }) {
   // ── Focal Point Info ──────────────────────────────────────────────────────
   const [focalName,  setFocalName]  = useState('');
   const [focalPhone, setFocalPhone] = useState('');
@@ -2660,6 +2673,7 @@ function OperationalTab({ unit, unitUuid }: { unit: UnitListing; unitUuid: strin
       }, { onConflict: 'unit_id' });
       if (error) { setSaveError(error.message); setSaveStatus('error'); return; }
       await logEvent({ unitId: unitUuid, action: 'RECORD_SAVE', tab: 'operational', payload: { focalName, focalPhone, focalEmail, operatorRemarks, maintenanceNotes, accessLockbox } });
+      onFocalSaved?.({ name: focalName, phone: focalPhone, email: focalEmail, operatorRemarks });
       setSaveStatus('saved');
       setLogRefreshKey(k => k + 1);
       setTimeout(() => setSaveStatus('idle'), 2500);
@@ -3153,7 +3167,7 @@ export default function UnitDetailsModal({ unit, onClose, onUnitSaved }: UnitDet
           </div>
           {!isAgent && (
             <div className={activeTab !== 'financials' ? 'hidden' : ''}>
-              <FinancialsTab unit={unit} unitUuid={unitUuid} />
+              <FinancialsTab unit={unit} unitUuid={unitUuid} onUnitSaved={onUnitSaved} />
             </div>
           )}
           {!isAgent && (
@@ -3162,7 +3176,7 @@ export default function UnitDetailsModal({ unit, onClose, onUnitSaved }: UnitDet
             </div>
           )}
           <div className={activeTab !== 'operational' ? 'hidden' : ''}>
-            <OperationalTab unit={unit} unitUuid={unitUuid} />
+            <OperationalTab unit={unit} unitUuid={unitUuid} onFocalSaved={setCopyFocal} />
           </div>
         </div>
 
