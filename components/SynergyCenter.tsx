@@ -156,7 +156,19 @@ function ScoreBar({ score }: { score: number }) {
   );
 }
 
-function ElapsedCounter({ since, status }: { since: string; status: string }) {
+// Per-status escalation thresholds (days)
+const ESCALATION: Record<string, { warn: number; crit: number } | null> = {
+  new:         { warn: 1,  crit: 2  },
+  contacted:   { warn: 3,  crit: 7  },
+  viewing:     { warn: 7,  crit: 14 },
+  negotiating: { warn: 14, crit: 30 },
+  won:         null,
+  lost:        null,
+  cancelled:   null,
+  closed:      null,
+};
+
+function useElapsed(since: string) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 60_000);
@@ -166,10 +178,53 @@ function ElapsedCounter({ since, status }: { since: string; status: string }) {
   const days = Math.floor(ms / 86_400_000);
   const hrs  = Math.floor((ms % 86_400_000) / 3_600_000);
   const mins = Math.floor((ms % 3_600_000)  / 60_000);
-  const terminal = ['won', 'lost', 'cancelled', 'closed'].includes(status);
-  const color = terminal      ? '#2a2a2a'
-    : days >= 7               ? '#f87171'
-    : days >= 3               ? '#fbbf24'
+  return { ms, days, hrs, mins };
+}
+
+// Compact pill shown in the card header beside the status badge
+function EscalationPill({ since, status }: { since: string; status: string }) {
+  const { days, hrs, mins } = useElapsed(since);
+  const thresholds = ESCALATION[status];
+  if (!thresholds) return null; // terminal status — no escalation
+
+  const tier = days >= thresholds.crit ? 'critical'
+    : days >= thresholds.warn           ? 'warning'
+    : 'healthy';
+
+  if (tier === 'healthy') return null; // within normal window — no pill shown
+
+  const label = days > 0 ? `${days}d` : hrs > 0 ? `${hrs}h` : `${mins}m`;
+  const isCrit = tier === 'critical';
+
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full tabular-nums"
+      style={{
+        background: isCrit ? '#ef444420' : '#f59e0b18',
+        border:     `1px solid ${isCrit ? '#ef444450' : '#f59e0b40'}`,
+        color:      isCrit ? '#ef4444'   : '#f59e0b',
+      }}
+    >
+      {isCrit && (
+        <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse shrink-0" />
+      )}
+      {label}
+      {isCrit ? ' !!' : ' ⚑'}
+    </span>
+  );
+}
+
+// Footer label — shows full elapsed time in stage; color matches escalation tier
+function ElapsedCounter({ since, status }: { since: string; status: string }) {
+  const { days, hrs, mins } = useElapsed(since);
+  const thresholds = ESCALATION[status];
+  const terminal   = !thresholds;
+  const tier = !terminal && days >= thresholds!.crit ? 'critical'
+    : !terminal && days >= thresholds!.warn           ? 'warning'
+    : 'healthy';
+  const color = terminal ? '#2a2a2a'
+    : tier === 'critical' ? '#ef4444'
+    : tier === 'warning'  ? '#f59e0b'
     : '#444';
   const label = days > 0 ? `${days}d ${hrs}h in stage`
     : hrs  > 0 ? `${hrs}h ${mins}m in stage`
@@ -2280,6 +2335,7 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
                           )
                         )}
                         <Badge label={sm2.label} color={sm2.color} bg={sm2.bg} />
+                        <EscalationPill since={inq.status_changed_at ?? inq.created_at} status={inq.status} />
                         </div>
                         {inq.assigned_agent && (() => {
                           const a = agents.find(ag => ag.agent_code === inq.assigned_agent);
