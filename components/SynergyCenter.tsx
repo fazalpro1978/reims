@@ -813,6 +813,10 @@ function InquiryForm({ onSave, onCancel, initial, formError, mergeFields, mergeR
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Belt-and-suspenders: verify all required fields before saving
+    if (!form.client_name.trim() || !form.client_phone.trim() || !form.property_type || !form.config.trim() || !form.budget_min || !form.budget_max) {
+      return;
+    }
     setSaving(true);
     const payload: Record<string, unknown> = {
       client_name:        form.client_name.trim(),
@@ -847,8 +851,8 @@ function InquiryForm({ onSave, onCancel, initial, formError, mergeFields, mergeR
         <FieldWrapper label="Client Name" required>
           <input required value={form.client_name} onChange={e => set('client_name', e.target.value)} className={INP_CLS} placeholder="Full name" />
         </FieldWrapper>
-        <FieldWrapper label="Phone">
-          <input value={form.client_phone} onChange={e => set('client_phone', e.target.value)} className={INP_CLS} placeholder="+974 xxxx xxxx" />
+        <FieldWrapper label="Phone" required>
+          <input required value={form.client_phone} onChange={e => set('client_phone', e.target.value)} className={INP_CLS} placeholder="+974 xxxx xxxx" />
         </FieldWrapper>
         <FieldWrapper label="Email">
           <input type="email" value={form.client_email} onChange={e => set('client_email', e.target.value)} className={INP_CLS} placeholder="email@example.com" />
@@ -877,14 +881,14 @@ function InquiryForm({ onSave, onCancel, initial, formError, mergeFields, mergeR
       <div className="border-t border-[#1e1e1e] pt-4">
         <p className="text-xs font-semibold text-[#666] uppercase tracking-wider mb-3">Requirements</p>
         <div className="grid grid-cols-2 gap-4">
-          <FieldWrapper label="Property Type">
-            <select value={form.property_type} onChange={e => set('property_type', e.target.value)} className={SEL_CLS}>
-              <option value="">Any</option>
+          <FieldWrapper label="Property Type" required>
+            <select required value={form.property_type} onChange={e => set('property_type', e.target.value)} className={SEL_CLS}>
+              <option value="">Select type</option>
               {PROPERTY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </FieldWrapper>
-          <FieldWrapper label="Configuration">
-            <input value={form.config} onChange={e => set('config', e.target.value)} className={INP_CLS} placeholder="e.g. 2 BHK, Studio" />
+          <FieldWrapper label="Configuration" required>
+            <input required value={form.config} onChange={e => set('config', e.target.value)} className={INP_CLS} placeholder="e.g. 2 BHK, Studio" />
           </FieldWrapper>
           <FieldWrapper label="Min Bathrooms">
             <input type="number" min={0} value={form.bathrooms_min} onChange={e => set('bathrooms_min', e.target.value)} className={INP_CLS} placeholder="e.g. 2" />
@@ -895,11 +899,11 @@ function InquiryForm({ onSave, onCancel, initial, formError, mergeFields, mergeR
               {FURNISHING_OPTS.map(f => <option key={f} value={f}>{f}</option>)}
             </select>
           </FieldWrapper>
-          <FieldWrapper label="Budget Min (QAR)">
-            <input type="number" min={0} value={form.budget_min} onChange={e => set('budget_min', e.target.value)} className={INP_CLS} placeholder="e.g. 5000" />
+          <FieldWrapper label="Budget Min (QAR)" required>
+            <input required type="number" min={0} value={form.budget_min} onChange={e => set('budget_min', e.target.value)} className={INP_CLS} placeholder="e.g. 5000" />
           </FieldWrapper>
-          <FieldWrapper label="Budget Max (QAR)">
-            <input type="number" min={0} value={form.budget_max} onChange={e => set('budget_max', e.target.value)} className={INP_CLS} placeholder="e.g. 8000" />
+          <FieldWrapper label="Budget Max (QAR)" required>
+            <input required type="number" min={0} value={form.budget_max} onChange={e => set('budget_max', e.target.value)} className={INP_CLS} placeholder="e.g. 8000" />
           </FieldWrapper>
           <FieldWrapper label="Size (sqm)">
             <input type="number" min={0} value={form.size} onChange={e => set('size', e.target.value)} className={INP_CLS} placeholder="e.g. 120" />
