@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import TopBar from './TopBar';
 import { authedFetch } from '../lib/authedFetch';
 
@@ -248,7 +249,15 @@ function TableView({ clients, onSelect }: { clients: Client[]; onSelect: (c: Cli
               className="cursor-pointer hover:bg-[#111] transition-colors group"
             >
               <td className={`${TD} text-[#444] tabular-nums`}>{i + 1}</td>
-              <td className={`${TD} font-mono text-[#f43f5e] text-[10px]`}>{c.ref_no}</td>
+              <td className={`${TD} text-[10px]`}>
+                <Link
+                  href={`/synergy?inquiry=${encodeURIComponent(c.ref_no)}`}
+                  onClick={e => e.stopPropagation()}
+                  className="font-mono text-[#f43f5e] hover:text-[#ff6b82] underline underline-offset-2 decoration-[#f43f5e44] hover:decoration-[#f43f5e] transition-colors"
+                >
+                  {c.ref_no}
+                </Link>
+              </td>
               <td className={`${TD} font-medium text-[#e0e0e0] group-hover:text-white`}>
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded-md bg-[#c9a84c18] border border-[#c9a84c25] flex items-center justify-center shrink-0">
@@ -491,7 +500,13 @@ export default function ClientsDirectory({ onMenuClick }: { onMenuClick?: () => 
 
                 {/* Footer */}
                 <div className="flex items-center justify-between pt-2 border-t border-[#131313]">
-                  <span className="text-[10px] font-mono text-[#f43f5e]">{c.ref_no}</span>
+                  <Link
+                    href={`/synergy?inquiry=${encodeURIComponent(c.ref_no)}`}
+                    onClick={e => e.stopPropagation()}
+                    className="text-[10px] font-mono text-[#f43f5e] hover:text-[#ff6b82] underline underline-offset-2 decoration-[#f43f5e44] hover:decoration-[#f43f5e] transition-colors"
+                  >
+                    {c.ref_no}
+                  </Link>
                   <span className="text-[10px] text-[#383838]">{new Date(c.created_at).toLocaleDateString('en-GB')}</span>
                 </div>
               </div>
