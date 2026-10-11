@@ -1579,12 +1579,53 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
   const [status,        setStatus]  = useState(inquiry.status);
   const [pendingStatus, setPending] = useState(inquiry.status);
   const [saving, setSaving]         = useState(false);
+  const [detailSaveStatus, setDetailSaveStatus] = useState<'idle'|'saving'|'saved'>('idle');
   const [agentCode, setAgentCode]         = useState(inquiry.assigned_agent ?? '');
   const [staffEmail,      setStaffEmail]      = useState(inquiry.staff_email     ?? '');
   const [staffName,       setStaffName]       = useState<string | null>(inquiry.staff_name ?? null);
   const [assignedUnit1, setAssignedUnit1] = useState<AssignedUnit | null>(inquiry.assigned_unit  ?? null);
   const [assignedUnit2, setAssignedUnit2] = useState<AssignedUnit | null>(inquiry.assigned_unit2 ?? null);
   const [assignedUnit3, setAssignedUnit3] = useState<AssignedUnit | null>(inquiry.assigned_unit3 ?? null);
+
+  // Editable inquiry fields (superuser only)
+  const [editName,        setEditName]        = useState(inquiry.client_name);
+  const [editPhone,       setEditPhone]       = useState(inquiry.client_phone        ?? '');
+  const [editEmail,       setEditEmail]       = useState(inquiry.client_email        ?? '');
+  const [editNationality, setEditNationality] = useState(inquiry.client_nationality  ?? '');
+  const [editListingType, setEditListingType] = useState(inquiry.listing_type        ?? '');
+  const [editPropType,    setEditPropType]    = useState(inquiry.property_type       ?? '');
+  const [editConfig,      setEditConfig]      = useState(inquiry.config              ?? '');
+  const [editFurnishing,  setEditFurnishing]  = useState(inquiry.furnishing          ?? '');
+  const [editBudgetMin,   setEditBudgetMin]   = useState(String(inquiry.budget_min   ?? ''));
+  const [editBudgetMax,   setEditBudgetMax]   = useState(String(inquiry.budget_max   ?? ''));
+  const [editBathrooms,   setEditBathrooms]   = useState(String(inquiry.bathrooms_min ?? ''));
+  const [editZones,       setEditZones]       = useState((inquiry.preferred_zones ?? []).join(', '));
+  const [editFollowUp,    setEditFollowUp]    = useState(inquiry.follow_up_date      ?? '');
+  const [editMoveIn,      setEditMoveIn]      = useState((inquiry.move_in_date ?? '').slice(0,10));
+  const [editNotes,       setEditNotes]       = useState(inquiry.notes               ?? '');
+
+  const saveDetails = async () => {
+    setDetailSaveStatus('saving');
+    await patch({
+      client_name:        editName.trim()                                  || null,
+      client_phone:       editPhone.trim()                                 || null,
+      client_email:       editEmail.trim()                                 || null,
+      client_nationality: editNationality.trim()                           || null,
+      listing_type:       editListingType                                  || null,
+      property_type:      editPropType.trim()                              || null,
+      config:             editConfig.trim()                                || null,
+      furnishing:         editFurnishing                                   || null,
+      budget_min:         editBudgetMin  ? Number(editBudgetMin)           : null,
+      budget_max:         editBudgetMax  ? Number(editBudgetMax)           : null,
+      bathrooms_min:      editBathrooms  ? Number(editBathrooms)           : null,
+      preferred_zones:    editZones.split(',').map(z => z.trim()).filter(Boolean),
+      follow_up_date:     editFollowUp                                     || null,
+      move_in_date:       editMoveIn                                       || null,
+      notes:              editNotes.trim()                                 || null,
+    });
+    setDetailSaveStatus('saved');
+    setTimeout(() => setDetailSaveStatus('idle'), 2500);
+  };
 
   const patch = async (fields: Record<string, unknown>) => {
     const res  = await authedFetch(`/api/inquiries/${inquiry.id}`, {
@@ -1830,28 +1871,141 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
                 ))}
               </div>
 
-              {[
-                ['Source',       inquiry.source],
-                ['Nationality',  inquiry.client_nationality],
-                ['Furnishing',   inquiry.furnishing],
-                ['Bathrooms min',inquiry.bathrooms_min],
-                ['Size',         inquiry.size ? `${inquiry.size} sqm` : null],
-                ['Bills',        inquiry.bills_included],
-                ['Move-in',      inquiry.move_in_date],
-                ['Follow-up',    inquiry.follow_up_date],
-                ['Last Matched', inquiry.last_matched_at ? new Date(inquiry.last_matched_at).toLocaleString() : null],
-                ['Created',      new Date(inquiry.created_at).toLocaleString()],
-              ].map(([k, v]) => v != null ? (
-                <div key={k as string} className="flex gap-4">
-                  <span className="text-[#555] w-28 shrink-0">{k}</span>
-                  <span className="text-[#ccc]">{String(v)}</span>
+              {role === 'superuser' ? (
+                /* ── Superuser: fully editable form ── */
+                <div className="space-y-3 pb-4">
+                  {/* Client details */}
+                  <p className="text-[10px] text-[#555] uppercase tracking-wider font-semibold pt-1">Client Details</p>
+                  {([
+                    ['Full Name',    editName,        setEditName,        'text',   ''],
+                    ['Phone',        editPhone,       setEditPhone,       'tel',    ''],
+                    ['Email',        editEmail,       setEditEmail,       'email',  ''],
+                    ['Nationality',  editNationality, setEditNationality, 'text',   ''],
+                  ] as [string, string, React.Dispatch<React.SetStateAction<string>>, string, string][]).map(([label, val, setter, type]) => (
+                    <div key={label} className="flex items-center gap-3">
+                      <span className="text-[#555] text-xs w-24 shrink-0">{label}</span>
+                      <input
+                        type={type} value={val}
+                        onChange={e => setter(e.target.value)}
+                        className="flex-1 bg-[#111] border border-[#2a2a2a] text-[#e0e0e0] text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#f43f5e66] placeholder-[#444]"
+                      />
+                    </div>
+                  ))}
+
+                  {/* Inquiry requirements */}
+                  <p className="text-[10px] text-[#555] uppercase tracking-wider font-semibold pt-2">Requirements</p>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[#555] text-xs w-24 shrink-0">Listing Type</span>
+                    <select value={editListingType} onChange={e => setEditListingType(e.target.value)}
+                      className="flex-1 bg-[#111] border border-[#2a2a2a] text-[#e0e0e0] text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#f43f5e66]">
+                      <option value="">—</option>
+                      <option value="Rent">Rent</option>
+                      <option value="Sale">Sale</option>
+                    </select>
+                  </div>
+                  {([
+                    ['Property Type', editPropType,   setEditPropType,   'text', 'Apartment, Villa…'],
+                    ['Config',        editConfig,     setEditConfig,     'text', '1BHK, 2BHK…'],
+                    ['Preferred Zones', editZones,    setEditZones,      'text', 'West Bay, Pearl…'],
+                  ] as [string, string, React.Dispatch<React.SetStateAction<string>>, string, string][]).map(([label, val, setter, type, ph]) => (
+                    <div key={label} className="flex items-center gap-3">
+                      <span className="text-[#555] text-xs w-24 shrink-0">{label}</span>
+                      <input type={type} value={val} onChange={e => setter(e.target.value)} placeholder={ph}
+                        className="flex-1 bg-[#111] border border-[#2a2a2a] text-[#e0e0e0] text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#f43f5e66] placeholder-[#444]" />
+                    </div>
+                  ))}
+                  <div className="flex items-center gap-3">
+                    <span className="text-[#555] text-xs w-24 shrink-0">Furnishing</span>
+                    <select value={editFurnishing} onChange={e => setEditFurnishing(e.target.value)}
+                      className="flex-1 bg-[#111] border border-[#2a2a2a] text-[#e0e0e0] text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#f43f5e66]">
+                      <option value="">—</option>
+                      <option>Furnished</option>
+                      <option>Unfurnished</option>
+                      <option>Semi-Furnished</option>
+                    </select>
+                  </div>
+                  <div className="flex gap-3">
+                    <span className="text-[#555] text-xs w-24 shrink-0 pt-1.5">Budget (QAR)</span>
+                    <div className="flex gap-2 flex-1">
+                      <input type="number" value={editBudgetMin} onChange={e => setEditBudgetMin(e.target.value)} placeholder="Min"
+                        className="flex-1 bg-[#111] border border-[#2a2a2a] text-[#e0e0e0] text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#f43f5e66] placeholder-[#444]" />
+                      <input type="number" value={editBudgetMax} onChange={e => setEditBudgetMax(e.target.value)} placeholder="Max"
+                        className="flex-1 bg-[#111] border border-[#2a2a2a] text-[#e0e0e0] text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#f43f5e66] placeholder-[#444]" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[#555] text-xs w-24 shrink-0">Bathrooms min</span>
+                    <input type="number" min={0} value={editBathrooms} onChange={e => setEditBathrooms(e.target.value)}
+                      className="w-20 bg-[#111] border border-[#2a2a2a] text-[#e0e0e0] text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#f43f5e66]" />
+                  </div>
+
+                  {/* Dates */}
+                  <p className="text-[10px] text-[#555] uppercase tracking-wider font-semibold pt-2">Dates</p>
+                  {([
+                    ['Follow-up', editFollowUp, setEditFollowUp],
+                    ['Move-in',   editMoveIn,   setEditMoveIn],
+                  ] as [string, string, React.Dispatch<React.SetStateAction<string>>][]).map(([label, val, setter]) => (
+                    <div key={label} className="flex items-center gap-3">
+                      <span className="text-[#555] text-xs w-24 shrink-0">{label}</span>
+                      <input type="date" value={val} onChange={e => setter(e.target.value)}
+                        className="flex-1 bg-[#111] border border-[#2a2a2a] text-[#e0e0e0] text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#f43f5e66] [color-scheme:dark]" />
+                    </div>
+                  ))}
+
+                  {/* Notes */}
+                  <p className="text-[10px] text-[#555] uppercase tracking-wider font-semibold pt-2">Notes</p>
+                  <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={3} placeholder="Internal notes…"
+                    className="w-full bg-[#111] border border-[#2a2a2a] text-[#e0e0e0] text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#f43f5e66] placeholder-[#444] resize-none" />
+
+                  {/* Read-only audit fields */}
+                  <div className="pt-2 space-y-1 border-t border-[#1a1a1a]">
+                    {[
+                      ['Last Matched', inquiry.last_matched_at ? new Date(inquiry.last_matched_at).toLocaleString() : '—'],
+                      ['Created',      new Date(inquiry.created_at).toLocaleString()],
+                    ].map(([k, v]) => (
+                      <div key={k} className="flex gap-4">
+                        <span className="text-[#444] text-xs w-24 shrink-0">{k}</span>
+                        <span className="text-[#555] text-xs">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Save button */}
+                  <button
+                    onClick={saveDetails}
+                    disabled={detailSaveStatus === 'saving'}
+                    className="w-full py-2 mt-2 bg-[#f43f5e] hover:bg-[#e11d48] disabled:opacity-40 text-white text-xs font-bold rounded-xl transition-colors"
+                  >
+                    {detailSaveStatus === 'saving' ? 'Saving…' : detailSaveStatus === 'saved' ? '✓ Saved' : 'Save Changes'}
+                  </button>
                 </div>
-              ) : null)}
-              {inquiry.notes && (
-                <div className="mt-4 p-3 bg-[#111] border border-[#1e1e1e] rounded-lg">
-                  <p className="text-xs text-[#555] mb-1">Notes</p>
-                  <p className="text-sm text-[#aaa]">{inquiry.notes}</p>
-                </div>
+              ) : (
+                /* ── Non-superuser: read-only display ── */
+                <>
+                  {[
+                    ['Source',       inquiry.source],
+                    ['Nationality',  inquiry.client_nationality],
+                    ['Furnishing',   inquiry.furnishing],
+                    ['Bathrooms min',inquiry.bathrooms_min],
+                    ['Size',         inquiry.size ? `${inquiry.size} sqm` : null],
+                    ['Bills',        inquiry.bills_included],
+                    ['Move-in',      inquiry.move_in_date],
+                    ['Follow-up',    inquiry.follow_up_date],
+                    ['Last Matched', inquiry.last_matched_at ? new Date(inquiry.last_matched_at).toLocaleString() : null],
+                    ['Created',      new Date(inquiry.created_at).toLocaleString()],
+                  ].map(([k, v]) => v != null ? (
+                    <div key={k as string} className="flex gap-4">
+                      <span className="text-[#555] w-28 shrink-0">{k}</span>
+                      <span className="text-[#ccc]">{String(v)}</span>
+                    </div>
+                  ) : null)}
+                  {inquiry.notes && (
+                    <div className="mt-4 p-3 bg-[#111] border border-[#1e1e1e] rounded-lg">
+                      <p className="text-xs text-[#555] mb-1">Notes</p>
+                      <p className="text-sm text-[#aaa]">{inquiry.notes}</p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

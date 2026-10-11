@@ -74,8 +74,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       'assigned_unit_id', 'assigned_unit_id_2', 'assigned_unit_id_3',
       'follow_up_date', 'move_in_date', 'bills_included', 'size', 'notes',
     ];
-    // SU/AD can also reassign the staff owner
-    const adminPatchable = [...staffPatchable, 'staff_email', 'staff_name', 'staff_assigned_at'];
+    // SU/AD can also edit core client/inquiry fields and reassign the staff owner
+    const adminPatchable = [
+      ...staffPatchable,
+      'staff_email', 'staff_name', 'staff_assigned_at',
+      'client_name', 'client_phone', 'client_email', 'client_nationality',
+      'listing_type', 'property_type', 'config', 'furnishing', 'source',
+      'budget_min', 'budget_max', 'bathrooms_min', 'preferred_zones',
+    ];
     const patchable = (auth.auth.role === 'agent' || auth.auth.role === 'broker')
       ? AGENT_BROKER_PATCHABLE
       : (auth.auth.role === 'staff') ? staffPatchable : adminPatchable;
