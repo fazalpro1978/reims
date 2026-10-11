@@ -790,6 +790,20 @@ const EMPTY_FORM = {
   follow_up_date: '', move_in_date: '', bills_included: '', notes: '',
 };
 
+// Phone format: +[country code] [contact number], e.g. +974 1234 5678
+// Country code: 1–4 digits. Contact number: 4–14 digits (spaces allowed within).
+const PHONE_RE = /^\+\d{1,4}\s[\d\s]{4,14}$/;
+
+function formatPhoneInput(raw: string): string {
+  // Strip everything except digits, +, spaces
+  let v = raw.replace(/[^\d+\s]/g, '');
+  // Auto-prepend + if user started with digits
+  if (v.length > 0 && v[0] !== '+') v = '+' + v;
+  // Collapse multiple spaces
+  v = v.replace(/\s{2,}/g, ' ');
+  return v;
+}
+
 function InquiryForm({ onSave, onCancel, initial, formError, mergeFields, mergeRevision }: {
   onSave: (data: Record<string, unknown>) => Promise<void>;
   onCancel: () => void;
@@ -798,8 +812,9 @@ function InquiryForm({ onSave, onCancel, initial, formError, mergeFields, mergeR
   mergeFields?: Record<string, string>;
   mergeRevision?: number;
 }) {
-  const [form, setForm] = useState({ ...EMPTY_FORM, ...initial });
-  const [saving, setSaving] = useState(false);
+  const [form, setForm]       = useState({ ...EMPTY_FORM, ...initial });
+  const [saving, setSaving]   = useState(false);
+  const [phoneErr, setPhoneErr] = useState('');
   const prevRevision = useRef<number | undefined>(mergeRevision);
 
   useEffect(() => {
@@ -811,10 +826,28 @@ function InquiryForm({ onSave, onCancel, initial, formError, mergeFields, mergeR
 
   const set = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
 
+  const handlePhoneChange = (raw: string) => {
+    const formatted = formatPhoneInput(raw);
+    set('client_phone', formatted);
+    if (phoneErr && PHONE_RE.test(formatted.trim())) setPhoneErr('');
+  };
+
+  const validatePhone = () => {
+    const v = form.client_phone.trim();
+    if (!v) { setPhoneErr('Phone is required.'); return false; }
+    if (!PHONE_RE.test(v)) {
+      setPhoneErr('Use format: +[country code] [number] — e.g. +974 1234 5678');
+      return false;
+    }
+    setPhoneErr('');
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validatePhone()) return;
     // Belt-and-suspenders: verify all required fields before saving
-    if (!form.client_name.trim() || !form.client_phone.trim() || !form.property_type || !form.config.trim() || !form.budget_min || !form.budget_max) {
+    if (!form.client_name.trim() || !form.property_type || !form.config.trim() || !form.budget_min || !form.budget_max) {
       return;
     }
     setSaving(true);
@@ -852,7 +885,24 @@ function InquiryForm({ onSave, onCancel, initial, formError, mergeFields, mergeR
           <input required value={form.client_name} onChange={e => set('client_name', e.target.value)} className={INP_CLS} placeholder="Full name" />
         </FieldWrapper>
         <FieldWrapper label="Phone" required>
-          <input required value={form.client_phone} onChange={e => set('client_phone', e.target.value)} className={INP_CLS} placeholder="+974 xxxx xxxx" />
+          <input
+            required
+            type="tel"
+            value={form.client_phone}
+            onChange={e => handlePhoneChange(e.target.value)}
+            onBlur={validatePhone}
+            className={`${INP_CLS} ${phoneErr ? 'border-rose-500 focus:ring-rose-500' : ''}`}
+            placeholder="+974 1234 5678"
+            inputMode="tel"
+          />
+          {phoneErr && (
+            <p className="mt-1 text-[10px] text-rose-400 flex items-center gap-1">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3 h-3 shrink-0">
+                <circle cx="12" cy="12" r="10"/><path strokeLinecap="round" d="M12 8v4M12 16h.01"/>
+              </svg>
+              {phoneErr}
+            </p>
+          )}
         </FieldWrapper>
         <FieldWrapper label="Email">
           <input type="email" value={form.client_email} onChange={e => set('client_email', e.target.value)} className={INP_CLS} placeholder="email@example.com" />
