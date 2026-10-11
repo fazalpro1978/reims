@@ -7,86 +7,65 @@ const admin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
+// Client Directory is a live view of inquiries — one row per unique phone number.
+// Priority: most recent NON-closed inquiry; if all closed, most recent closed.
 export async function GET(req: NextRequest) {
   try {
     const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
     if (!auth.ok) return auth.response;
 
     const { searchParams } = req.nextUrl;
-    const search = searchParams.get('search') ?? '';
-    const tag    = searchParams.get('tag')    ?? '';
-    const optIn  = searchParams.get('opt_in') ?? '';
-    const limit  = Math.min(Number(searchParams.get('limit') ?? 200), 500);
-    const offset = Number(searchParams.get('offset') ?? 0);
-
-    let query = admin
-      .from('clients')
-      .select('id, full_name, phone, email, nationality, source, tags, whatsapp_opt_in, whatsapp_opt_in_at, email_opt_in, email_opt_in_at, notes, created_at, updated_at')
-      .order('updated_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-
-    if (search) {
-      query = query.or(
-        `full_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`
-      );
-    }
-    if (tag)            query = query.contains('tags', [tag]);
-    if (optIn === 'wa') query = query.eq('whatsapp_opt_in', true);
-    if (optIn === 'em') query = query.eq('email_opt_in', true);
-
-    const { data, error } = await query;
-    if (error) {
-      console.error('[clients GET] Supabase error:', JSON.stringify(error));
-      return NextResponse.json({ error: error.message, code: error.code, details: error.details, hint: error.hint }, { status: 500 });
-    }
-
-    // Get count separately to avoid count:exact issues
-    const { count } = await admin.from('clients').select('*', { count: 'exact', head: true });
-
-    return NextResponse.json({ clients: data ?? [], total: count ?? 0 });
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error('[clients GET] Unexpected error:', msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
-  }
-}
-
-export async function POST(req: NextRequest) {
-  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
-  if (!auth.ok) return auth.response;
-
-  try {
-    const body = await req.json();
-    if (!body.full_name?.trim()) {
-      return NextResponse.json({ error: 'Full name is required' }, { status: 400 });
-    }
+    const search  = (searchParams.get('search') ?? '').toLowerCase().trim();
+    const statusF = searchParams.get('status') ?? '';
 
     const { data, error } = await admin
-      .from('clients')
-      .insert({
-        full_name:          String(body.full_name).trim(),
-        phone:              body.phone        || null,
-        email:              body.email        || null,
-        nationality:        body.nationality  || null,
-        source:             body.source       || 'manual',
-        tags:               Array.isArray(body.tags) ? body.tags : [],
-        whatsapp_opt_in:    body.whatsapp_opt_in    ?? false,
-        whatsapp_opt_in_at: body.whatsapp_opt_in    ? new Date().toISOString() : null,
-        email_opt_in:       body.email_opt_in       ?? false,
-        email_opt_in_at:    body.email_opt_in       ? new Date().toISOString() : null,
-        notes:              body.notes        || null,
-      })
-      .select('*')
-      .single();
+      .from('inquiries')
+      .select('ref_no, client_name, client_phone, client_email, client_nationality, status, created_at')
+      .order('created_at', { ascending: false });
 
     if (error) {
-      if (error.code === '23505')
-        return NextResponse.json({ error: 'A client with this phone number already exists.' }, { status: 409 });
-      return NextResponse.json({ error: 'Database error' }, { status: 500 });
+      console.error('[clients GET]', JSON.stringify(error));
+      return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
     }
 
-    return NextResponse.json({ client: data }, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: 'Create failed' }, { status: 500 });
+    // Deduplicate by phone: keep one row per phone number.
+    // For each phone: prefer any non-closed inquiry (already newest-first from ORDER BY).
+    // If all are closed, the first (most recent) closed stays.
+    const seen = new Map<string, typeof data[number]>();
+    for (const row of data ?? []) {
+      const key = row.client_phone?.trim() || `__noPhone__${row.ref_no}`;
+      if (!seen.has(key)) {
+        seen.set(key, row);
+      } else {
+        const existing = seen.get(key)!;
+        // Replace with non-closed if existing is closed
+        if (existing.status === 'closed' && row.status !== 'closed') {
+          seen.set(key, row);
+        }
+      }
+    }
+
+    let clients = Array.from(seen.values());
+
+    // Search: name, phone, email, ref_no
+    if (search) {
+      clients = clients.filter(c =>
+        c.client_name?.toLowerCase().includes(search) ||
+        c.client_phone?.toLowerCase().includes(search) ||
+        c.client_email?.toLowerCase().includes(search) ||
+        c.ref_no?.toLowerCase().includes(search)
+      );
+    }
+
+    // Status filter
+    if (statusF) {
+      clients = clients.filter(c => c.status === statusF);
+    }
+
+    return NextResponse.json({ clients, total: clients.length });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[clients GET] Unexpected:', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
