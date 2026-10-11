@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 
     const { data, error } = await admin
       .from('inquiries')
-      .select('ref_no, client_name, client_phone, client_email, client_nationality, status, created_at')
+      .select('ref_no, client_name, client_phone, client_email, client_nationality, status, created_at, staff_name, assigned_agent')
       .order('created_at', { ascending: false });
 
     if (error) {
