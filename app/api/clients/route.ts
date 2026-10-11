@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   if (optIn === 'em') query = query.eq('email_opt_in', true);
 
   const { data, error, count } = await query;
-  if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
+  if (error) return NextResponse.json({ error: error.message, code: error.code, details: error.details }, { status: 500 });
 
   return NextResponse.json({ clients: data ?? [], total: count ?? 0 });
 }
