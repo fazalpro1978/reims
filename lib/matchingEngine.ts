@@ -55,7 +55,7 @@ export interface MatchReasons {
   type:       boolean | null;
   config:     'exact' | 'partial' | false | null;
   bathrooms:  boolean | null;
-  zone:       'exact' | false | null;
+  zone:       'exact' | 'adjacent' | false | null;
   furnishing: boolean | null;
 }
 
@@ -81,6 +81,56 @@ const W_BUDGET_FIT  =  5;
 // Tier score thresholds
 const TIER1_SCORE = 75;
 const TIER2_SCORE = 45;
+
+// ── Zone adjacency map ────────────────────────────────────────────────────────
+// Maps district_name (lowercase) → array of geographically adjacent district
+// names (lowercase) within ~1.5–2 km. Qatar zone codes are non-sequential per
+// municipality so numeric proximity is meaningless — entries must be explicit.
+// Add pairs in both directions. Leave a zone out to disable radius fallback for it.
+const ZONE_ADJACENCY: Record<string, string[]> = {
+  // Greater Doha / West Bay cluster
+  'west bay':                    ['al dafna', 'diplomatic district', 'al corniche', 'al mirqab'],
+  'al dafna':                    ['west bay', 'diplomatic district', 'al hilal'],
+  'diplomatic district':         ['west bay', 'al dafna', 'al mirqab'],
+  'al corniche':                 ['west bay', 'al mirqab', 'musheireb'],
+  'al mirqab':                   ['al corniche', 'musheireb', 'diplomatic district'],
+  'musheireb':                   ['al mirqab', 'al corniche', 'msheireb', 'al najma', 'al sadd'],
+  'msheireb':                    ['al mirqab', 'al corniche', 'musheireb', 'al najma', 'al sadd'],
+  // The Pearl cluster
+  'the pearl':                   ['west bay lagoon', 'legtaifiya', 'viva bahriya'],
+  'west bay lagoon':             ['the pearl', 'west bay', 'legtaifiya'],
+  'legtaifiya':                  ['the pearl', 'west bay lagoon'],
+  'viva bahriya':                ['the pearl'],
+  // Lusail cluster
+  'lusail':                      ['fox hills', 'marina district', 'energy city', 'al kheesa'],
+  'fox hills':                   ['lusail', 'marina district'],
+  'marina district':             ['lusail', 'fox hills'],
+  'energy city':                 ['lusail', 'al kheesa'],
+  'al kheesa':                   ['lusail', 'energy city'],
+  // Al Sadd / Fereej cluster
+  'al sadd':                     ['fereej bin mahmoud', 'al muntazah', 'al hilal', 'musheireb', 'msheireb'],
+  'fereej bin mahmoud':          ['al sadd', 'al muntazah', 'al aziziyah'],
+  'al muntazah':                 ['al sadd', 'fereej bin mahmoud', 'al aziziyah'],
+  'al aziziyah':                 ['fereej bin mahmoud', 'al muntazah', 'al hilal'],
+  'al hilal':                    ['al sadd', 'al aziziyah', 'al dafna'],
+  // Old Airport / Ras Abu Aboud cluster
+  'old airport':                 ['ras abu aboud', 'al aziziyah', 'al hilal'],
+  'ras abu aboud':               ['old airport', 'al corniche'],
+  // Al Wakra cluster
+  'al wakra':                    ['al wukair', 'al wakair'],
+  'al wukair':                   ['al wakra'],
+};
+
+function isAdjacentZone(unitZone: string, preferredZones: string[]): boolean {
+  const unitNorm = unitZone.toLowerCase().trim();
+  // Unit zone may contain "/" for dual-zone units (e.g. "West Bay / Al Dafna")
+  const unitParts = unitNorm.split(/\s*\/\s*/);
+  return preferredZones.some(pz => {
+    const pzNorm = pz.toLowerCase().trim();
+    const adjacents = ZONE_ADJACENCY[pzNorm] ?? [];
+    return unitParts.some(part => adjacents.includes(part));
+  });
+}
 
 // ── Config helpers ────────────────────────────────────────────────────────────
 
@@ -128,7 +178,7 @@ function matchConfig(inqConfig: string, unitConfig: string): 'exact' | 'partial'
 function makePriority(
   config:     'exact' | 'partial' | false | null,
   budgetMin:  'exact' | 'flex' | false,
-  zone:       'exact' | false | null,
+  zone:       'exact' | 'adjacent' | false | null,
   type:       boolean | null,
   bathrooms:  boolean | null,
   furnishing: boolean | null,
@@ -136,7 +186,7 @@ function makePriority(
 ): number {
   const c = config === 'exact' ? 3 : config === 'partial' ? 2 : config === null ? 1 : 0;
   const b = budgetMin === 'exact' ? 2 : budgetMin === 'flex' ? 1 : 0;
-  const z = zone === 'exact' ? 2 : zone === null ? 1 : 0;
+  const z = zone === 'exact' ? 2 : zone === 'adjacent' ? 1 : zone === null ? 1 : 0;
   const t = type === true ? 2 : type === null ? 1 : 0;
   const ba = bathrooms === true ? 2 : bathrooms === null ? 1 : 0;
   const f = furnishing === true ? 2 : furnishing === null ? 1 : 0;
@@ -193,16 +243,21 @@ export function runMatchingEngine(inquiry: InquiryPayload, units: UnitRow[]): Ma
     }
 
     // ── Zone ──────────────────────────────────────────────────────────────────
-    let zoneMatch: 'exact' | false | null = null;
+    let zoneMatch: 'exact' | 'adjacent' | false | null = null;
     if (hasZonePref) {
       const zoneParts = (unit.zone ?? '')
         .toLowerCase()
         .split(/\s*\/\s*/)
         .map(p => p.trim());
-      zoneMatch = (inquiry.preferred_zones ?? [])
-        .some(z => zoneParts.includes(z.toLowerCase().trim()))
-        ? 'exact'
-        : false;
+      const exactHit = (inquiry.preferred_zones ?? [])
+        .some(z => zoneParts.includes(z.toLowerCase().trim()));
+      if (exactHit) {
+        zoneMatch = 'exact';
+      } else if (isAdjacentZone(unit.zone ?? '', inquiry.preferred_zones ?? [])) {
+        zoneMatch = 'adjacent';
+      } else {
+        zoneMatch = false;
+      }
     }
 
     // ── Property type ─────────────────────────────────────────────────────────
@@ -244,9 +299,10 @@ export function runMatchingEngine(inquiry: InquiryPayload, units: UnitRow[]): Ma
     else if (budgetMinMatch === 'flex')  score += Math.round(W_BUDGET_MIN * 0.60); // 12
 
     // Zone (20) — primary
-    if      (zoneMatch === 'exact')  score += W_ZONE;
-    else if (zoneMatch === null)     score += Math.round(W_ZONE * 0.50);     // 10 neutral
-    // false → 0 (wrong zone, no points)
+    if      (zoneMatch === 'exact')    score += W_ZONE;                       // 20
+    else if (zoneMatch === 'adjacent') score += Math.round(W_ZONE * 0.60);   // 12 radius fallback
+    else if (zoneMatch === null)       score += Math.round(W_ZONE * 0.50);   // 10 neutral (no pref)
+    // false → 0 (zone specified but no match, not adjacent)
 
     // Property Type (10) — primary
     if      (typeMatch === true)  score += W_TYPE;

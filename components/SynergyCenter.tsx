@@ -790,6 +790,86 @@ const EMPTY_FORM = {
   follow_up_date: '', move_in_date: '', bills_included: '', notes: '',
 };
 
+// ── Zone multi-select ─────────────────────────────────────────────────────────
+
+function ZoneMultiSelect({ value, onChange }: {
+  value: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const [allZones, setAllZones] = useState<string[]>([]);
+  const [query,    setQuery]    = useState('');
+  const [open,     setOpen]     = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    authedFetch('/api/zones').then(r => r.json()).then(d => {
+      setAllZones((d.zones ?? []).map((z: { district_name: string }) => z.district_name));
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery('');
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const toggle = (zone: string) => {
+    onChange(value.includes(zone) ? value.filter(z => z !== zone) : [...value, zone]);
+    setQuery('');
+  };
+
+  const filtered = allZones.filter(z =>
+    !value.includes(z) && z.toLowerCase().includes(query.toLowerCase())
+  );
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div
+        className="min-h-[38px] flex flex-wrap gap-1.5 bg-[#111] border border-[#2a2a2a] rounded-lg px-2.5 py-1.5 cursor-text"
+        onClick={() => setOpen(true)}
+      >
+        {value.map(z => (
+          <span key={z} className="inline-flex items-center gap-1 bg-[#0d2137] text-[#38bdf8] border border-[#1a4a6b] text-xs rounded-md px-2 py-0.5">
+            {z}
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); toggle(z); }}
+              className="text-[#38bdf8] hover:text-white transition-colors leading-none"
+            >×</button>
+          </span>
+        ))}
+        <input
+          value={query}
+          onChange={e => { setQuery(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          placeholder={value.length === 0 ? 'Search zones…' : ''}
+          className="flex-1 min-w-[100px] bg-transparent text-[#e0e0e0] text-sm outline-none placeholder-[#444]"
+        />
+      </div>
+      {open && filtered.length > 0 && (
+        <div className="absolute z-50 mt-1 w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg shadow-2xl max-h-44 overflow-y-auto">
+          {filtered.slice(0, 50).map(z => (
+            <button
+              key={z}
+              type="button"
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => toggle(z)}
+              className="w-full text-left px-3 py-2 text-sm text-[#ccc] hover:bg-[#252525] hover:text-white transition-colors"
+            >
+              {z}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Phone format: +[country code] [contact number], e.g. +974 1234 5678
 // Country code: 1–4 digits. Contact number: 4–14 digits (spaces allowed within).
 const PHONE_RE = /^\+\d{1,4}\s[\d\s]{4,14}$/;
@@ -815,6 +895,11 @@ function InquiryForm({ onSave, onCancel, initial, formError, mergeFields, mergeR
   const [form, setForm]       = useState({ ...EMPTY_FORM, ...initial });
   const [saving, setSaving]   = useState(false);
   const [phoneErr, setPhoneErr] = useState('');
+  const [selectedZones, setSelectedZones] = useState<string[]>(
+    initial?.preferred_zones
+      ? initial.preferred_zones.split(',').map(z => z.trim()).filter(Boolean)
+      : []
+  );
   const prevRevision = useRef<number | undefined>(mergeRevision);
 
   useEffect(() => {
@@ -847,7 +932,7 @@ function InquiryForm({ onSave, onCancel, initial, formError, mergeFields, mergeR
     e.preventDefault();
     if (!validatePhone()) return;
     // Belt-and-suspenders: verify all required fields before saving
-    if (!form.client_name.trim() || !form.property_type || !form.config.trim() || !form.budget_min || !form.budget_max) {
+    if (!form.client_name.trim() || !form.property_type || !form.config.trim() || !form.budget_min || !form.budget_max || selectedZones.length === 0) {
       return;
     }
     setSaving(true);
@@ -863,9 +948,7 @@ function InquiryForm({ onSave, onCancel, initial, formError, mergeFields, mergeR
       bathrooms_min:      form.bathrooms_min  ? Number(form.bathrooms_min)  : null,
       budget_min:         form.budget_min     ? Number(form.budget_min)     : null,
       budget_max:         form.budget_max     ? Number(form.budget_max)     : null,
-      preferred_zones:    form.preferred_zones
-        ? form.preferred_zones.split(',').map(z => z.trim()).filter(Boolean)
-        : [],
+      preferred_zones:    selectedZones,
       furnishing:         form.furnishing          || null,
       follow_up_date:     form.follow_up_date      || null,
       move_in_date:       form.move_in_date        || null,
@@ -968,8 +1051,8 @@ function InquiryForm({ onSave, onCancel, initial, formError, mergeFields, mergeR
           </FieldWrapper>
         </div>
         <div className="mt-4">
-          <FieldWrapper label="Preferred Zones (comma-separated)">
-            <input value={form.preferred_zones} onChange={e => set('preferred_zones', e.target.value)} className={INP_CLS} placeholder="e.g. The Pearl, West Bay, Lusail" />
+          <FieldWrapper label="Preferred Zones" required>
+            <ZoneMultiSelect value={selectedZones} onChange={setSelectedZones} />
           </FieldWrapper>
         </div>
       </div>
@@ -1653,7 +1736,7 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
   const [editBudgetMin,   setEditBudgetMin]   = useState(String(inquiry.budget_min   ?? ''));
   const [editBudgetMax,   setEditBudgetMax]   = useState(String(inquiry.budget_max   ?? ''));
   const [editBathrooms,   setEditBathrooms]   = useState(String(inquiry.bathrooms_min ?? ''));
-  const [editZones,       setEditZones]       = useState((inquiry.preferred_zones ?? []).join(', '));
+  const [editZones,       setEditZones]       = useState<string[]>(inquiry.preferred_zones ?? []);
   const [editFollowUp,    setEditFollowUp]    = useState(inquiry.follow_up_date      ?? '');
   const [editMoveIn,      setEditMoveIn]      = useState((inquiry.move_in_date ?? '').slice(0,10));
   const [editNotes,       setEditNotes]       = useState(inquiry.notes               ?? '');
@@ -1672,7 +1755,7 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
       budget_min:         editBudgetMin  ? Number(editBudgetMin)           : null,
       budget_max:         editBudgetMax  ? Number(editBudgetMax)           : null,
       bathrooms_min:      editBathrooms  ? Number(editBathrooms)           : null,
-      preferred_zones:    editZones.split(',').map(z => z.trim()).filter(Boolean),
+      preferred_zones:    editZones,
       follow_up_date:     editFollowUp                                     || null,
       move_in_date:       editMoveIn                                       || null,
       notes:              editNotes.trim()                                 || null,
@@ -1960,7 +2043,6 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
                   {([
                     ['Property Type', editPropType,   setEditPropType,   'text', 'Apartment, Villa…'],
                     ['Config',        editConfig,     setEditConfig,     'text', '1BHK, 2BHK…'],
-                    ['Preferred Zones', editZones,    setEditZones,      'text', 'West Bay, Pearl…'],
                   ] as [string, string, React.Dispatch<React.SetStateAction<string>>, string, string][]).map(([label, val, setter, type, ph]) => (
                     <div key={label} className="flex items-center gap-3">
                       <span className="text-[#555] text-xs w-24 shrink-0">{label}</span>
@@ -1968,6 +2050,12 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
                         className="flex-1 bg-[#111] border border-[#2a2a2a] text-[#e0e0e0] text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#f43f5e66] placeholder-[#444]" />
                     </div>
                   ))}
+                  <div className="flex items-start gap-3">
+                    <span className="text-[#555] text-xs w-24 shrink-0 pt-2">Preferred Zones</span>
+                    <div className="flex-1">
+                      <ZoneMultiSelect value={editZones} onChange={setEditZones} />
+                    </div>
+                  </div>
                   <div className="flex items-center gap-3">
                     <span className="text-[#555] text-xs w-24 shrink-0">Furnishing</span>
                     <select value={editFurnishing} onChange={e => setEditFurnishing(e.target.value)}
