@@ -83,42 +83,395 @@ const TIER1_SCORE = 75;
 const TIER2_SCORE = 45;
 
 // ── Zone adjacency map ────────────────────────────────────────────────────────
-// Maps district_name (lowercase) → array of geographically adjacent district
-// names (lowercase) within ~1.5–2 km. Qatar zone codes are non-sequential per
-// municipality so numeric proximity is meaningless — entries must be explicit.
-// Add pairs in both directions. Leave a zone out to disable radius fallback for it.
+// Keys and values are district_name strings from cr_zone_codes, lowercased.
+// Qatar zone codes are non-sequential per municipality — numeric proximity is
+// meaningless. Both directions must be listed (if A lists B, B must list A).
+// Some district_name values appear in multiple zone_codes (e.g. "Musheireb"
+// is zones 4 and 13) — the same key covers all of them.
 const ZONE_ADJACENCY: Record<string, string[]> = {
-  // Greater Doha / West Bay cluster
-  'west bay':                    ['al dafna', 'diplomatic district', 'al corniche', 'al mirqab'],
-  'al dafna':                    ['west bay', 'diplomatic district', 'al hilal'],
-  'diplomatic district':         ['west bay', 'al dafna', 'al mirqab'],
-  'al corniche':                 ['west bay', 'al mirqab', 'musheireb'],
-  'al mirqab':                   ['al corniche', 'musheireb', 'diplomatic district'],
-  'musheireb':                   ['al mirqab', 'al corniche', 'msheireb', 'al najma', 'al sadd'],
-  'msheireb':                    ['al mirqab', 'al corniche', 'musheireb', 'al najma', 'al sadd'],
-  // The Pearl cluster
-  'the pearl':                   ['west bay lagoon', 'legtaifiya', 'viva bahriya'],
-  'west bay lagoon':             ['the pearl', 'west bay', 'legtaifiya'],
-  'legtaifiya':                  ['the pearl', 'west bay lagoon'],
-  'viva bahriya':                ['the pearl'],
-  // Lusail cluster
-  'lusail':                      ['fox hills', 'marina district', 'energy city', 'al kheesa'],
-  'fox hills':                   ['lusail', 'marina district'],
-  'marina district':             ['lusail', 'fox hills'],
-  'energy city':                 ['lusail', 'al kheesa'],
-  'al kheesa':                   ['lusail', 'energy city'],
-  // Al Sadd / Fereej cluster
-  'al sadd':                     ['fereej bin mahmoud', 'al muntazah', 'al hilal', 'musheireb', 'msheireb'],
-  'fereej bin mahmoud':          ['al sadd', 'al muntazah', 'al aziziyah'],
-  'al muntazah':                 ['al sadd', 'fereej bin mahmoud', 'al aziziyah'],
-  'al aziziyah':                 ['fereej bin mahmoud', 'al muntazah', 'al hilal'],
-  'al hilal':                    ['al sadd', 'al aziziyah', 'al dafna'],
-  // Old Airport / Ras Abu Aboud cluster
-  'old airport':                 ['ras abu aboud', 'al aziziyah', 'al hilal'],
-  'ras abu aboud':               ['old airport', 'al corniche'],
-  // Al Wakra cluster
-  'al wakra':                    ['al wukair', 'al wakair'],
-  'al wukair':                   ['al wakra'],
+
+  // ── West Bay / Al Dafna cluster (zones 60, 61) ───────────────────────────
+  'al dafna': [
+    'al dafna / al qassar',
+    'onaiza',
+    'as salatah / al mirqab',
+    'pearl / leqtaifiya / al qassar',
+  ],
+  'al dafna / al qassar': [
+    'al dafna',
+    'onaiza',
+    'pearl / leqtaifiya / al qassar',
+    'as salatah / al mirqab',
+    'lejbailat',
+  ],
+  'onaiza': [                         // zones 63, 65
+    'al dafna',
+    'al dafna / al qassar',
+    'lejbailat',
+    'pearl / leqtaifiya / al qassar',
+    'hazm al markhiya',
+  ],
+  'lejbailat': [                      // zone 64
+    'onaiza',
+    'al dafna / al qassar',
+    'pearl / leqtaifiya / al qassar',
+  ],
+  'as salatah / al mirqab': [         // zone 18
+    'al dafna',
+    'al dafna / al qassar',
+    'musheireb',
+    'fereej mohamed bin jassim / musheireb',
+    'al najada / barahat al jufairi',
+  ],
+
+  // ── The Pearl (zone 66) ───────────────────────────────────────────────────
+  'pearl / leqtaifiya / al qassar': [
+    'al dafna / al qassar',
+    'al dafna',
+    'onaiza',
+    'lejbailat',
+    'lusail / al kharayej / wadi al banat',
+  ],
+
+  // ── Lusail cluster (zones 69, 70) ────────────────────────────────────────
+  'lusail / al kharayej / wadi al banat': [
+    'al ebb / al kheesa / al sakhama / lusail',
+    'pearl / leqtaifiya / al qassar',
+  ],
+  'al ebb / al kheesa / al sakhama / lusail': [
+    'lusail / al kharayej / wadi al banat',
+    'umm salal mohammed / umm salal ali',
+  ],
+
+  // ── Musheireb / Downtown Doha cluster (zones 3, 4, 13) ───────────────────
+  'musheireb': [                      // zones 4, 13
+    'fereej mohamed bin jassim / musheireb',
+    'as salatah / al mirqab',
+    'al najada / barahat al jufairi',
+    'fereej bin mahmoud',
+    'rawdat al khail',
+    'fereej abdel aziz',
+  ],
+  'fereej mohamed bin jassim / musheireb': [ // zone 3
+    'musheireb',
+    'as salatah / al mirqab',
+    'al najada / barahat al jufairi',
+    'al bidda',
+  ],
+  'al najada / barahat al jufairi': [ // zone 5
+    'musheireb',
+    'fereej mohamed bin jassim / musheireb',
+    'al bidda',
+    'al souq',
+    'as salatah / al mirqab',
+  ],
+  'al bidda': [                       // zones 2, 12
+    'al najada / barahat al jufairi',
+    'musheireb',
+    'fereej mohamed bin jassim / musheireb',
+    'al souq',
+    'doha port',
+  ],
+  'al souq': [                        // zone 7
+    'al bidda',
+    'al najada / barahat al jufairi',
+    'doha port',
+    'old al ghanim',
+  ],
+  'old al ghanim': [                  // zones 6, 16
+    'al souq',
+    'doha port',
+    'fereej abdel aziz',
+  ],
+  'doha port': [                      // zone 19
+    'al bidda',
+    'al souq',
+    'old al ghanim',
+    'al khulaifat / ras abu aboud',
+  ],
+
+  // ── Al Sadd cluster (zones 38, 39) ───────────────────────────────────────
+  'al sadd': [                        // zone 38
+    'al sadd / new al mirqab / fereej al nasr',
+    'najma',
+    'fereej bin mahmoud',
+    'rawdat al khail',
+    'al hilal',
+    'madinat khalifa north / dahl al hamam',
+    'al markhiya',
+  ],
+  'al sadd / new al mirqab / fereej al nasr': [ // zone 39
+    'al sadd',
+    'najma',
+    'fereej bin mahmoud',
+    'al hilal',
+    'new salatah',
+  ],
+
+  // ── Fereej Bin Mahmoud / Najma / Mansoura (zones 22, 23, 25, 26) ─────────
+  'fereej bin mahmoud': [             // zones 22, 23
+    'al sadd',
+    'al sadd / new al mirqab / fereej al nasr',
+    'najma',
+    'musheireb',
+    'rawdat al khail',
+    'fereej bin durham / al mansoura',
+    'fereej abdel aziz',
+  ],
+  'najma': [                          // zone 26
+    'al sadd',
+    'al sadd / new al mirqab / fereej al nasr',
+    'fereej bin mahmoud',
+    'fereej bin durham / al mansoura',
+    'umm ghuwailina',
+  ],
+  'fereej bin durham / al mansoura': [ // zone 25
+    'fereej bin mahmoud',
+    'najma',
+    'umm ghuwailina',
+    'rawdat al khail',
+  ],
+  'rawdat al khail': [                // zone 24
+    'al sadd',
+    'fereej bin mahmoud',
+    'musheireb',
+    'fereej abdel aziz',
+    'fereej bin durham / al mansoura',
+  ],
+  'fereej abdel aziz': [              // zone 14
+    'musheireb',
+    'fereej bin mahmoud',
+    'rawdat al khail',
+    'old al ghanim',
+    'ad dawhah al jadidah',
+  ],
+  'ad dawhah al jadidah': [           // zone 15
+    'fereej abdel aziz',
+    'al rufaa / old al hitmi',
+  ],
+  'al rufaa / old al hitmi': [        // zone 17
+    'ad dawhah al jadidah',
+    'umm ghuwailina',
+  ],
+  'umm ghuwailina': [                 // zone 27
+    'najma',
+    'fereej bin durham / al mansoura',
+    'al rufaa / old al hitmi',
+    'new salatah',
+    'al khulaifat / ras abu aboud',
+  ],
+
+  // ── Madinat Khalifa / Dahl Al Hamam cluster (zones 32, 33, 34) ───────────
+  'madinat khalifa north / dahl al hamam': [ // zone 32
+    'madinat khalifa south',
+    'al markhiya',
+    'al sadd',
+    'al gharrafa / gharrafat al rayyan',
+    'umm lekhba',
+  ],
+  'madinat khalifa south': [          // zone 34
+    'madinat khalifa north / dahl al hamam',
+    'al markhiya',
+    'al messila',
+    'al waab / al aziziya / abu hamour',
+    'fereej bin omran / hamad medical city',
+  ],
+  'al markhiya': [                    // zone 33
+    'madinat khalifa north / dahl al hamam',
+    'madinat khalifa south',
+    'al sadd',
+    'al gharrafa / gharrafat al rayyan',
+    'hazm al markhiya',
+  ],
+  'hazm al markhiya': [               // zone 67
+    'al markhiya',
+    'al gharrafa / gharrafat al rayyan',
+    'jelaiah / al tarfa / jeryan nejaima',
+    'onaiza',
+  ],
+  'jelaiah / al tarfa / jeryan nejaima': [ // zone 68
+    'hazm al markhiya',
+    'al thumama',
+  ],
+  'umm lekhba': [                     // zone 31
+    'madinat khalifa north / dahl al hamam',
+    'al gharrafa / gharrafat al rayyan',
+    'duhail',
+  ],
+  'duhail': [                         // zone 30
+    'umm lekhba',
+    'al gharrafa / gharrafat al rayyan',
+    'umm salal mohammed / umm salal ali',
+  ],
+  'fereej bin omran / hamad medical city': [ // zone 37
+    'madinat khalifa south',
+    'al messila',
+    'nuaija',
+    'fereej kulaib',
+  ],
+  'al messila': [                     // zone 36
+    'madinat khalifa south',
+    'fereej bin omran / hamad medical city',
+    'al waab / al aziziya / abu hamour',
+    'fereej kulaib',
+    'nuaija',
+  ],
+  'fereej kulaib': [                  // zone 35
+    'al messila',
+    'nuaija',
+    'fereej bin omran / hamad medical city',
+  ],
+
+  // ── Al Hilal / New Salatah / Old Airport (zones 40, 42, 45) ─────────────
+  'al hilal': [                       // zone 42
+    'al sadd',
+    'al sadd / new al mirqab / fereej al nasr',
+    'new salatah',
+    'old airport',
+  ],
+  'new salatah': [                    // zone 40
+    'al hilal',
+    'al sadd / new al mirqab / fereej al nasr',
+    'umm ghuwailina',
+    'old airport',
+  ],
+  'old airport': [                    // zone 45
+    'al hilal',
+    'new salatah',
+    'al khulaifat / ras abu aboud',
+    'nuaija',
+    'al thumama',
+  ],
+  'al khulaifat / ras abu aboud': [   // zone 28
+    'old airport',
+    'umm ghuwailina',
+    'doha port',
+  ],
+
+  // ── Nuaija / Al Thumama cluster (zones 41/43/44, 46/47/50) ──────────────
+  'nuaija': [                         // zones 41, 43, 44
+    'old airport',
+    'al thumama',
+    'al messila',
+    'fereej kulaib',
+    'fereej bin omran / hamad medical city',
+  ],
+  'al thumama': [                     // zones 46, 47, 50
+    'old airport',
+    'nuaija',
+    'jelaiah / al tarfa / jeryan nejaima',
+    'doha international airport',
+    'al wukair / al mashaf',
+  ],
+  'doha international airport': [     // zone 48
+    'al thumama',
+    'ras abu fontas',
+  ],
+  'ras abu fontas': [                 // zone 49
+    'doha international airport',
+    'al thumama',
+    'mesaieed',
+  ],
+
+  // ── Al Rayyan Municipality ────────────────────────────────────────────────
+  'al gharrafa / gharrafat al rayyan': [ // zone 51
+    'madinat khalifa north / dahl al hamam',
+    'al markhiya',
+    'hazm al markhiya',
+    'umm lekhba',
+    'duhail',
+    'old al rayyan / al luqta',
+    'umm salal mohammed / umm salal ali',
+  ],
+  'old al rayyan / al luqta': [       // zone 52
+    'al gharrafa / gharrafat al rayyan',
+    'new al rayyan / muaither',
+    'muraikh / fereej al amir',
+  ],
+  'new al rayyan / muaither': [       // zone 53
+    'old al rayyan / al luqta',
+    'muraikh / fereej al amir',
+  ],
+  'muraikh / fereej al amir': [       // zone 54
+    'old al rayyan / al luqta',
+    'new al rayyan / muaither',
+    'al waab / al aziziya / abu hamour',
+  ],
+  'al waab / al aziziya / abu hamour': [ // zone 55
+    'madinat khalifa south',
+    'al messila',
+    'muraikh / fereej al amir',
+    'ain khaled / mesaimeer / bu samra',
+  ],
+  'ain khaled / mesaimeer / bu samra': [ // zone 56
+    'al waab / al aziziya / abu hamour',
+    'mesaieed',
+  ],
+
+  // ── Umm Salal Municipality ────────────────────────────────────────────────
+  'umm salal mohammed / umm salal ali': [ // zone 71
+    'al gharrafa / gharrafat al rayyan',
+    'duhail',
+    'al ebb / al kheesa / al sakhama / lusail',
+  ],
+
+  // ── Al Wakrah Municipality ────────────────────────────────────────────────
+  'al wakrah': [                      // zone 90
+    'al wukair / al mashaf',
+  ],
+  'al wukair / al mashaf': [          // zone 91
+    'al wakrah',
+    'mesaieed',
+    'al thumama',
+  ],
+  'mesaieed': [                       // zone 92
+    'al wukair / al mashaf',
+    'ras abu fontas',
+    'mesaieed industrial area',
+    'ain khaled / mesaimeer / bu samra',
+  ],
+  'mesaieed industrial area': [       // zone 93
+    'mesaieed',
+    'shagra',
+  ],
+  'shagra': [                         // zone 94
+    'al wukair / al mashaf',
+    'mesaieed industrial area',
+    'al kharrara',
+  ],
+  'al kharrara': [                    // zone 95
+    'shagra',
+  ],
+
+  // ── Al Khor Municipality ──────────────────────────────────────────────────
+  'simaisma / al khor city': [        // zone 74
+    'al thakhira / ras laffan',
+    'al ghuwariyah',
+    'ain sinan / fuwayrit',
+  ],
+  'al thakhira / ras laffan': [       // zone 75
+    'simaisma / al khor city',
+    'al ghuwariyah',
+  ],
+  'al ghuwariyah': [                  // zone 76
+    'simaisma / al khor city',
+    'al thakhira / ras laffan',
+    'ain sinan / fuwayrit',
+  ],
+
+  // ── Al Shamal Municipality ────────────────────────────────────────────────
+  'ain sinan / fuwayrit': [           // zone 77
+    'simaisma / al khor city',
+    'al ghuwariyah',
+    'abu dhalouf / zubarah',
+  ],
+  'abu dhalouf / zubarah': [          // zone 78
+    'ain sinan / fuwayrit',
+    'madinat ash shamal / ar ru\'ays',
+  ],
+  'madinat ash shamal / ar ru\'ays': [ // zone 79
+    'abu dhalouf / zubarah',
+  ],
 };
 
 function isAdjacentZone(unitZone: string, preferredZones: string[]): boolean {
