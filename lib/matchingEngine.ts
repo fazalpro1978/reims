@@ -609,7 +609,7 @@ export function runMatchingEngine(inquiry: InquiryPayload, units: UnitRow[]): Ma
       } else if (isAdjacentZone(unit.zone ?? '', inquiry.preferred_zones ?? [])) {
         zoneMatch = 'adjacent';
       } else {
-        zoneMatch = false;
+        continue; // zones specified but unit is neither in preferred list nor adjacent — hard exclude
       }
     }
 
@@ -655,7 +655,7 @@ export function runMatchingEngine(inquiry: InquiryPayload, units: UnitRow[]): Ma
     if      (zoneMatch === 'exact')    score += W_ZONE;                       // 20
     else if (zoneMatch === 'adjacent') score += Math.round(W_ZONE * 0.60);   // 12 radius fallback
     else if (zoneMatch === null)       score += Math.round(W_ZONE * 0.50);   // 10 neutral (no pref)
-    // false → 0 (zone specified but no match, not adjacent)
+    // false is now a hard exclude — units reach here only with exact | adjacent | null
 
     // Property Type (10) — primary
     if      (typeMatch === true)  score += W_TYPE;
