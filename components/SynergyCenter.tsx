@@ -1311,10 +1311,12 @@ function UnitDiary({
 const SCORE_THRESHOLD_ACTIONS  = 50;   // "View Details" deep-link
 const SCORE_THRESHOLD_PREMIUM  = 80;   // Full sharing suite
 
-function MatchingGrid({ inquiryId, clientEmail, pipelineStage }: {
+function MatchingGrid({ inquiryId, clientEmail, pipelineStage, stale, onRerun }: {
   inquiryId:      string;
   clientEmail?:   string;
   pipelineStage?: string;
+  stale?:         boolean;
+  onRerun?:       () => void;
 }) {
   const { role: userRole, can } = useAuth();
   const extRole     = userRole ?? 'staff';
@@ -1357,6 +1359,7 @@ function MatchingGrid({ inquiryId, clientEmail, pipelineStage }: {
     await authFetch(`/api/inquiries/${inquiryId}/match`, { method: 'POST' });
     await loadMatches();
     setRunning(false);
+    onRerun?.();
   };
 
   const toggleShortlist = async (match: InquiryMatch) => {
@@ -1500,6 +1503,20 @@ function MatchingGrid({ inquiryId, clientEmail, pipelineStage }: {
           </button>
         )}
       </div>
+
+      {/* Stale banner — shown after Details are saved */}
+      {stale && canRerun && (
+        <div className="flex items-center justify-between gap-3 mb-3 px-3 py-2 bg-[#2a1f00] border border-[#c9a84c44] rounded-lg">
+          <span className="text-xs text-[#c9a84c]">⚠ Requirements were updated — results may not reflect the latest criteria.</span>
+          <button
+            onClick={rerun}
+            disabled={running}
+            className="shrink-0 text-xs font-semibold px-3 py-1 bg-[#c9a84c22] border border-[#c9a84c66] text-[#c9a84c] rounded-md hover:bg-[#c9a84c33] transition-colors disabled:opacity-40 whitespace-nowrap"
+          >
+            {running ? 'Running…' : 'Re-run Now →'}
+          </button>
+        </div>
+      )}
 
       {/* Grid body */}
       {loading ? (
@@ -1731,6 +1748,7 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
   const canUnitCode = can('synergy.unit_code');
 
   const [tab, setTab]               = useState<'matches' | 'details'>('matches');
+  const [matchingStale, setMatchingStale] = useState(false);
   const [status,        setStatus]  = useState(inquiry.status);
   const [pendingStatus, setPending] = useState(inquiry.status);
   const [saving, setSaving]         = useState(false);
@@ -1779,6 +1797,7 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
       notes:              editNotes.trim()                                 || null,
     });
     setDetailSaveStatus('saved');
+    setMatchingStale(true);
     setTimeout(() => setDetailSaveStatus('idle'), 2500);
   };
 
@@ -1974,8 +1993,11 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
         <div className="flex border-b border-[#1a1a1a] shrink-0">
           {(['matches', 'details'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-5 py-3 text-xs font-semibold capitalize transition-colors border-b-2 ${tab === t ? 'border-[#f43f5e] text-[#f43f5e]' : 'border-transparent text-[#555] hover:text-[#888]'}`}>
+              className={`relative px-5 py-3 text-xs font-semibold capitalize transition-colors border-b-2 ${tab === t ? 'border-[#f43f5e] text-[#f43f5e]' : 'border-transparent text-[#555] hover:text-[#888]'}`}>
               {t === 'matches' ? `Matching Units${inquiry.match_count > 0 ? ` (${inquiry.match_count})` : ''}` : 'Details'}
+              {t === 'matches' && matchingStale && (
+                <span className="absolute top-2 right-1 w-1.5 h-1.5 rounded-full bg-[#c9a84c]" />
+              )}
             </button>
           ))}
         </div>
@@ -1983,7 +2005,7 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
         {/* Tab content */}
         <div className="flex-1 overflow-hidden p-5">
           {tab === 'matches' ? (
-            <MatchingGrid inquiryId={inquiry.id} clientEmail={inquiry.client_email ?? undefined} pipelineStage={inquiry.status} />
+            <MatchingGrid inquiryId={inquiry.id} clientEmail={inquiry.client_email ?? undefined} pipelineStage={inquiry.status} stale={matchingStale} onRerun={() => setMatchingStale(false)} />
           ) : (
             <div className="space-y-3 text-sm overflow-y-auto h-full">
               {/* Unit assignment — up to 3 slots, all optional */}
