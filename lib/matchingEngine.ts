@@ -46,7 +46,8 @@ export interface UnitRow {
   furnishing: string;
   status: string;
   listing_type: string;
-  view_types?: string[];
+  view_types?:  string[];
+  smart_code?:  string | null;
 }
 
 export interface MatchReasons {
