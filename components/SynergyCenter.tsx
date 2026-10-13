@@ -81,7 +81,7 @@ interface InquiryMatch {
     type:       boolean | null;
     config:     'exact' | 'partial' | false | null;
     bathrooms:  boolean | null;
-    zone:       'exact' | false | null;
+    zone:       'exact' | 'adjacent' | false | null;
     furnishing: boolean | null;
   } | null;
   is_shortlisted: boolean;
