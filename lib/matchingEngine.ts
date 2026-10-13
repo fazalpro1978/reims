@@ -688,6 +688,8 @@ export function runMatchingEngine(inquiry: InquiryPayload, units: UnitRow[]): Ma
     } else {
       tier = 3;
     }
+    // Adjacent zone matches are capped at T2 — T1 requires an exact zone match
+    if (zoneMatch === 'adjacent' && tier === 1) tier = 2;
 
     const priority = makePriority(
       configMatch, budgetMinMatch, zoneMatch,
