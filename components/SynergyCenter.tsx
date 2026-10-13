@@ -1665,7 +1665,8 @@ function MatchingGrid({ inquiryId, clientEmail, pipelineStage, stale, onRerun }:
                         </span>
                       )}
                       {m.match_reasons.budget_fit === 'within' && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#4ade8011] text-[#4ade8088]">Fit ✓</span>}
-                      {m.match_reasons.zone === 'exact'       && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#38bdf822] text-[#38bdf8]">Zone ✓</span>}
+                      {m.match_reasons.zone === 'exact'    && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#38bdf822] text-[#38bdf8]">Zone ✓</span>}
+                      {m.match_reasons.zone === 'adjacent' && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#fb923c22] text-[#fb923c]" title="Adjacent to a preferred zone">Zone ~</span>}
                       {m.match_reasons.type === true           && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#a78bfa22] text-[#a78bfa]">Type ✓</span>}
                       {m.match_reasons.bathrooms === true      && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#e879f922] text-[#e879f9]">Bath ✓</span>}
                       {m.match_reasons.furnishing === true     && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#818cf822] text-[#818cf8]">Furn ✓</span>}
