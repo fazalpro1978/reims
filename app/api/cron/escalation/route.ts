@@ -179,9 +179,10 @@ function buildEmailHtml(inq: {
 }
 
 export async function GET(req: NextRequest) {
-  // Validate Vercel cron secret
+  // Validate secret — required; set CRON_SECRET in Vercel env vars
+  // and configure cron-job.org to send: Authorization: Bearer <secret>
   const authHeader = req.headers.get('authorization');
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -206,13 +207,34 @@ export async function GET(req: NextRequest) {
 
       if (!currentTier) continue;
 
-      const alreadyNotified = inq.escalation_notified_tier;
+      // Pre-check for efficiency — avoids a DB round-trip on already-notified rows
+      if (inq.escalation_notified_tier === 'crit') continue;
+      if (inq.escalation_notified_tier === 'warn' && currentTier === 'warn') continue;
 
-      // Skip if already notified at this tier or higher
-      if (alreadyNotified === 'crit') continue;
-      if (alreadyNotified === 'warn' && currentTier === 'warn') continue;
+      // Atomic claim: UPDATE only succeeds if the row is still in the expected state.
+      // Two concurrent runs racing on the same row will both attempt this UPDATE;
+      // only one will match the WHERE condition and get rows back — the other skips.
+      const baseQuery = admin
+        .from('inquiries')
+        .update({ escalation_notified_tier: currentTier })
+        .eq('id', inq.id)
+        .select('id');
 
-      // This inquiry needs a notification: either new warn, or escalating to crit
+      const { data: claimed, error: claimErr } = await (
+        currentTier === 'warn'
+          ? baseQuery.is('escalation_notified_tier', null)
+          : baseQuery.or('escalation_notified_tier.is.null,escalation_notified_tier.eq.warn')
+      );
+
+      if (claimErr) {
+        console.error(`[cron/escalation] Claim error for ${inq.ref_no}:`, claimErr.message);
+        results.push({ ref_no: inq.ref_no, action: `claim_failed: ${claimErr.message}` });
+        continue;
+      }
+
+      if (!claimed || claimed.length === 0) continue; // lost race to concurrent run
+
+      // Row claimed — send the email
       const subject = currentTier === 'crit'
         ? `🔴 Critical: ${inq.ref_no} — ${inq.status} for ${Math.floor(days)} days`
         : `⚑ Warning: ${inq.ref_no} — ${inq.status} for ${Math.floor(days)} days`;
@@ -241,14 +263,9 @@ export async function GET(req: NextRequest) {
       if (sendErr) {
         console.error(`[cron/escalation] Resend error for ${inq.ref_no}:`, sendErr);
         results.push({ ref_no: inq.ref_no, action: `send_failed: ${sendErr.message}` });
+        // Tier is already set — inquiry won't retry until next escalation level
         continue;
       }
-
-      // Mark as notified
-      await admin
-        .from('inquiries')
-        .update({ escalation_notified_tier: currentTier })
-        .eq('id', inq.id);
 
       results.push({ ref_no: inq.ref_no, action: `notified_${currentTier}` });
     }
