@@ -806,7 +806,7 @@ function ZoneMultiSelect({ value, onChange }: {
     authedFetch('/api/zones').then(r => r.json()).then(d => {
       const names: string[] = (d.zones ?? []).map((z: { district_name: string }) => z.district_name);
       // Deduplicate — DB has multiple zone rows sharing the same district_name
-      setAllZones([...new Set(names)].sort());
+      setAllZones(Array.from(new Set(names)).sort());
     }).catch(() => {});
   }, []);
 
