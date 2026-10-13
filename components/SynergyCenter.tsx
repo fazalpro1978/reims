@@ -800,10 +800,13 @@ function ZoneMultiSelect({ value, onChange }: {
   const [query,    setQuery]    = useState('');
   const [open,     setOpen]     = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const searchRef    = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     authedFetch('/api/zones').then(r => r.json()).then(d => {
-      setAllZones((d.zones ?? []).map((z: { district_name: string }) => z.district_name));
+      const names: string[] = (d.zones ?? []).map((z: { district_name: string }) => z.district_name);
+      // Deduplicate — DB has multiple zone rows sharing the same district_name
+      setAllZones([...new Set(names)].sort());
     }).catch(() => {});
   }, []);
 
@@ -818,9 +821,13 @@ function ZoneMultiSelect({ value, onChange }: {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  const openDropdown = () => {
+    setOpen(true);
+    setTimeout(() => searchRef.current?.focus(), 0);
+  };
+
   const toggle = (zone: string) => {
     onChange(value.includes(zone) ? value.filter(z => z !== zone) : [...value, zone]);
-    setQuery('');
   };
 
   const filtered = allZones.filter(z =>
@@ -829,10 +836,14 @@ function ZoneMultiSelect({ value, onChange }: {
 
   return (
     <div ref={containerRef} className="relative">
+      {/* Selected chips */}
       <div
-        className="min-h-[38px] flex flex-wrap gap-1.5 bg-[#111] border border-[#2a2a2a] rounded-lg px-2.5 py-1.5 cursor-text"
-        onClick={() => setOpen(true)}
+        className="min-h-[38px] flex flex-wrap gap-1.5 bg-[#111] border border-[#2a2a2a] rounded-lg px-2.5 py-1.5 cursor-pointer"
+        onClick={openDropdown}
       >
+        {value.length === 0 && (
+          <span className="text-[#444] text-sm self-center">Select zones…</span>
+        )}
         {value.map(z => (
           <span key={z} className="inline-flex items-center gap-1 bg-[#0d2137] text-[#38bdf8] border border-[#1a4a6b] text-xs rounded-md px-2 py-0.5">
             {z}
@@ -843,27 +854,34 @@ function ZoneMultiSelect({ value, onChange }: {
             >×</button>
           </span>
         ))}
-        <input
-          value={query}
-          onChange={e => { setQuery(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
-          placeholder={value.length === 0 ? 'Search zones…' : ''}
-          className="flex-1 min-w-[100px] bg-transparent text-[#e0e0e0] text-sm outline-none placeholder-[#444]"
-        />
       </div>
-      {open && filtered.length > 0 && (
-        <div className="absolute z-50 mt-1 w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg shadow-2xl max-h-44 overflow-y-auto">
-          {filtered.slice(0, 50).map(z => (
-            <button
-              key={z}
-              type="button"
-              onMouseDown={e => e.preventDefault()}
-              onClick={() => toggle(z)}
-              className="w-full text-left px-3 py-2 text-sm text-[#ccc] hover:bg-[#252525] hover:text-white transition-colors"
-            >
-              {z}
-            </button>
-          ))}
+      {/* Dropdown — search input at top, list below */}
+      {open && (
+        <div className="absolute z-50 mt-1 w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg shadow-2xl">
+          <div className="p-2 border-b border-[#2a2a2a]">
+            <input
+              ref={searchRef}
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Type to filter zones…"
+              className="w-full bg-[#111] border border-[#333] rounded-md px-3 py-1.5 text-sm text-[#e0e0e0] outline-none placeholder-[#444] focus:border-[#38bdf8] transition-colors"
+            />
+          </div>
+          <div className="max-h-44 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <div className="px-3 py-2 text-sm text-[#555]">No zones found</div>
+            ) : filtered.map(z => (
+              <button
+                key={z}
+                type="button"
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => toggle(z)}
+                className="w-full text-left px-3 py-2 text-sm text-[#ccc] hover:bg-[#252525] hover:text-white transition-colors"
+              >
+                {z}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
