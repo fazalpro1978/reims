@@ -1117,6 +1117,8 @@ function InquiryForm({ onSave, onCancel, initial, formError, mergeFields, mergeR
 
 interface UnitLogEntry {
   id: string;
+  unit_code?: string;
+  smart_code?: string | null;
   author_name: string;
   pipeline_stage: string;
   note: string;
@@ -1302,6 +1304,143 @@ function UnitDiary({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Stage Transition Modal ───────────────────────────────────────────────────
+
+function StageTransitionModal({
+  inquiryId, fromStatus, toStatus, onConfirm, onCancel,
+}: {
+  inquiryId: string;
+  fromStatus: string;
+  toStatus: string;
+  onConfirm: () => Promise<void>;
+  onCancel: () => void;
+}) {
+  type UnitCard = { unit_code: string; smart_code?: string | null; snap: InquiryMatch['unit_snapshot'] };
+  const [units,   setUnits]   = useState<UnitCard[]>([]);
+  const [notes,   setNotes]   = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving,  setSaving]  = useState(false);
+  const [err,     setErr]     = useState<string | null>(null);
+
+  useEffect(() => {
+    authedFetch(`/api/inquiries/${inquiryId}/match`)
+      .then(r => r.json())
+      .then(d => {
+        const cards: UnitCard[] = (d.matches ?? [])
+          .filter((m: InquiryMatch) => m.unit_code)
+          .map((m: InquiryMatch) => ({
+            unit_code:  m.unit_code!,
+            smart_code: m.unit_snapshot?.smart_code ?? null,
+            snap:       m.unit_snapshot,
+          }));
+        setUnits(cards);
+      })
+      .finally(() => setLoading(false));
+  }, [inquiryId]);
+
+  const handleConfirm = async () => {
+    setSaving(true);
+    setErr(null);
+    try {
+      for (const unit of units) {
+        const note = (notes[unit.unit_code] ?? '').trim();
+        if (!note) continue;
+        await authedFetch('/api/synergy/unit-logs', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            unit_code:      unit.unit_code,
+            lead_id:        inquiryId,
+            pipeline_stage: toStatus,
+            smart_code:     unit.smart_code ?? null,
+            note,
+          }),
+        });
+      }
+      await onConfirm();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed to save');
+      setSaving(false);
+    }
+  };
+
+  const from = STATUS_META[fromStatus]?.label ?? fromStatus;
+  const to   = STATUS_META[toStatus]?.label   ?? toStatus;
+  const toColor = STATUS_META[toStatus]?.color ?? '#e0e0e0';
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={saving ? undefined : onCancel} />
+      <div className="relative w-full max-w-md bg-[#111] border border-[#2a2a2a] rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
+
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-[#1e1e1e] shrink-0">
+          <p className="text-[10px] text-[#555] uppercase tracking-wider mb-1">Stage Transition</p>
+          <h3 className="text-sm font-semibold text-[#e0e0e0]">
+            <span className="text-[#f43f5e]">{from}</span>
+            <span className="text-[#555] mx-2">→</span>
+            <span style={{ color: toColor }}>{to}</span>
+          </h3>
+          <p className="text-xs text-[#666] mt-1.5">Log observations against matched units before confirming the stage change.</p>
+        </div>
+
+        {/* Unit cards */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-6 h-6 border-2 border-[#c9a84c] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : units.length === 0 ? (
+            <div className="py-6 text-center space-y-1">
+              <p className="text-sm text-[#555]">No matched units.</p>
+              <p className="text-xs text-[#444]">Stage will advance without a diary entry.</p>
+            </div>
+          ) : (
+            units.map(unit => (
+              <div key={unit.unit_code} className="bg-[#0d0d0d] border border-[#1e1e1e] rounded-xl p-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs text-[#c9a84c]">{unit.unit_code}</span>
+                    {unit.smart_code && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#c9a84c12] text-[#c9a84c88] border border-[#c9a84c22]">{unit.smart_code}</span>
+                    )}
+                  </div>
+                  {unit.snap?.rent != null && (
+                    <span className="text-xs text-[#c9a84c]">QAR {fmt(unit.snap.rent)}</span>
+                  )}
+                </div>
+                {unit.snap && (
+                  <p className="text-[10px] text-[#555] mb-2">{[unit.snap.zone, unit.snap.config].filter(Boolean).join(' · ')}</p>
+                )}
+                <textarea
+                  value={notes[unit.unit_code] ?? ''}
+                  onChange={e => setNotes(prev => ({ ...prev, [unit.unit_code]: e.target.value }))}
+                  placeholder="Log observation, viewing outcome, negotiation note…"
+                  rows={2}
+                  className="w-full bg-[#0f0d08] border border-[#2a1f00] text-[#c8b878] text-[11px] rounded-lg px-2.5 py-2 placeholder-[#3a2f10] focus:outline-none focus:border-[#c9a84c44] resize-none leading-snug"
+                />
+              </div>
+            ))
+          )}
+          {err && <p className="text-xs text-[#f87171] mt-1">{err}</p>}
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-4 border-t border-[#1e1e1e] flex gap-3 justify-end shrink-0">
+          <button onClick={onCancel} disabled={saving}
+            className="px-4 py-2 text-xs text-[#555] hover:text-[#ccc] transition-colors disabled:opacity-40">
+            Cancel
+          </button>
+          <button onClick={handleConfirm} disabled={saving}
+            className="px-5 py-2 bg-[#f43f5e] hover:bg-[#e11d48] disabled:opacity-40 text-white text-xs font-semibold rounded-lg transition-colors">
+            {saving ? 'Saving…' : `Confirm → ${to}`}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1735,6 +1874,90 @@ function MatchingGrid({ inquiryId, clientEmail, pipelineStage, stale, onRerun }:
   );
 }
 
+// ─── Ledger ───────────────────────────────────────────────────────────────────
+
+const TERMINAL_STATUSES = new Set(['won', 'lost', 'cancelled', 'closed']);
+
+function ledgerInitials(name: string): string {
+  return name.split(/\s+/).filter(Boolean).map(w => w[0]?.toUpperCase() ?? '').join('');
+}
+
+function ledgerFmt(iso: string): { date: string; time: string } {
+  const d = new Date(iso);
+  return {
+    date: `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`,
+    time: `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`,
+  };
+}
+
+function Ledger({ inquiryId, status, isSuperuser, refreshKey }: {
+  inquiryId: string;
+  status: string;
+  isSuperuser: boolean;
+  refreshKey?: number;
+}) {
+  const [entries, setEntries] = useState<UnitLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const isTerminal = TERMINAL_STATUSES.has(status);
+  const isLocked   = isTerminal && !isSuperuser;
+
+  useEffect(() => {
+    setLoading(true);
+    authedFetch(`/api/synergy/unit-logs?lead_id=${encodeURIComponent(inquiryId)}`)
+      .then(r => r.json())
+      .then(d => setEntries(d.logs ?? []))
+      .finally(() => setLoading(false));
+  }, [inquiryId, refreshKey]);
+
+  const handleDelete = async (id: string) => {
+    const res = await authedFetch(`/api/synergy/unit-logs?id=${id}`, { method: 'DELETE' });
+    if (res.ok) setEntries(prev => prev.filter(e => e.id !== id));
+  };
+
+  return (
+    <div className="mt-4 pt-4 border-t border-[#1a1a1a]">
+      <div className="flex items-center justify-between mb-2.5">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-[#555]">Ledger</p>
+        {isLocked && (
+          <span className="text-[9px] px-1.5 py-0.5 rounded border border-[#f59e0b44] text-[#f59e0b]">
+            Read-only · {status.charAt(0).toUpperCase() + status.slice(1)}
+          </span>
+        )}
+      </div>
+      {loading ? (
+        <div className="flex items-center justify-center py-4">
+          <div className="w-4 h-4 border-2 border-[#c9a84c] border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : entries.length === 0 ? (
+        <p className="text-[11px] text-[#444] italic">No diary entries yet.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {entries.map(e => {
+            const { date, time } = ledgerFmt(e.created_at);
+            const initials   = ledgerInitials(e.author_name);
+            const unitCode   = e.unit_code  ?? '—';
+            const smartCode  = e.smart_code ?? '—';
+            const line = `${unitCode}, ${smartCode}, ${initials}, ${date}, ${time} : '${e.note}'`;
+            const canDelete  = !isLocked && isSuperuser;
+            return (
+              <div key={e.id} className="group flex items-start gap-2">
+                <p className="flex-1 font-mono text-[10px] text-[#777] leading-relaxed break-all">{line}</p>
+                {canDelete && (
+                  <button
+                    onClick={() => handleDelete(e.id)}
+                    title="Delete entry (Superuser)"
+                    className="opacity-0 group-hover:opacity-100 text-[10px] text-[#444] hover:text-[#f87171] transition-all px-1 py-0.5 rounded shrink-0 mt-0.5"
+                  >✕</button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Inquiry Detail Drawer ────────────────────────────────────────────────────
 
 function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
@@ -1753,6 +1976,8 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
   const [status,        setStatus]  = useState(inquiry.status);
   const [pendingStatus, setPending] = useState(inquiry.status);
   const [saving, setSaving]         = useState(false);
+  const [showTransitionModal, setShowTransitionModal] = useState(false);
+  const [ledgerRefreshKey,    setLedgerRefreshKey]    = useState(0);
   const [detailSaveStatus, setDetailSaveStatus] = useState<'idle'|'saving'|'saved'>('idle');
   const [agentCode, setAgentCode]         = useState(inquiry.assigned_agent ?? '');
   const [staffEmail,      setStaffEmail]      = useState(inquiry.staff_email     ?? '');
@@ -1814,9 +2039,9 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
   };
 
   const commitStatus = async () => {
-    setStatus(pendingStatus);
     setSaving(true);
     await patch({ status: pendingStatus });
+    setStatus(pendingStatus);
     setSaving(false);
   };
 
@@ -1902,7 +2127,7 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
           {pendingStatus !== status && (
             <div className="flex items-center gap-2">
               <button
-                onClick={commitStatus}
+                onClick={() => setShowTransitionModal(true)}
                 disabled={saving}
                 className="px-4 py-1.5 bg-[#f43f5e] text-white text-xs font-semibold rounded-lg hover:bg-[#e11d48] disabled:opacity-40 transition-colors"
               >
@@ -2140,6 +2365,9 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
                   <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={3} placeholder="Internal notes…"
                     className="w-full bg-[#111] border border-[#2a2a2a] text-[#e0e0e0] text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#f43f5e66] placeholder-[#444] resize-none" />
 
+                  {/* Ledger */}
+                  <Ledger inquiryId={inquiry.id} status={status} isSuperuser={role === 'superuser'} refreshKey={ledgerRefreshKey} />
+
                   {/* Read-only audit fields */}
                   <div className="pt-2 space-y-1 border-t border-[#1a1a1a]">
                     {[
@@ -2188,12 +2416,32 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
                       <p className="text-sm text-[#aaa]">{inquiry.notes}</p>
                     </div>
                   )}
+                  {/* Ledger */}
+                  <Ledger inquiryId={inquiry.id} status={status} isSuperuser={false} refreshKey={ledgerRefreshKey} />
                 </>
               )}
             </div>
           )}
         </div>
       </div>
+
+      {/* Stage Transition Modal */}
+      {showTransitionModal && (
+        <StageTransitionModal
+          inquiryId={inquiry.id}
+          fromStatus={status}
+          toStatus={pendingStatus}
+          onConfirm={async () => {
+            await commitStatus();
+            setShowTransitionModal(false);
+            setLedgerRefreshKey(k => k + 1);
+          }}
+          onCancel={() => {
+            setShowTransitionModal(false);
+            setPending(status);
+          }}
+        />
+      )}
     </div>
   );
 }

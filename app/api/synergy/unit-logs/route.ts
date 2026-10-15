@@ -23,16 +23,19 @@ export async function GET(req: NextRequest) {
   const unit_code = searchParams.get('unit_code');
   const lead_id   = searchParams.get('lead_id');
 
-  if (!unit_code || !lead_id) {
-    return NextResponse.json({ error: 'unit_code and lead_id are required' }, { status: 400 });
+  if (!lead_id) {
+    return NextResponse.json({ error: 'lead_id is required' }, { status: 400 });
   }
 
-  const { data, error } = await admin
+  let query = admin
     .from('cr_synergy_unit_activity_logs')
-    .select('id, author_name, pipeline_stage, note, created_at')
-    .eq('unit_code', unit_code)
+    .select('id, unit_code, smart_code, author_name, pipeline_stage, note, created_at')
     .eq('lead_id', lead_id)
     .order('created_at', { ascending: true });
+
+  if (unit_code) query = query.eq('unit_code', unit_code);
+
+  const { data, error } = await query;
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ logs: data ?? [] });
@@ -54,9 +57,10 @@ export async function POST(req: NextRequest) {
     lead_id?: string;
     pipeline_stage?: string;
     note?: string;
+    smart_code?: string | null;
   };
 
-  const { unit_code, lead_id, pipeline_stage, note } = body;
+  const { unit_code, lead_id, pipeline_stage, note, smart_code } = body;
 
   if (!unit_code || !lead_id || !pipeline_stage || !note?.trim()) {
     return NextResponse.json(
@@ -74,8 +78,9 @@ export async function POST(req: NextRequest) {
       author_name:    auth.auth.fullName || auth.auth.email,
       pipeline_stage,
       note:           note.trim(),
+      smart_code:     smart_code ?? null,
     })
-    .select('id, author_name, pipeline_stage, note, created_at')
+    .select('id, unit_code, smart_code, author_name, pipeline_stage, note, created_at')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
