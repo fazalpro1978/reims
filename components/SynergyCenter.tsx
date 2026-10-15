@@ -1874,6 +1874,164 @@ function MatchingGrid({ inquiryId, clientEmail, pipelineStage, stale, onRerun }:
   );
 }
 
+// ─── Attachments ─────────────────────────────────────────────────────────────
+
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024; // 10 MB
+
+interface AttachmentEntry {
+  id: string;
+  file_name: string;
+  file_url: string;
+  file_size: number | null;
+  mime_type: string | null;
+  uploaded_by: string | null;
+  uploaded_by_name: string | null;
+  created_at: string;
+}
+
+function attachmentIcon(mime: string | null): string {
+  if (!mime) return '📎';
+  if (mime.startsWith('image/')) return '🖼';
+  if (mime === 'application/pdf') return '📄';
+  if (mime.includes('word')) return '📝';
+  if (mime.includes('excel') || mime.includes('spreadsheet')) return '📊';
+  return '📎';
+}
+
+function formatBytes(bytes: number | null): string {
+  if (!bytes) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function Attachments({ inquiryId, isSuperuser, uploaderUid }: {
+  inquiryId: string;
+  isSuperuser: boolean;
+  uploaderUid: string;
+}) {
+  const [items, setItems]       = useState<AttachmentEntry[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError]       = useState<string | null>(null);
+  const fileInputRef            = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    authedFetch(`/api/inquiries/${inquiryId}/attachments`)
+      .then(r => r.json())
+      .then(d => setItems(d.attachments ?? []))
+      .finally(() => setLoading(false));
+  }, [inquiryId]);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      setError('File exceeds 10 MB limit.');
+      return;
+    }
+
+    setError(null);
+    setUploading(true);
+    const fd = new FormData();
+    fd.append('file', file);
+
+    const res = await authedFetch(`/api/inquiries/${inquiryId}/attachments`, {
+      method: 'POST',
+      body: fd,
+    });
+    const json = await res.json();
+    setUploading(false);
+
+    if (!res.ok) {
+      setError(json.error ?? 'Upload failed.');
+    } else {
+      setItems(prev => [...prev, json.attachment]);
+    }
+  };
+
+  const handleDelete = async (item: AttachmentEntry) => {
+    const canDelete = isSuperuser || item.uploaded_by === uploaderUid;
+    if (!canDelete) return;
+    const res = await authedFetch(
+      `/api/inquiries/${inquiryId}/attachments/${item.id}`,
+      { method: 'DELETE' },
+    );
+    if (res.ok) setItems(prev => prev.filter(a => a.id !== item.id));
+  };
+
+  return (
+    <div className="mt-3">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-[#555]">Attachments</p>
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="flex items-center gap-1 text-[10px] text-[#888] hover:text-[#ccc] transition-colors disabled:opacity-40"
+          title="Attach file (max 10 MB)"
+        >
+          {uploading ? (
+            <span className="w-3 h-3 border border-[#888] border-t-transparent rounded-full animate-spin inline-block" />
+          ) : (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+            </svg>
+          )}
+          Attach
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+          onChange={handleFileChange}
+        />
+      </div>
+
+      {error && (
+        <p className="text-[10px] text-[#f43f5e] mb-2">{error}</p>
+      )}
+
+      {loading ? (
+        <div className="w-3 h-3 border border-[#555] border-t-transparent rounded-full animate-spin" />
+      ) : items.length === 0 ? (
+        <p className="text-[11px] text-[#444] italic">No attachments yet.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {items.map(item => (
+            <div key={item.id} className="flex items-center gap-2 bg-[#111] border border-[#1e1e1e] rounded-lg px-2.5 py-1.5 group">
+              <span className="text-sm leading-none">{attachmentIcon(item.mime_type)}</span>
+              <a
+                href={item.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 min-w-0 text-[11px] text-[#c9a84c] hover:text-[#e0c070] truncate"
+                title={item.file_name}
+              >
+                {item.file_name}
+              </a>
+              <span className="text-[10px] text-[#444] shrink-0">{formatBytes(item.file_size)}</span>
+              {(isSuperuser || item.uploaded_by === uploaderUid) && (
+                <button
+                  onClick={() => handleDelete(item)}
+                  className="text-[#333] hover:text-[#f43f5e] transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                  title="Delete attachment"
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Ledger ───────────────────────────────────────────────────────────────────
 
 const TERMINAL_STATUSES = new Set(['won', 'lost', 'cancelled', 'closed']);
@@ -1967,7 +2125,7 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
   agents: AgentProfile[];
   onAgentAdded: (a: AgentProfile) => void;
 }) {
-  const { role, can } = useAuth();
+  const { role, can, user } = useAuth();
   const isAdmin     = role === 'superuser' || role === 'administrator';
   const canUnitCode = can('synergy.unit_code');
 
@@ -2365,6 +2523,9 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
                   <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={3} placeholder="Internal notes…"
                     className="w-full bg-[#111] border border-[#2a2a2a] text-[#e0e0e0] text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#f43f5e66] placeholder-[#444] resize-none" />
 
+                  {/* Attachments */}
+                  <Attachments inquiryId={inquiry.id} isSuperuser={role === 'superuser'} uploaderUid={user?.id ?? ''} />
+
                   {/* Ledger */}
                   <Ledger inquiryId={inquiry.id} status={status} isSuperuser={role === 'superuser'} refreshKey={ledgerRefreshKey} />
 
@@ -2416,6 +2577,8 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
                       <p className="text-sm text-[#aaa]">{inquiry.notes}</p>
                     </div>
                   )}
+                  {/* Attachments */}
+                  <Attachments inquiryId={inquiry.id} isSuperuser={false} uploaderUid={user?.id ?? ''} />
                   {/* Ledger */}
                   <Ledger inquiryId={inquiry.id} status={status} isSuperuser={false} refreshKey={ledgerRefreshKey} />
                 </>
