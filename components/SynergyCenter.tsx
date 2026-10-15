@@ -130,7 +130,7 @@ const TIER_META = {
   3: { label: 'T3', color: '#94a3b8', title: 'Weak Match — score < 45'                   },
 };
 
-const SOURCES = ['Walk-in','WhatsApp','Website','Referral','Bayut','Property Finder','Phone','Other'];
+const SOURCES = ['Walk-in','WhatsApp','Website','Referral','Bayut','Property Finder','Qatar Living','Phone','Other'];
 const STATUSES = ['new','contacted','viewing','negotiating','won','lost','cancelled','closed'];
 const PROPERTY_TYPES = ['Apartment','Villa','Townhouse','Penthouse','Studio','Duplex','Office'];
 const FURNISHING_OPTS = ['Fully Furnished','Semi-Furnished','Unfurnished'];
