@@ -2054,7 +2054,7 @@ function commentInitials(name: string): string {
 }
 
 function renderCommentBody(body: string): React.ReactNode {
-  const parts = body.split(/(@[A-Za-z][A-Za-z\s]{0,30}?)(?=\s|$)/g);
+  const parts = body.split(/(@[A-Za-z]+(?:\s[A-Za-z]+)?)(?=[^A-Za-z]|$)/g);
   return parts.map((part, i) =>
     part.startsWith('@')
       ? <span key={i} className="text-[#c9a84c] font-semibold">{part}</span>

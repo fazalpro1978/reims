@@ -15,7 +15,8 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 // ─── Mention parser ───────────────────────────────────────────────────────────
 // Extracts @Name tokens from comment body
 function parseMentionNames(body: string): string[] {
-  const matches = body.match(/@([A-Za-z][A-Za-z\s]{0,30}?)(?=\s|$|[^A-Za-z\s])/g) ?? [];
+  // Captures "First Last" (1 or 2 words) after @ — stops before any non-letter char
+  const matches = body.match(/@([A-Za-z]+(?:\s[A-Za-z]+)?)(?=[^A-Za-z]|$)/g) ?? [];
   const seen = new Set<string>();
   return matches.map(m => m.slice(1).trim()).filter(n => { if (seen.has(n)) return false; seen.add(n); return true; });
 }
