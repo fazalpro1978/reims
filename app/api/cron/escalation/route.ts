@@ -9,7 +9,7 @@ const admin = createClient(
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const RECIPIENTS = ['ahmedali@privegroupre.com', 'a.shahan@privegroupre.com'];
+const RECIPIENTS = ['ahmedali@privegroupre.com', 'a.shahan@privegroupre.com', 'shihan.b@privegroupre.com'];
 
 const ESCALATION: Record<string, { warn: number; crit: number } | null> = {
   new:         { warn: 1,  crit: 2  },
