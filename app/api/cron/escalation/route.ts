@@ -83,14 +83,15 @@ function buildEmailHtml(inq: {
 
       <!-- Header -->
       <tr>
-        <td style="background:#111111;border-radius:12px 12px 0 0;padding:28px 32px;border-bottom:1px solid #1F1F1F;">
+        <td style="background:#111111;border-radius:12px 12px 0 0;padding:24px 32px 20px;border-bottom:1px solid #1F1F1F;">
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
               <td>
+                <img src="${appUrl}/prive-logo.png" alt="Privé Group" width="48" height="48" style="display:block;border-radius:8px;margin-bottom:12px;" />
                 <span style="font-size:11px;font-weight:700;letter-spacing:0.15em;color:#6B7280;text-transform:uppercase;">REIMS · Synergy Centre</span>
                 <div style="font-size:20px;font-weight:700;color:#FFFFFF;margin-top:6px;">Inquiry Escalation Alert</div>
               </td>
-              <td align="right">
+              <td align="right" valign="top">
                 <span style="display:inline-block;background:${tierBg};color:${tierColor};border:1px solid ${tierColor};border-radius:6px;padding:6px 14px;font-size:13px;font-weight:700;letter-spacing:0.04em;">${tierLabel}</span>
               </td>
             </tr>
