@@ -2032,6 +2032,218 @@ function Attachments({ inquiryId, isSuperuser, uploaderUid }: {
   );
 }
 
+// ─── Comment Thread ───────────────────────────────────────────────────────────
+
+interface CommentEntry {
+  id: string;
+  author_id: string;
+  author_name: string;
+  body: string;
+  mentions: string[];
+  created_at: string;
+}
+
+interface MentionUser {
+  id: string;
+  email: string;
+  full_name: string | null;
+}
+
+function commentInitials(name: string): string {
+  return name.split(/\s+/).filter(Boolean).map(w => w[0]?.toUpperCase() ?? '').join('').slice(0, 2);
+}
+
+function renderCommentBody(body: string): React.ReactNode {
+  const parts = body.split(/(@[A-Za-z][A-Za-z\s]{0,30}?)(?=\s|$)/g);
+  return parts.map((part, i) =>
+    part.startsWith('@')
+      ? <span key={i} className="text-[#c9a84c] font-semibold">{part}</span>
+      : part,
+  );
+}
+
+function CommentThread({ inquiryId, currentUserId, isSuperuser }: {
+  inquiryId: string;
+  currentUserId: string;
+  isSuperuser: boolean;
+}) {
+  const [comments,  setComments]  = useState<CommentEntry[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [draft,     setDraft]     = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error,     setError]     = useState<string | null>(null);
+  const [mentionUsers, setMentionUsers] = useState<MentionUser[]>([]);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isAdmin = isSuperuser;
+
+  // Load comments
+  useEffect(() => {
+    setLoading(true);
+    authedFetch(`/api/inquiries/${inquiryId}/comments`)
+      .then(r => r.json())
+      .then(d => setComments(d.comments ?? []))
+      .finally(() => setLoading(false));
+  }, [inquiryId]);
+
+  // Load staff roster for @mention autocomplete
+  useEffect(() => {
+    authedFetch('/api/staff')
+      .then(r => r.json())
+      .then(d => setMentionUsers(d.staff ?? []))
+      .catch(() => {});
+  }, []);
+
+  // Detect @ trigger in textarea
+  const handleDraftChange = (val: string) => {
+    setDraft(val);
+    const cursor = textareaRef.current?.selectionStart ?? val.length;
+    const before = val.slice(0, cursor);
+    const match  = before.match(/@([A-Za-z\s]*)$/);
+    setMentionQuery(match ? match[1] : null);
+  };
+
+  const insertMention = (user: MentionUser) => {
+    const name    = user.full_name ?? user.email;
+    const cursor  = textareaRef.current?.selectionStart ?? draft.length;
+    const before  = draft.slice(0, cursor);
+    const after   = draft.slice(cursor);
+    const trimmed = before.replace(/@([A-Za-z\s]*)$/, '');
+    const newDraft = `${trimmed}@${name} ${after}`;
+    setDraft(newDraft);
+    setMentionQuery(null);
+    setTimeout(() => {
+      if (textareaRef.current) {
+        const pos = trimmed.length + name.length + 2;
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(pos, pos);
+      }
+    }, 0);
+  };
+
+  const filteredMentions = mentionQuery !== null
+    ? mentionUsers.filter(u =>
+        (u.full_name ?? u.email).toLowerCase().includes(mentionQuery.toLowerCase()),
+      ).slice(0, 5)
+    : [];
+
+  const handleSubmit = async () => {
+    if (!draft.trim()) return;
+    setError(null);
+    setSubmitting(true);
+    const res  = await authedFetch(`/api/inquiries/${inquiryId}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body: draft.trim() }),
+    });
+    const json = await res.json();
+    setSubmitting(false);
+    if (!res.ok) {
+      setError(json.error ?? 'Failed to post comment.');
+    } else {
+      setComments(prev => [...prev, json.comment]);
+      setDraft('');
+      setMentionQuery(null);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const res = await authedFetch(`/api/inquiries/${inquiryId}/comments/${id}`, { method: 'DELETE' });
+    if (res.ok) setComments(prev => prev.filter(c => c.id !== id));
+  };
+
+  return (
+    <div className="mt-4 pt-4 border-t border-[#1a1a1a]">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-[#555] mb-3">Thread</p>
+
+      {/* Comment list */}
+      {loading ? (
+        <div className="w-3 h-3 border border-[#555] border-t-transparent rounded-full animate-spin mb-3" />
+      ) : comments.length === 0 ? (
+        <p className="text-[11px] text-[#444] italic mb-3">No comments yet. Use @Name to notify team members.</p>
+      ) : (
+        <div className="space-y-3 mb-3">
+          {comments.map(c => {
+            const d   = new Date(c.created_at);
+            const ts  = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            const canDel = isAdmin || c.author_id === currentUserId;
+            return (
+              <div key={c.id} className="flex gap-2 group">
+                <div className="w-6 h-6 rounded-full bg-[#1e1e1e] border border-[#2a2a2a] flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="text-[9px] font-bold text-[#c9a84c]">{commentInitials(c.author_name)}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[11px] font-semibold text-[#ccc]">{c.author_name}</span>
+                    <span className="text-[9px] text-[#444]">{ts}</span>
+                    {canDel && (
+                      <button
+                        onClick={() => handleDelete(c.id)}
+                        className="opacity-0 group-hover:opacity-100 text-[#333] hover:text-[#f43f5e] transition-all ml-auto shrink-0"
+                        title="Delete comment"
+                      >
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[12px] text-[#aaa] leading-relaxed mt-0.5 break-words">
+                    {renderCommentBody(c.body)}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Compose */}
+      <div className="relative">
+        {mentionQuery !== null && filteredMentions.length > 0 && (
+          <div className="absolute bottom-full left-0 right-0 mb-1 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg overflow-hidden z-10 shadow-xl">
+            {filteredMentions.map(u => (
+              <button
+                key={u.id}
+                onMouseDown={e => { e.preventDefault(); insertMention(u); }}
+                className="w-full text-left px-3 py-2 text-[11px] text-[#ccc] hover:bg-[#222] flex items-center gap-2"
+              >
+                <span className="w-5 h-5 rounded-full bg-[#2a2a2a] flex items-center justify-center text-[9px] font-bold text-[#c9a84c] shrink-0">
+                  {commentInitials(u.full_name ?? u.email)}
+                </span>
+                {u.full_name ?? u.email}
+              </button>
+            ))}
+          </div>
+        )}
+        <textarea
+          ref={textareaRef}
+          value={draft}
+          onChange={e => handleDraftChange(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleSubmit(); }
+            if (e.key === 'Escape') setMentionQuery(null);
+          }}
+          rows={2}
+          placeholder="Comment… use @Name to notify a team member"
+          className="w-full bg-[#111] border border-[#2a2a2a] text-[#e0e0e0] text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#c9a84c55] placeholder-[#444] resize-none"
+        />
+        {error && <p className="text-[10px] text-[#f43f5e] mt-1">{error}</p>}
+        <div className="flex items-center justify-between mt-1.5">
+          <span className="text-[9px] text-[#444]">⌘↵ to send · @Name to mention</span>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting || !draft.trim()}
+            className="px-3 py-1 text-[10px] font-bold bg-[#c9a84c] hover:bg-[#e0c070] disabled:opacity-30 text-black rounded-lg transition-colors"
+          >
+            {submitting ? '…' : 'Post'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Ledger ───────────────────────────────────────────────────────────────────
 
 const TERMINAL_STATUSES = new Set(['won', 'lost', 'cancelled', 'closed']);
@@ -2526,6 +2738,9 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
                   {/* Attachments */}
                   <Attachments inquiryId={inquiry.id} isSuperuser={role === 'superuser'} uploaderUid={user?.id ?? ''} />
 
+                  {/* Thread */}
+                  <CommentThread inquiryId={inquiry.id} currentUserId={user?.id ?? ''} isSuperuser={role === 'superuser'} />
+
                   {/* Ledger */}
                   <Ledger inquiryId={inquiry.id} status={status} isSuperuser={role === 'superuser'} refreshKey={ledgerRefreshKey} />
 
@@ -2579,6 +2794,10 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
                   )}
                   {/* Attachments */}
                   <Attachments inquiryId={inquiry.id} isSuperuser={false} uploaderUid={user?.id ?? ''} />
+
+                  {/* Thread */}
+                  <CommentThread inquiryId={inquiry.id} currentUserId={user?.id ?? ''} isSuperuser={false} />
+
                   {/* Ledger */}
                   <Ledger inquiryId={inquiry.id} status={status} isSuperuser={false} refreshKey={ledgerRefreshKey} />
                 </>
