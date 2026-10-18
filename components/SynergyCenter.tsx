@@ -2162,7 +2162,7 @@ function CommentThread({ inquiryId, currentUserId, isSuperuser }: {
       ) : comments.length === 0 ? (
         <p className="text-[11px] text-[#444] italic mb-3">No comments yet. Use @Name to notify team members.</p>
       ) : (
-        <div className="space-y-3 mb-3">
+        <div className="space-y-3 mb-3 pr-3">
           {comments.map(c => {
             const d   = new Date(c.created_at);
             const ts  = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
@@ -2179,7 +2179,7 @@ function CommentThread({ inquiryId, currentUserId, isSuperuser }: {
                     {canDel && (
                       <button
                         onClick={() => handleDelete(c.id)}
-                        className="opacity-0 group-hover:opacity-100 text-[#333] hover:text-[#f43f5e] transition-all ml-auto shrink-0"
+                        className="opacity-0 group-hover:opacity-100 text-[#555] hover:text-[#f43f5e] transition-all ml-auto shrink-0"
                         title="Delete comment"
                       >
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
