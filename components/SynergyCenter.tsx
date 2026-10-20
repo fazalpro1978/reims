@@ -393,7 +393,7 @@ function StaffSearch({
 
   useEffect(() => {
     authedFetch('/api/admin/users').then(r => r.json()).then(d => {
-      setStaff((d.users ?? []).filter((u: { role: string; is_active: boolean }) => u.role === 'staff' && u.is_active));
+      setStaff((d.users ?? []).filter((u: { role: string; is_active: boolean }) => ['superuser', 'administrator', 'staff'].includes(u.role) && u.is_active));
     }).catch(() => {});
   }, []);
 
