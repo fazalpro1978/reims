@@ -1469,6 +1469,7 @@ function MatchingGrid({ inquiryId, clientEmail, pipelineStage, stale, onRerun }:
   const [loading,     setLoading]     = useState(true);
   const [running,     setRunning]     = useState(false);
   const [filter,      setFilter]      = useState<'all' | 1 | 2 | 3>('all');
+  const [viewMode,    setViewMode]    = useState<'card' | 'table'>('card');
   const [previewUnit, setPreviewUnit] = useState<UnitListing | null>(null);
   const [fetchingId,  setFetchingId]  = useState<string | null>(null);
 
@@ -1631,6 +1632,23 @@ function MatchingGrid({ inquiryId, clientEmail, pipelineStage, stale, onRerun }:
           ))}
         </div>
 
+        {/* View toggle: Card / Table */}
+        <div className="flex items-center bg-[#111] border border-[#222] rounded-lg overflow-hidden shrink-0">
+          <button onClick={() => setViewMode('card')} title="Card View"
+            className={`p-1.5 transition-colors ${viewMode === 'card' ? 'bg-[#c9a84c22] text-[#c9a84c]' : 'text-[#555] hover:text-[#aaa]'}`}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
+              <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
+            </svg>
+          </button>
+          <button onClick={() => setViewMode('table')} title="Table View"
+            className={`p-1.5 transition-colors ${viewMode === 'table' ? 'bg-[#c9a84c22] text-[#c9a84c]' : 'text-[#555] hover:text-[#aaa]'}`}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 14h18M3 6h18M3 18h18" />
+            </svg>
+          </button>
+        </div>
+
         {/* Re-run */}
         {canRerun && (
           <button onClick={rerun} disabled={running} title={running ? 'Running…' : 'Re-run matching'}
@@ -1667,7 +1685,91 @@ function MatchingGrid({ inquiryId, clientEmail, pipelineStage, stale, onRerun }:
           <div className="text-3xl mb-3">🔍</div>
           <p className="text-sm text-[#666]">{matches.length === 0 ? 'No matches yet — click Re-run to search.' : 'No matches in this tier.'}</p>
         </div>
+      ) : viewMode === 'table' ? (
+        /* ── Table View ─────────────────────────────────────── */
+        <div className="flex-1 overflow-auto">
+          <table className="w-full text-xs border-collapse min-w-[640px]">
+            <thead>
+              <tr className="border-b border-[#1e1e1e] text-[#555] uppercase tracking-wider">
+                <th className="py-2 px-2 text-left font-semibold w-6">#</th>
+                <th className="py-2 px-2 text-left font-semibold">Tier</th>
+                <th className="py-2 px-2 text-left font-semibold">Code</th>
+                <th className="py-2 px-2 text-left font-semibold">Property · Unit</th>
+                <th className="py-2 px-2 text-left font-semibold">Zone</th>
+                <th className="py-2 px-2 text-left font-semibold">Type</th>
+                <th className="py-2 px-2 text-left font-semibold">Config</th>
+                <th className="py-2 px-2 text-left font-semibold">Furn.</th>
+                <th className="py-2 px-2 text-right font-semibold">Rent</th>
+                <th className="py-2 px-2 text-center font-semibold">Score</th>
+                <th className="py-2 px-2 text-center font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((m, idx) => {
+                const snap  = m.unit_snapshot;
+                const tier  = TIER_META[m.match_tier];
+                const score = Math.round(m.match_score);
+                const isFetching = fetchingId === m.unit_id;
+                const showActions = score >= SCORE_THRESHOLD_ACTIONS;
+                return (
+                  <tr key={m.id} className={`border-b border-[#111] hover:bg-[#151515] transition-colors ${m.is_shortlisted ? 'bg-[#f43f5e06]' : ''}`}>
+                    <td className="py-2 px-2 text-[#444]">{idx + 1}</td>
+                    <td className="py-2 px-2">
+                      <span style={{ color: tier.color, background: `${tier.color}22`, border: `1px solid ${tier.color}44` }}
+                        className="text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap">
+                        {tier.label}
+                      </span>
+                    </td>
+                    <td className="py-2 px-2 font-mono text-[#c9a84c] whitespace-nowrap">
+                      {snap?.smart_code ?? m.unit_code ?? '—'}
+                    </td>
+                    <td className="py-2 px-2 text-[#e0e0e0] max-w-[180px]">
+                      <span className="truncate block">{snap ? `${snap.property} · ${snap.unit_no}` : '—'}</span>
+                    </td>
+                    <td className="py-2 px-2 text-[#888]">{snap?.zone ?? '—'}</td>
+                    <td className="py-2 px-2 text-[#888]">{snap?.type ?? '—'}</td>
+                    <td className="py-2 px-2 text-[#888]">{snap?.config ?? '—'}</td>
+                    <td className="py-2 px-2 text-[#666]">{snap?.furnishing ?? '—'}</td>
+                    <td className="py-2 px-2 text-right text-[#c9a84c] font-semibold whitespace-nowrap">
+                      {snap?.rent != null ? `QAR ${fmt(snap.rent)}` : '—'}
+                    </td>
+                    <td className="py-2 px-2 text-center">
+                      <span className={`font-bold tabular-nums ${score >= 70 ? 'text-[#4ade80]' : score >= 50 ? 'text-[#fbbf24]' : 'text-[#666]'}`}>
+                        {score}%
+                      </span>
+                    </td>
+                    <td className="py-2 px-2">
+                      <div className="flex items-center justify-center gap-1">
+                        {showActions && (
+                          <button onClick={() => handleViewDetails(m.unit_id)} disabled={isFetching}
+                            title="View Details"
+                            className="p-1 rounded text-[#555] hover:text-[#c9a84c] hover:bg-[#c9a84c10] disabled:opacity-40 transition-colors">
+                            {isFetching
+                              ? <span className="w-3 h-3 border border-[#555] border-t-transparent rounded-full animate-spin block" />
+                              : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                            }
+                          </button>
+                        )}
+                        <button onClick={() => toggleShortlist(m)}
+                          title={m.is_shortlisted ? 'Remove from shortlist' : 'Add to shortlist'}
+                          className={`p-1 rounded transition-colors ${m.is_shortlisted ? 'text-[#f43f5e] bg-[#f43f5e15]' : 'text-[#444] hover:text-[#f43f5e] hover:bg-[#f43f5e10]'}`}>
+                          <svg viewBox="0 0 24 24" fill={m.is_shortlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                          </svg>
+                        </button>
+                        {m.unit_code && (
+                          <UnitDiary unitCode={m.unit_code} leadId={inquiryId} pipelineStage={pipelineStage ?? 'new'} authFetch={authFetch} />
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       ) : (
+        /* ── Card View ──────────────────────────────────────── */
         <div className="flex-1 overflow-y-auto space-y-2 pr-1">
           {visible.map(m => {
             const snap    = m.unit_snapshot;
