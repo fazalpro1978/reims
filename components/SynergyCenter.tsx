@@ -3392,6 +3392,7 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
                     <th className="py-2.5 px-3 text-left font-semibold">Config</th>
                     <th className="py-2.5 px-3 text-left font-semibold">Budget (QAR)</th>
                     <th className="py-2.5 px-3 text-left font-semibold">Consultant</th>
+                    <th className="py-2.5 px-3 text-left font-semibold">Handler</th>
                     <th className="py-2.5 px-3 text-left font-semibold">Status</th>
                     <th className="py-2.5 px-3 text-center font-semibold">Matches</th>
                     <th className="py-2.5 px-3 text-left font-semibold">Created</th>
@@ -3418,7 +3419,10 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
                             : '—'}
                         </td>
                         <td className="py-2.5 px-3 text-[#666]">
-                          {staffProfile ? staffProfile.full_name.split(' ')[0] : (inq.staff_name ?? '—')}
+                          {staffProfile ? staffProfile.full_name.split(' ')[0] : (inq.assigned_agent ?? '—')}
+                        </td>
+                        <td className="py-2.5 px-3 text-[#888]">
+                          {inq.staff_name ? inq.staff_name.split(' ')[0] : '—'}
                         </td>
                         <td className="py-2.5 px-3">
                           <span style={{ color: sm2.color, background: sm2.bg, border: `1px solid ${sm2.color}44` }}
@@ -3499,6 +3503,14 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
                             </div>
                           );
                         })()}
+                        {inq.staff_name && (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-5 h-5 rounded-full bg-[#c9a84c22] border border-[#c9a84c44] flex items-center justify-center shrink-0">
+                              <span className="text-[9px] font-bold text-[#c9a84c]">{inq.staff_name.charAt(0).toUpperCase()}</span>
+                            </div>
+                            <span className="text-[10px] text-[#666] truncate max-w-[72px]">{inq.staff_name.split(' ')[0]}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-3 text-xs text-[#555] mb-2">
