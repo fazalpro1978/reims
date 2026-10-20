@@ -950,7 +950,7 @@ function InquiryForm({ onSave, onCancel, initial, formError, mergeFields, mergeR
     e.preventDefault();
     if (!validatePhone()) return;
     // Belt-and-suspenders: verify all required fields before saving
-    if (!form.client_name.trim() || !form.property_type || !form.config.trim() || !form.budget_min || !form.budget_max || selectedZones.length === 0) {
+    if (!form.client_name.trim() || !form.property_type || !form.config.trim() || !form.budget_min || !form.budget_max) {
       return;
     }
     setSaving(true);
@@ -1069,7 +1069,7 @@ function InquiryForm({ onSave, onCancel, initial, formError, mergeFields, mergeR
           </FieldWrapper>
         </div>
         <div className="mt-4">
-          <FieldWrapper label="Preferred Zones" required>
+          <FieldWrapper label="Preferred Zones">
             <ZoneMultiSelect value={selectedZones} onChange={setSelectedZones} />
           </FieldWrapper>
         </div>
