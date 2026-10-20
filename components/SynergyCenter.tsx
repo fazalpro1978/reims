@@ -3042,6 +3042,7 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
   const [guardrail, setGuardrail]       = useState<Inquiry | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId]     = useState<string | null>(null);
+  const [inquiryViewMode, setInquiryViewMode] = useState<'card' | 'table'>('card');
   const isAdmin = role === 'superuser' || role === 'administrator';
 
   const load = async () => {
@@ -3343,14 +3344,31 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
             )}
           </div>
 
-          {/* ── Showing count ── */}
+          {/* ── Showing count + view toggle ── */}
           {!loading && (
-            <p className="text-[11px] text-[#444]">
-              Showing <span className="text-[#666]">{filtered.length}</span> of <span className="text-[#666]">{inquiries.length}</span> inquiries
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] text-[#444]">
+                Showing <span className="text-[#666]">{filtered.length}</span> of <span className="text-[#666]">{inquiries.length}</span> inquiries
+              </p>
+              <div className="flex items-center bg-[#111] border border-[#222] rounded-lg overflow-hidden">
+                <button onClick={() => setInquiryViewMode('card')} title="Card View"
+                  className={`p-1.5 transition-colors ${inquiryViewMode === 'card' ? 'bg-[#c9a84c22] text-[#c9a84c]' : 'text-[#555] hover:text-[#aaa]'}`}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
+                    <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
+                    <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
+                  </svg>
+                </button>
+                <button onClick={() => setInquiryViewMode('table')} title="Table View"
+                  className={`p-1.5 transition-colors ${inquiryViewMode === 'table' ? 'bg-[#c9a84c22] text-[#c9a84c]' : 'text-[#555] hover:text-[#aaa]'}`}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 14h18M3 6h18M3 18h18" />
+                  </svg>
+                </button>
+              </div>
+            </div>
           )}
 
-          {/* ── Card grid ── */}
+          {/* ── Inquiry list ── */}
           {loading ? (
             <div className="flex justify-center py-20">
               <div className="w-8 h-8 border-2 border-[#f43f5e] border-t-transparent rounded-full animate-spin" />
@@ -3360,7 +3378,70 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
               <div className="text-5xl">📋</div>
               <p className="text-sm text-[#555]">{inquiries.length === 0 ? 'No inquiries yet — click "+ New Inquiry" to get started.' : 'No inquiries match your filter.'}</p>
             </div>
+          ) : inquiryViewMode === 'table' ? (
+            /* ── Table View ── */
+            <div className="overflow-x-auto rounded-xl border border-[#1a1a1a]">
+              <table className="w-full text-xs border-collapse min-w-[800px]">
+                <thead>
+                  <tr className="border-b border-[#1e1e1e] bg-[#0d0d0d] text-[#555] uppercase tracking-wider">
+                    <th className="py-2.5 px-3 text-left font-semibold">#</th>
+                    <th className="py-2.5 px-3 text-left font-semibold">Ref No</th>
+                    <th className="py-2.5 px-3 text-left font-semibold">Client</th>
+                    <th className="py-2.5 px-3 text-left font-semibold">Phone</th>
+                    <th className="py-2.5 px-3 text-left font-semibold">Type</th>
+                    <th className="py-2.5 px-3 text-left font-semibold">Config</th>
+                    <th className="py-2.5 px-3 text-left font-semibold">Budget (QAR)</th>
+                    <th className="py-2.5 px-3 text-left font-semibold">Consultant</th>
+                    <th className="py-2.5 px-3 text-left font-semibold">Status</th>
+                    <th className="py-2.5 px-3 text-center font-semibold">Matches</th>
+                    <th className="py-2.5 px-3 text-left font-semibold">Created</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((inq, idx) => {
+                    const sm2 = STATUS_META[inq.status] ?? STATUS_META.new;
+                    const staffProfile = agents.find(ag => ag.agent_code === inq.assigned_agent);
+                    return (
+                      <tr key={inq.id} onClick={() => handleSelectInquiry(inq)}
+                        className="border-b border-[#111] hover:bg-[#0f0f0f] cursor-pointer transition-colors group">
+                        <td className="py-2.5 px-3 text-[#444]">{idx + 1}</td>
+                        <td className="py-2.5 px-3 font-mono text-[#f43f5e] whitespace-nowrap">{inq.ref_no}</td>
+                        <td className="py-2.5 px-3 font-semibold text-[#e0e0e0] whitespace-nowrap">{inq.client_name}</td>
+                        <td className="py-2.5 px-3 text-[#666]">{inq.client_phone ?? '—'}</td>
+                        <td className="py-2.5 px-3 text-[#888]">
+                          {[inq.listing_type, inq.property_type].filter(Boolean).join(' · ') || '—'}
+                        </td>
+                        <td className="py-2.5 px-3 text-[#888]">{inq.config || '—'}</td>
+                        <td className="py-2.5 px-3 text-[#4ade80] font-medium whitespace-nowrap">
+                          {(inq.budget_min || inq.budget_max)
+                            ? `${fmt(inq.budget_min ?? 0)} – ${fmt(inq.budget_max ?? 0)}`
+                            : '—'}
+                        </td>
+                        <td className="py-2.5 px-3 text-[#666]">
+                          {staffProfile ? staffProfile.full_name.split(' ')[0] : (inq.staff_name ?? '—')}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <span style={{ color: sm2.color, background: sm2.bg, border: `1px solid ${sm2.color}44` }}
+                            className="text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap">
+                            {sm2.label}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-center">
+                          {inq.match_count > 0
+                            ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#f43f5e22] text-[#f43f5e] border border-[#f43f5e44]">{inq.match_count}</span>
+                            : <span className="text-[#2a2a2a]">—</span>}
+                        </td>
+                        <td className="py-2.5 px-3 text-[#383838] whitespace-nowrap">
+                          {new Date(inq.created_at).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           ) : (
+            /* ── Card Grid ── */
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {filtered.map(inq => {
                 const sm2 = STATUS_META[inq.status] ?? STATUS_META.new;
