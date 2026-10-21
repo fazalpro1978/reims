@@ -2746,8 +2746,8 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
                 ))}
               </div>
 
-              {role === 'superuser' ? (
-                /* ── Superuser: fully editable form ── */
+              {(isAdmin || role === 'staff') ? (
+                /* ── Admin / staff: fully editable form ── */
                 <div className="space-y-3 pb-4">
                   {/* Client details */}
                   <p className="text-[10px] text-[#555] uppercase tracking-wider font-semibold pt-1">Client Details</p>
