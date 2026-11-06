@@ -141,6 +141,9 @@ function normaliseEnums(row: Record<string, unknown>): Record<string, unknown> {
   // NOT NULL array columns — default to empty array when absent or null
   if (!Array.isArray(out.view_types)) out.view_types = [];
   if (!Array.isArray(out.amenities))  out.amenities  = [];
+  // NOT NULL string columns — default to '' when absent or null so bulk insert
+  // never sends null (zone lookup can return empty string when location is unrecognised)
+  if (out.zone === null || out.zone === undefined) out.zone = '';
   return out;
 }
 
