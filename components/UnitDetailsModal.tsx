@@ -1004,6 +1004,8 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
               'Concierge', 'Shared Spa', 'Shared Gym', 'Maid Service',
               'Walk-in Closet', 'View of Landmark', "Children's Play Area",
               'Lobby in Building', "Children's Pool", 'WiFi', 'Office',
+              'Rooftop Swimming Pool', 'Indoor & Outdoor Gym', 'Pickle Ball Court',
+              'Snooker Table', 'Table Tennis', 'Activity Zone', 'Foozball',
             ] as const).map(name => {
               const checked = amenities.includes(name);
               if (isReadOnly) {
