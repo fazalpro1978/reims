@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { authedFetch } from '../lib/authedFetch';
 import TopBar from './TopBar';
 
@@ -15,10 +15,23 @@ type VettedRecord = {
 
 type PullResult = { records: VettedRecord[]; count: number };
 type ApplyResult = { inserted: number; updated: number; acknowledged: number; errors: string[] };
+type EditingCell = { id: string; field: string; value: string };
+
+const NUMERIC_FIELDS = new Set(['zone_code', 'bathrooms', 'parking', 'rent']);
+const SELECT_OPTIONS: Record<string, string[]> = {
+  type:       ['Apartment', 'Villa', 'Townhouse', 'Studio', 'Duplex', 'Penthouse', 'Office', 'Retail'],
+  config:     ['Studio', '1 BHK', '2 BHK', '3 BHK', '4 BHK', '5 BHK', '6 BHK', '7 BHK'],
+  furnishing: ['Furnished', 'Unfurnished', 'Semi-Furnished', 'Fully Furnished', 'Partially Furnished'],
+  kitchen:    ['Open', 'Closed'],
+};
+
+// ── Helper components ────────────────────────────────────────────────────────
 
 function MatchBadge({ type }: { type: string }) {
-  if (type === 'new') return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#22c55e]/10 border border-[#22c55e]/30 text-[#22c55e]">NEW</span>;
-  if (type === 'update') return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#c9a84c]/10 border border-[#c9a84c]/30 text-[#c9a84c]">UPDATE</span>;
+  if (type === 'new')
+    return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#22c55e]/10 border border-[#22c55e]/30 text-[#22c55e]">NEW</span>;
+  if (type === 'update')
+    return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#c9a84c]/10 border border-[#c9a84c]/30 text-[#c9a84c]">UPDATE</span>;
   return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#888]/10 border border-[#888]/30 text-[#888]">{type.toUpperCase()}</span>;
 }
 
@@ -28,16 +41,119 @@ function fmt(v: unknown): string {
   return String(v);
 }
 
+// NullCell — renders a "+" placeholder for null fields that opens an inline editor.
+// Non-null values are rendered read-only. Defined outside IngestQueue to avoid
+// remount-on-render (React reconciles by component identity, not inline arrow function).
+function NullCell({
+  recordId, field, value, editing,
+  onStart, onChangeValue, onCommit, onCancel, color = '#6b7280',
+}: {
+  recordId: string; field: string; value: unknown;
+  editing: EditingCell | null;
+  onStart: (id: string, field: string) => void;
+  onChangeValue: (val: string) => void;
+  onCommit: (val?: string) => void;
+  onCancel: () => void;
+  color?: string;
+}) {
+  const isNull = value === null || value === undefined || value === '';
+  const isEditing = editing?.id === recordId && editing?.field === field;
+  const opts = SELECT_OPTIONS[field] ?? null;
+
+  if (isEditing) {
+    if (opts) {
+      return (
+        <select
+          autoFocus
+          defaultValue=""
+          onChange={e => onCommit(e.target.value)}
+          onBlur={onCancel}
+          onClick={e => e.stopPropagation()}
+          className="w-full bg-[#0d0d0d] border border-[#c9a84c]/60 rounded px-1 text-[10px] text-white outline-none cursor-pointer"
+        >
+          <option value="" disabled>—</option>
+          {opts.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      );
+    }
+    return (
+      <input
+        autoFocus
+        type={NUMERIC_FIELDS.has(field) ? 'number' : 'text'}
+        value={editing!.value}
+        onChange={e => onChangeValue(e.target.value)}
+        onBlur={() => onCommit()}
+        onKeyDown={e => {
+          if (e.key === 'Enter')  { e.preventDefault(); onCommit(); }
+          if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+        }}
+        onClick={e => e.stopPropagation()}
+        className="w-full bg-[#0d0d0d] border border-[#c9a84c]/60 rounded px-1 text-[10px] outline-none"
+        style={{ color }}
+      />
+    );
+  }
+
+  if (!isNull) {
+    return <span className="truncate" style={{ color }}>{fmt(value)}</span>;
+  }
+
+  return (
+    <span
+      className="text-[#2a2a2a] hover:text-[#c9a84c]/50 cursor-pointer transition-colors select-none text-[12px] font-light"
+      onClick={e => { e.stopPropagation(); onStart(recordId, field); }}
+      title={`Click to set ${field}`}
+    >+</span>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
 export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void }) {
   const [phase, setPhase] = useState<'idle' | 'checking' | 'preview' | 'importing' | 'done' | 'error'>('idle');
-  const [records, setRecords] = useState<VettedRecord[]>([]);
-  const [result, setResult] = useState<ApplyResult | null>(null);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [clearing, setClearing] = useState(false);
+  const [records, setRecords]       = useState<VettedRecord[]>([]);
+  const [result, setResult]         = useState<ApplyResult | null>(null);
+  const [errorMsg, setErrorMsg]     = useState('');
+  const [clearing, setClearing]     = useState(false);
   const [clearResult, setClearResult] = useState<{ cleared: number } | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [discarding, setDiscarding] = useState(false);
+  const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
+
+  // ── Run grouping ──────────────────────────────────────────────────────────
+
+  const runGroups = useMemo(() => {
+    const groups = new Map<string, VettedRecord[]>();
+    for (const r of records) {
+      const list = groups.get(r.run_id) ?? [];
+      list.push(r);
+      groups.set(r.run_id, list);
+    }
+    return groups;
+  }, [records]);
+
+  const latestRunId = useMemo(() => {
+    let latest: string | null = null;
+    let latestTime = 0;
+    runGroups.forEach((recs, id) => {
+      for (const r of recs) {
+        const t = r.approved_at ? new Date(r.approved_at).getTime() : 0;
+        if (t > latestTime) { latestTime = t; latest = id; }
+      }
+    });
+    return latest;
+  }, [runGroups]);
+
+  const sortedRunEntries = useMemo(() =>
+    Array.from(runGroups.entries()).sort((a, b) => {
+      const aTime = Math.max(...a[1].map(r => r.approved_at ? new Date(r.approved_at).getTime() : 0));
+      const bTime = Math.max(...b[1].map(r => r.approved_at ? new Date(r.approved_at).getTime() : 0));
+      return bTime - aTime;
+    }),
+  [runGroups]);
+
+  // ── Queue actions ─────────────────────────────────────────────────────────
 
   async function checkQueue() {
     setPhase('checking');
@@ -72,7 +188,11 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
     }
   }
 
-  function reset() { setPhase('idle'); setRecords([]); setResult(null); setErrorMsg(''); setClearResult(null); setConfirmClear(false); setSelectedIds(new Set()); }
+  function reset() {
+    setPhase('idle'); setRecords([]); setResult(null); setErrorMsg('');
+    setClearResult(null); setConfirmClear(false);
+    setSelectedIds(new Set()); setEditingCell(null);
+  }
 
   function toggleSelect(id: string) {
     setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -80,10 +200,10 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
   function toggleAll() {
     setSelectedIds(prev => prev.size === records.length ? new Set() : new Set(records.map(r => r.id)));
   }
-  async function discardSelected() {
-    if (selectedIds.size === 0 || discarding) return;
+
+  async function discardIds(ids: string[]) {
+    if (ids.length === 0 || discarding) return;
     setDiscarding(true);
-    const ids = Array.from(selectedIds);
     try {
       const res = await authedFetch('/api/ingest/discard', {
         method: 'POST',
@@ -91,8 +211,9 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
         body: JSON.stringify({ ids }),
       });
       if (res.ok) {
-        setRecords(prev => prev.filter(r => !selectedIds.has(r.id)));
-        setSelectedIds(new Set());
+        const idsSet = new Set(ids);
+        setRecords(prev => prev.filter(r => !idsSet.has(r.id)));
+        setSelectedIds(prev => { const n = new Set(prev); for (const id of ids) n.delete(id); return n; });
       } else {
         const d = await res.json();
         setErrorMsg(d.error ?? 'Discard failed');
@@ -104,6 +225,11 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
     } finally {
       setDiscarding(false);
     }
+  }
+
+  function discardSelected() { discardIds(Array.from(selectedIds)); }
+  function discardRun(run_id: string) {
+    discardIds(records.filter(r => r.run_id === run_id).map(r => r.id));
   }
 
   async function clearQueue() {
@@ -121,6 +247,38 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
       setClearing(false);
     }
   }
+
+  // ── Inline cell editing ───────────────────────────────────────────────────
+
+  function startEdit(id: string, field: string) {
+    const record = records.find(r => r.id === id);
+    if (!record) return;
+    const current = record.payload[field];
+    if (current !== null && current !== undefined && current !== '') return; // read-only when value exists
+    setEditingCell({ id, field, value: '' });
+  }
+
+  function commitEdit(newValue?: string) {
+    if (!editingCell) return;
+    const val = (newValue ?? editingCell.value).trim();
+    if (!val) { setEditingCell(null); return; }
+    setRecords(prev => prev.map(r => {
+      if (r.id !== editingCell.id) return r;
+      const parsed: unknown = NUMERIC_FIELDS.has(editingCell.field) ? Number(val) : val;
+      return { ...r, payload: { ...r.payload, [editingCell.field]: parsed } };
+    }));
+    setEditingCell(null);
+  }
+
+  const cellProps = {
+    editing: editingCell,
+    onStart: startEdit,
+    onChangeValue: (val: string) => setEditingCell(prev => prev ? { ...prev, value: val } : prev),
+    onCommit: commitEdit,
+    onCancel: () => setEditingCell(null),
+  };
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
@@ -172,7 +330,6 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                 <p className="text-sm font-semibold text-[#22c55e]">Queue is clear</p>
                 <p className="text-xs text-[#555]">No approved records are waiting to be synced.</p>
 
-                {/* Clear result */}
                 {clearResult !== null && (
                   <p className="text-xs text-[#888]">
                     {clearResult.cleared === 0
@@ -184,7 +341,6 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                 <div className="flex flex-col items-center gap-2 mt-1">
                   <button onClick={reset} className="text-xs text-[#c9a84c] underline">Check again</button>
 
-                  {/* Confirm flow for destructive clear */}
                   {!confirmClear ? (
                     <button
                       onClick={() => setConfirmClear(true)}
@@ -248,8 +404,61 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                   </div>
                 </div>
 
-                {/* Record table — all 15 columns fitted to viewport width */}
-                <div className="rounded-xl border border-[#1e1e1e] w-full">
+                {/* ── Run breakdown (shown only when multiple runs are present) ── */}
+                {runGroups.size > 1 && (
+                  <div className="rounded-lg border border-[#1e1e1e] bg-[#0d0d0d] px-4 py-3">
+                    <p className="text-[9px] font-bold text-[#444] uppercase tracking-wider mb-2.5">
+                      {runGroups.size} runs in queue — discard stale runs before importing
+                    </p>
+                    <div className="space-y-2">
+                      {sortedRunEntries.map(([runId, recs]) => {
+                        const isLatest = runId === latestRunId;
+                        const latestApproval = recs
+                          .map(r => r.approved_at)
+                          .filter(Boolean)
+                          .sort()
+                          .at(-1);
+                        const sourceFile = recs[0]?.source_file;
+                        return (
+                          <div key={runId} className="flex items-center justify-between gap-3 min-w-0">
+                            <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isLatest ? 'bg-[#22c55e]' : 'bg-[#c9a84c]'}`} />
+                              <span className="font-mono text-[10px] text-[#555] flex-shrink-0">{runId.slice(0, 8)}</span>
+                              <span className="text-[10px] text-[#555] flex-shrink-0">
+                                {recs.length} record{recs.length !== 1 ? 's' : ''}
+                              </span>
+                              {latestApproval && (
+                                <span className="text-[10px] text-[#444] flex-shrink-0">
+                                  {new Date(latestApproval).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
+                                </span>
+                              )}
+                              {sourceFile && (
+                                <span className="text-[10px] text-[#333] truncate" title={sourceFile}>{sourceFile}</span>
+                              )}
+                              {isLatest && (
+                                <span className="text-[9px] font-bold text-[#22c55e] bg-[#22c55e]/10 border border-[#22c55e]/20 px-1.5 py-px rounded-full flex-shrink-0">
+                                  current
+                                </span>
+                              )}
+                            </div>
+                            {!isLatest && (
+                              <button
+                                onClick={() => discardRun(runId)}
+                                disabled={discarding}
+                                className="text-[10px] text-[#ef4444]/60 hover:text-[#ef4444] font-semibold transition-colors disabled:opacity-40 flex-shrink-0"
+                              >
+                                {discarding ? '…' : 'Discard →'}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Record table ── */}
+                <div className="rounded-xl border border-[#1e1e1e] w-full overflow-x-auto">
                   <table className="table-fixed w-full text-[11px]">
                     <colgroup>
                       <col style={{ width: '3%'  }} />{/* Checkbox */}
@@ -280,7 +489,7 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                             className="w-3 h-3 accent-[#ef4444] cursor-pointer"
                           />
                         </th>
-                        {['Match', 'Realtor', 'Property', 'Smart Code', 'Unit', 'Zone #', 'Zone', 'Type', 'Config', 'Bath', 'Kitchen', 'Parking', 'Furnishing', 'Rent/mo', 'Status', 'Source File'].map((h) => (
+                        {['Match','Realtor','Property','Smart Code','Unit','Zone #','Zone','Type','Config','Bath','Kitchen','Parking','Furnishing','Rent/mo','Status','Source File'].map(h => (
                           <th key={h} className="px-2 py-2 text-left text-[9px] font-bold text-[#555] uppercase tracking-wider truncate">{h}</th>
                         ))}
                       </tr>
@@ -295,6 +504,7 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                             className={`border-b border-[#1a1a1a] transition-colors cursor-pointer ${checked ? 'bg-[#ef4444]/5' : 'hover:bg-[#141414]'}`}
                             onClick={() => toggleSelect(r.id)}
                           >
+                            {/* Checkbox */}
                             <td className="px-2 py-2" onClick={e => e.stopPropagation()}>
                               <input
                                 type="checkbox"
@@ -303,9 +513,17 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                                 className="w-3 h-3 accent-[#ef4444] cursor-pointer"
                               />
                             </td>
+
+                            {/* Match */}
                             <td className="px-2 py-2"><MatchBadge type={r.match_type} /></td>
+
+                            {/* Realtor */}
                             <td className="px-2 py-2 text-[#888] truncate" title={fmt(p.realtor_name)}>{fmt(p.realtor_name)}</td>
+
+                            {/* Property */}
                             <td className="px-2 py-2 text-white font-medium truncate" title={fmt(p.property)}>{fmt(p.property)}</td>
+
+                            {/* Smart Code */}
                             <td className="px-2 py-2">
                               {(p.master_code != null || p.smart_code != null) ? (
                                 <div className="flex flex-col gap-0.5">
@@ -318,19 +536,69 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                                 </div>
                               ) : <span className="text-[#555]">—</span>}
                             </td>
+
+                            {/* Unit */}
                             <td className="px-2 py-2 text-[#888] font-mono truncate">{fmt(p.unit_no)}</td>
-                            <td className="px-2 py-2 text-[#c9a84c] font-mono">{fmt(p.zone_code)}</td>
-                            <td className="px-2 py-2 text-[#888] truncate" title={fmt(p.zone)}>{fmt(p.zone)}</td>
-                            <td className="px-2 py-2 text-[#888] truncate">{fmt(p.type)}</td>
-                            <td className="px-2 py-2 text-[#888]">{fmt(p.config)}</td>
-                            <td className="px-2 py-2 text-[#888]">{fmt(p.bathrooms)}</td>
-                            <td className="px-2 py-2 text-[#888]">{fmt(p.kitchen)}</td>
-                            <td className="px-2 py-2 text-[#888]">{p.parking === true ? 'Yes' : p.parking === false ? 'No' : fmt(p.parking)}</td>
-                            <td className="px-2 py-2 text-[#888] truncate">{fmt(p.furnishing)}</td>
-                            <td className="px-2 py-2 text-white font-semibold truncate">
-                              {p.rent ? `QAR ${Number(p.rent).toLocaleString()}` : '—'}
+
+                            {/* Zone # — editable */}
+                            <td className="px-2 py-2">
+                              <NullCell recordId={r.id} field="zone_code" value={p.zone_code} color="#c9a84c" {...cellProps} />
                             </td>
+
+                            {/* Zone — editable */}
+                            <td className="px-2 py-2">
+                              <NullCell recordId={r.id} field="zone" value={p.zone} color="#6b7280" {...cellProps} />
+                            </td>
+
+                            {/* Type — editable (select) */}
+                            <td className="px-2 py-2">
+                              <NullCell recordId={r.id} field="type" value={p.type} color="#6b7280" {...cellProps} />
+                            </td>
+
+                            {/* Config — editable (select) */}
+                            <td className="px-2 py-2">
+                              <NullCell recordId={r.id} field="config" value={p.config} color="#6b7280" {...cellProps} />
+                            </td>
+
+                            {/* Bath — editable */}
+                            <td className="px-2 py-2">
+                              <NullCell recordId={r.id} field="bathrooms" value={p.bathrooms} color="#6b7280" {...cellProps} />
+                            </td>
+
+                            {/* Kitchen — editable (select) */}
+                            <td className="px-2 py-2">
+                              <NullCell recordId={r.id} field="kitchen" value={p.kitchen} color="#6b7280" {...cellProps} />
+                            </td>
+
+                            {/* Parking — editable */}
+                            <td className="px-2 py-2">
+                              <NullCell
+                                recordId={r.id} field="parking"
+                                value={p.parking === true ? 1 : p.parking === false ? 0 : p.parking}
+                                color="#6b7280" {...cellProps}
+                              />
+                            </td>
+
+                            {/* Furnishing — editable (select) */}
+                            <td className="px-2 py-2">
+                              <NullCell recordId={r.id} field="furnishing" value={p.furnishing} color="#6b7280" {...cellProps} />
+                            </td>
+
+                            {/* Rent/mo — editable */}
+                            <td className="px-2 py-2">
+                              {(p.rent !== null && p.rent !== undefined && p.rent !== '') ? (
+                                <span className="text-white font-semibold truncate">
+                                  QAR {Number(p.rent).toLocaleString()}
+                                </span>
+                              ) : (
+                                <NullCell recordId={r.id} field="rent" value={p.rent} color="#ffffff" {...cellProps} />
+                              )}
+                            </td>
+
+                            {/* Status */}
                             <td className="px-2 py-2 text-[#888] truncate">{fmt(p.status)}</td>
+
+                            {/* Source File */}
                             <td className="px-2 py-2 text-[#555] truncate" title={r.source_file ?? ''}>{r.source_file ?? '—'}</td>
                           </tr>
                         );
@@ -341,6 +609,7 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
 
                 <p className="text-[11px] text-[#444]">
                   Clicking <span className="text-[#c9a84c]">Import All</span> will upsert these records into REIMS and acknowledge receipt to Axiom — they will be removed from the vetted queue.
+                  {' '}<span className="text-[#333]">Null cells (shown as <span className="text-[#444] font-mono">+</span>) can be filled before import.</span>
                 </p>
               </div>
             )}
@@ -366,9 +635,9 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                 <p className="text-sm font-bold text-[#22c55e]">Import Complete</p>
                 <div className="flex gap-6 mt-3">
                   {[
-                    { label: 'Inserted', value: result.inserted, color: '#22c55e' },
-                    { label: 'Updated', value: result.updated, color: '#c9a84c' },
-                    { label: 'Acknowledged', value: result.acknowledged, color: '#888' },
+                    { label: 'Inserted',     value: result.inserted,     color: '#22c55e' },
+                    { label: 'Updated',      value: result.updated,      color: '#c9a84c' },
+                    { label: 'Acknowledged', value: result.acknowledged, color: '#888'    },
                   ].map((s) => (
                     <div key={s.label}>
                       <p className="text-xl font-bold" style={{ color: s.color }}>{s.value}</p>
