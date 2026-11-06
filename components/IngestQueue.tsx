@@ -373,7 +373,8 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
               </div>
             ) : (
               <div className="space-y-4">
-                {/* Summary bar */}
+                {/* Summary bar + run breakdown — sticky so discard controls stay visible while scrolling */}
+                <div className="sticky top-[54px] z-20 bg-[#0a0a0a] pb-2 -mx-6 px-6 space-y-3">
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl font-bold text-[#c9a84c]">{records.length}</span>
@@ -456,6 +457,7 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                     </div>
                   </div>
                 )}
+                </div>{/* end sticky header */}
 
                 {/* ── Record table ── */}
                 <div className="rounded-xl border border-[#1e1e1e] w-full overflow-x-auto">
