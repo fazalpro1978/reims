@@ -53,6 +53,12 @@ const REIMS_VIEW_TYPES = new Set([
   'Porto Arabia View',
 ]);
 
+// Trading name → REIMS-registered legal name (case-insensitive key lookup)
+// CAP Properties is the trading name on their spreadsheet; registered as Capital One Real Estate
+const REALTOR_NAME_MAP: Record<string, string> = {
+  'cap properties': 'Capital One Real Estate',
+};
+
 // Map dInges canonical values → REIMS DB enum values
 const FURNISHING_MAP: Record<string, string> = {
   'Furnished':      'Fully Furnished',  // dInges normalises to 'Furnished'; DB enum is 'Fully Furnished'
@@ -196,6 +202,11 @@ export async function POST(req: NextRequest) {
       delete payload.maid_room;
       delete payload.wifi;
 
+      // Normalise trading names → REIMS-registered legal names
+      if (typeof payload.realtor_name === 'string') {
+        const canonical = REALTOR_NAME_MAP[payload.realtor_name.toLowerCase().trim()];
+        if (canonical) payload.realtor_name = canonical;
+      }
       // Auto-fill realtor_moci from realtors table when the column is absent
       if (!payload.realtor_moci && payload.realtor_name) {
         const key = String(payload.realtor_name).toLowerCase().trim();
