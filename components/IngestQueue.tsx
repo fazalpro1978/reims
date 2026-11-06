@@ -423,22 +423,26 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                         return (
                           <div key={runId} className="flex items-center justify-between gap-3 min-w-0">
                             <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isLatest ? 'bg-[#22c55e]' : 'bg-[#c9a84c]'}`} />
-                              <span className="font-mono text-[10px] text-[#555] flex-shrink-0">{runId.slice(0, 8)}</span>
-                              <span className="text-[10px] text-[#555] flex-shrink-0">
+                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isLatest ? 'bg-[#22c55e]' : 'bg-[#ef4444]'}`} />
+                              <span className={`font-mono text-[10px] flex-shrink-0 ${isLatest ? 'text-[#555]' : 'text-[#ef4444]/70'}`}>{runId.slice(0, 8)}</span>
+                              <span className={`text-[10px] flex-shrink-0 ${isLatest ? 'text-[#555]' : 'text-[#ef4444]/70'}`}>
                                 {recs.length} record{recs.length !== 1 ? 's' : ''}
                               </span>
                               {latestApproval && (
-                                <span className="text-[10px] text-[#444] flex-shrink-0">
+                                <span className={`text-[10px] flex-shrink-0 ${isLatest ? 'text-[#444]' : 'text-[#ef4444]/50'}`}>
                                   {new Date(latestApproval).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
                                 </span>
                               )}
                               {sourceFile && (
-                                <span className="text-[10px] text-[#333] truncate" title={sourceFile}>{sourceFile}</span>
+                                <span className={`text-[10px] truncate ${isLatest ? 'text-[#333]' : 'text-[#ef4444]/40'}`} title={sourceFile}>{sourceFile}</span>
                               )}
-                              {isLatest && (
+                              {isLatest ? (
                                 <span className="text-[9px] font-bold text-[#22c55e] bg-[#22c55e]/10 border border-[#22c55e]/20 px-1.5 py-px rounded-full flex-shrink-0">
                                   current
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-bold text-[#ef4444] bg-[#ef4444]/10 border border-[#ef4444]/30 px-1.5 py-px rounded-full flex-shrink-0">
+                                  STALE
                                 </span>
                               )}
                             </div>
