@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useMemo } from 'react';
 import { authedFetch } from '../lib/authedFetch';
+import { useAuth } from '../contexts/AuthContext';
 import TopBar from './TopBar';
 
 type VettedRecord = {
@@ -15,7 +16,8 @@ type VettedRecord = {
 
 type PullResult = { records: VettedRecord[]; count: number };
 type ApplyResult = { inserted: number; updated: number; acknowledged: number; errors: string[] };
-type EditingCell = { id: string; field: string; value: string };
+type EditingCell = { id: string; field: string; value: string; originalValue?: unknown };
+type OverwriteWarning = { id: string; field: string; originalValue: unknown };
 
 const NUMERIC_FIELDS = new Set(['zone_code', 'bathrooms', 'parking', 'rent']);
 const SELECT_OPTIONS: Record<string, string[]> = {
@@ -42,18 +44,21 @@ function fmt(v: unknown): string {
 }
 
 // NullCell — renders a "+" placeholder for null fields that opens an inline editor.
-// Non-null values are rendered read-only. Defined outside IngestQueue to avoid
-// remount-on-render (React reconciles by component identity, not inline arrow function).
+// Non-null values are read-only for staff; superuser/administrator get a click-to-overwrite
+// flow (warning confirmation first). Defined outside IngestQueue to avoid remount-on-render.
 function NullCell({
-  recordId, field, value, editing,
-  onStart, onChangeValue, onCommit, onCancel, color = '#6b7280',
+  recordId, field, value, editing, originalValue,
+  onStart, onChangeValue, onCommit, onCancel,
+  canOverwrite = false, color = '#6b7280',
 }: {
   recordId: string; field: string; value: unknown;
   editing: EditingCell | null;
+  originalValue?: unknown;
   onStart: (id: string, field: string) => void;
   onChangeValue: (val: string) => void;
   onCommit: (val?: string) => void;
   onCancel: () => void;
+  canOverwrite?: boolean;
   color?: string;
 }) {
   const isNull = value === null || value === undefined || value === '';
@@ -61,40 +66,59 @@ function NullCell({
   const opts = SELECT_OPTIONS[field] ?? null;
 
   if (isEditing) {
+    const wasLabel = originalValue !== null && originalValue !== undefined && originalValue !== ''
+      ? <span className="text-[9px] text-[#c9a84c]/60 mb-0.5 block truncate">was: {fmt(originalValue)}</span>
+      : null;
     if (opts) {
       return (
-        <select
-          autoFocus
-          defaultValue=""
-          onChange={e => onCommit(e.target.value)}
-          onBlur={onCancel}
-          onClick={e => e.stopPropagation()}
-          className="w-full bg-[#0d0d0d] border border-[#c9a84c]/60 rounded px-1 text-[10px] text-white outline-none cursor-pointer"
-        >
-          <option value="" disabled>—</option>
-          {opts.map(o => <option key={o} value={o}>{o}</option>)}
-        </select>
+        <div>
+          {wasLabel}
+          <select
+            autoFocus
+            defaultValue=""
+            onChange={e => onCommit(e.target.value)}
+            onBlur={onCancel}
+            onClick={e => e.stopPropagation()}
+            className="w-full bg-[#0d0d0d] border border-[#c9a84c]/60 rounded px-1 text-[10px] text-white outline-none cursor-pointer"
+          >
+            <option value="" disabled>—</option>
+            {opts.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </div>
       );
     }
     return (
-      <input
-        autoFocus
-        type={NUMERIC_FIELDS.has(field) ? 'number' : 'text'}
-        value={editing!.value}
-        onChange={e => onChangeValue(e.target.value)}
-        onBlur={() => onCommit()}
-        onKeyDown={e => {
-          if (e.key === 'Enter')  { e.preventDefault(); onCommit(); }
-          if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
-        }}
-        onClick={e => e.stopPropagation()}
-        className="w-full bg-[#0d0d0d] border border-[#c9a84c]/60 rounded px-1 text-[10px] outline-none"
-        style={{ color }}
-      />
+      <div>
+        {wasLabel}
+        <input
+          autoFocus
+          type={NUMERIC_FIELDS.has(field) ? 'number' : 'text'}
+          value={editing!.value}
+          onChange={e => onChangeValue(e.target.value)}
+          onBlur={() => onCommit()}
+          onKeyDown={e => {
+            if (e.key === 'Enter')  { e.preventDefault(); onCommit(); }
+            if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+          }}
+          onClick={e => e.stopPropagation()}
+          className="w-full bg-[#0d0d0d] border border-[#c9a84c]/60 rounded px-1 text-[10px] outline-none"
+          style={{ color }}
+        />
+      </div>
     );
   }
 
   if (!isNull) {
+    if (canOverwrite) {
+      return (
+        <span
+          className="truncate cursor-pointer border-b border-dashed border-[#c9a84c]/30 hover:border-[#c9a84c]/70 hover:text-[#c9a84c] transition-colors"
+          style={{ color }}
+          onClick={e => { e.stopPropagation(); onStart(recordId, field); }}
+          title={`Overwrite ${field} (privileged)`}
+        >{fmt(value)}</span>
+      );
+    }
     return <span className="truncate" style={{ color }}>{fmt(value)}</span>;
   }
 
@@ -110,6 +134,9 @@ function NullCell({
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void }) {
+  const { role } = useAuth();
+  const canOverwrite = role === 'superuser' || role === 'administrator';
+
   const [phase, setPhase] = useState<'idle' | 'checking' | 'preview' | 'importing' | 'done' | 'error'>('idle');
   const [records, setRecords]       = useState<VettedRecord[]>([]);
   const [result, setResult]         = useState<ApplyResult | null>(null);
@@ -120,6 +147,7 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [discarding, setDiscarding] = useState(false);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
+  const [overwriteWarning, setOverwriteWarning] = useState<OverwriteWarning | null>(null);
 
   // ── Run grouping ──────────────────────────────────────────────────────────
 
@@ -191,7 +219,7 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
   function reset() {
     setPhase('idle'); setRecords([]); setResult(null); setErrorMsg('');
     setClearResult(null); setConfirmClear(false);
-    setSelectedIds(new Set()); setEditingCell(null);
+    setSelectedIds(new Set()); setEditingCell(null); setOverwriteWarning(null);
   }
 
   function toggleSelect(id: string) {
@@ -254,8 +282,21 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
     const record = records.find(r => r.id === id);
     if (!record) return;
     const current = record.payload[field];
-    if (current !== null && current !== undefined && current !== '') return; // read-only when value exists
+    const hasValue = current !== null && current !== undefined && current !== '';
+    if (hasValue) {
+      if (!canOverwrite) return; // read-only for non-privileged roles
+      // Privileged: show overwrite confirmation before opening editor
+      setOverwriteWarning({ id, field, originalValue: current });
+      return;
+    }
     setEditingCell({ id, field, value: '' });
+  }
+
+  function confirmOverwrite(prefill: 'current' | 'blank') {
+    if (!overwriteWarning) return;
+    const initValue = prefill === 'current' ? String(overwriteWarning.originalValue) : '';
+    setEditingCell({ id: overwriteWarning.id, field: overwriteWarning.field, value: initValue, originalValue: overwriteWarning.originalValue });
+    setOverwriteWarning(null);
   }
 
   function commitEdit(newValue?: string) {
@@ -272,6 +313,8 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
 
   const cellProps = {
     editing: editingCell,
+    originalValue: editingCell?.originalValue,
+    canOverwrite,
     onStart: startEdit,
     onChangeValue: (val: string) => setEditingCell(prev => prev ? { ...prev, value: val } : prev),
     onCommit: commitEdit,
@@ -592,13 +635,7 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
 
                             {/* Rent/mo — editable */}
                             <td className="px-2 py-2">
-                              {(p.rent !== null && p.rent !== undefined && p.rent !== '') ? (
-                                <span className="text-white font-semibold truncate">
-                                  QAR {Number(p.rent).toLocaleString()}
-                                </span>
-                              ) : (
-                                <NullCell recordId={r.id} field="rent" value={p.rent} color="#ffffff" {...cellProps} />
-                              )}
+                              <NullCell recordId={r.id} field="rent" value={p.rent} color="#ffffff" {...cellProps} />
                             </td>
 
                             {/* Status */}
@@ -673,6 +710,65 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
           </div>
         )}
       </div>
+
+      {/* ── Overwrite Warning Modal ───────────────────────────────────────────── */}
+      {overwriteWarning && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setOverwriteWarning(null)}
+        >
+          <div
+            className="bg-[#111] border border-[#c9a84c]/30 rounded-xl shadow-2xl w-full max-w-sm mx-4 p-5 space-y-4"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-[#c9a84c]/10 border border-[#c9a84c]/30 flex items-center justify-center shrink-0 mt-0.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">Overwrite existing value?</p>
+                <p className="text-[11px] text-[#666] mt-0.5">This field already has data. Changes apply to the import payload only — the source record is not modified.</p>
+              </div>
+            </div>
+
+            {/* Current value display */}
+            <div className="rounded-lg bg-[#0d0d0d] border border-[#1e1e1e] px-3 py-2.5">
+              <p className="text-[9px] text-[#555] uppercase tracking-widest mb-1">{overwriteWarning.field}</p>
+              <p className="text-xs text-[#c9a84c] font-mono">{fmt(overwriteWarning.originalValue)}</p>
+            </div>
+
+            {/* Suggestions */}
+            <div className="space-y-1.5">
+              <p className="text-[9px] text-[#555] uppercase tracking-widest">Choose how to edit</p>
+              <button
+                onClick={() => confirmOverwrite('current')}
+                className="w-full text-left px-3 py-2 rounded-lg bg-[#1a1a1a] hover:bg-[#c9a84c]/10 border border-[#2a2a2a] hover:border-[#c9a84c]/30 transition-colors group"
+              >
+                <p className="text-xs font-medium text-white group-hover:text-[#c9a84c] transition-colors">Edit from current value</p>
+                <p className="text-[10px] text-[#555] mt-0.5">Pre-fills the editor with the existing value — refine rather than retype.</p>
+              </button>
+              <button
+                onClick={() => confirmOverwrite('blank')}
+                className="w-full text-left px-3 py-2 rounded-lg bg-[#1a1a1a] hover:bg-[#1e1e1e] border border-[#2a2a2a] transition-colors"
+              >
+                <p className="text-xs font-medium text-[#888]">Start from blank</p>
+                <p className="text-[10px] text-[#555] mt-0.5">Clears the field and opens an empty editor.</p>
+              </button>
+            </div>
+
+            {/* Cancel */}
+            <button
+              onClick={() => setOverwriteWarning(null)}
+              className="w-full text-center text-xs text-[#444] hover:text-[#666] transition-colors pt-1"
+            >
+              Cancel — keep existing value
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
