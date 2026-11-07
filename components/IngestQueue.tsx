@@ -19,12 +19,13 @@ type ApplyResult = { inserted: number; updated: number; acknowledged: number; er
 type EditingCell = { id: string; field: string; value: string; originalValue?: unknown };
 type OverwriteWarning = { id: string; field: string; originalValue: unknown };
 
-const NUMERIC_FIELDS = new Set(['zone_code', 'bathrooms', 'parking', 'rent']);
+const NUMERIC_FIELDS = new Set(['zone_code', 'bathrooms', 'rent']);
 const SELECT_OPTIONS: Record<string, string[]> = {
   type:       ['Apartment', 'Villa', 'Townhouse', 'Studio', 'Duplex', 'Penthouse', 'Office', 'Retail'],
   config:     ['Studio', '1 BHK', '2 BHK', '3 BHK', '4 BHK', '5 BHK', '6 BHK', '7 BHK'],
   furnishing: ['Furnished', 'Unfurnished', 'Semi-Furnished', 'Fully Furnished', 'Partially Furnished'],
-  kitchen:    ['Open', 'Closed'],
+  kitchen:    ['Open', 'Closed', 'Yes'],
+  parking:    ['Yes', 'No'],
 };
 
 // ── Helper components ────────────────────────────────────────────────────────
@@ -619,11 +620,13 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                               <NullCell recordId={r.id} field="kitchen" value={p.kitchen} color="#6b7280" {...cellProps} />
                             </td>
 
-                            {/* Parking — editable */}
+                            {/* Parking — editable (Yes/No) */}
                             <td className="px-2 py-2">
                               <NullCell
                                 recordId={r.id} field="parking"
-                                value={p.parking === true ? 1 : p.parking === false ? 0 : p.parking}
+                                value={p.parking === true || p.parking === 1 || String(p.parking).toLowerCase() === 'yes' ? 'Yes'
+                                     : p.parking === false || p.parking === 0 || String(p.parking).toLowerCase() === 'no' ? 'No'
+                                     : p.parking}
                                 color="#6b7280" {...cellProps}
                               />
                             </td>
