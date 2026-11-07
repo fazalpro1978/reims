@@ -32,7 +32,6 @@ export default function GreetingBar() {
   const firstName = user?.fullName?.split(' ')[0] ?? user?.email?.split('@')[0] ?? '';
 
   const actions = [
-    can('units.add')      && { label: '+ Add Unit',      onClick: () => router.push('/inventory?action=add'),  primary: true,  live: false },
     can('report.generate')&& { label: 'Live Report',     onClick: () => window.open('/reports/live', '_blank'), primary: false, live: true  },
     can('report.generate')&& { label: 'Generate Report', onClick: () => setShowReport(true),                   primary: false, live: false },
     can('admin.access')   && { label: 'AXIOM Import',    onClick: () => router.push('/ingest-queue'),           primary: false, live: false },
