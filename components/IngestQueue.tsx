@@ -370,14 +370,32 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
     const val = (newValue ?? editingCell.value).trim();
     if (!val) { setEditingCell(null); return; }
     const parsed: unknown = NUMERIC_FIELDS.has(editingCell.field) ? Number(val) : val;
+
+    // Build updated payload before state mutation so we can send it to DB
+    const targetRecord = records.find(r => r.id === editingCell.id);
+    const updatedPayload = targetRecord
+      ? { ...targetRecord.payload, [editingCell.field]: parsed }
+      : null;
+
     setRecords(prev => prev.map(r => {
       if (r.id !== editingCell.id) return r;
       return { ...r, payload: { ...r.payload, [editingCell.field]: parsed } };
     }));
-    // Persist edit so it survives re-fetch and page refresh
+
+    // 1. localStorage — instant, survives page refresh
     const map = loadEdits();
     map[editingCell.id] = { ...(map[editingCell.id] ?? {}), [editingCell.field]: parsed };
     saveEdits(map);
+
+    // 2. Patch vetted_records.payload in dInges — survives re-fetch, cross-device
+    if (updatedPayload) {
+      authedFetch('/api/ingest/patch', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editingCell.id, payload: updatedPayload }),
+      }).catch(() => {}); // silent — localStorage is the fallback
+    }
+
     setEditingCell(null);
   }
 

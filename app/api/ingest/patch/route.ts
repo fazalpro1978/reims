@@ -1,0 +1,29 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/serverAuth';
+
+const INGEST_URL = process.env.INGEST_SERVICE_URL ?? 'https://axiom.propertyscape.io';
+const INGEST_KEY = process.env.INGEST_API_KEY ?? '';
+
+export async function PATCH(req: NextRequest) {
+  const auth = await requireAuth(req, ['superuser', 'administrator']);
+  if (!auth.ok) return auth.response;
+  if (!INGEST_KEY) {
+    return NextResponse.json({ error: 'INGEST_API_KEY is not configured.' }, { status: 503 });
+  }
+  const body = await req.json().catch(() => null);
+  if (!body?.id || !body?.payload) {
+    return NextResponse.json({ error: 'id and payload required' }, { status: 400 });
+  }
+  try {
+    const res = await fetch(`${INGEST_URL}/api/export/vetted`, {
+      method: 'PATCH',
+      headers: { 'x-api-key': INGEST_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: body.id, payload: body.payload }),
+    });
+    const data = await res.json();
+    if (!res.ok) return NextResponse.json({ error: data.error ?? 'dInges returned an error' }, { status: res.status });
+    return NextResponse.json(data);
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to reach dInges service' }, { status: 502 });
+  }
+}
