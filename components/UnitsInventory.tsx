@@ -717,7 +717,7 @@ export default function UnitsInventory({
 
   const handleEllipsisClick = (e: React.MouseEvent<HTMLButtonElement>, unit: UnitListing) => {
     e.stopPropagation();
-    if (contextMenu?.unit.id === unit.id) {
+    if (contextMenu?.unit.uuid === unit.uuid) {
       setContextMenu(null);
       return;
     }
@@ -1172,7 +1172,7 @@ export default function UnitsInventory({
                 ) : (
                   paginatedUnits.map((unit) => (
                     <tr
-                      key={unit.id}
+                      key={unit.uuid}
                       onClick={() => handleViewDetails(unit)}
                       className="border-b border-[#222222] last:border-0 hover:bg-[#1e1e1e] transition-colors cursor-pointer"
                     >
@@ -1270,7 +1270,7 @@ export default function UnitsInventory({
                           onClick={(e) => { e.stopPropagation(); handleEllipsisClick(e, unit); }}
                           aria-label={`Actions for ${unit.unitNo}`}
                           className={`w-6 h-6 rounded-md flex items-center justify-center text-base leading-none transition-colors mx-auto ${
-                            contextMenu?.unit.id === unit.id
+                            contextMenu?.unit.uuid === unit.uuid
                               ? 'bg-[#c9a84c] text-[#0f0f0f]'
                               : 'text-[#505050] hover:text-[#c9a84c] hover:bg-[#2a2a2a]'
                           }`}
