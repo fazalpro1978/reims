@@ -132,6 +132,32 @@ function NullCell({
   );
 }
 
+// ── Persistent edit overlay (localStorage) ───────────────────────────────────
+// Edits are keyed by vetted_record id. Merged over fetched records so they
+// survive re-fetch and page refresh. Cleared on import success or discard.
+
+const LS_KEY = 'reims-ingest-edits';
+type EditMap = Record<string, Record<string, unknown>>; // id → { field: value }
+
+function loadEdits(): EditMap {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) ?? '{}'); } catch { return {}; }
+}
+function saveEdits(map: EditMap) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(map)); } catch { /* quota */ }
+}
+function clearEdits() {
+  try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
+}
+function mergeEdits(records: VettedRecord[]): VettedRecord[] {
+  const map = loadEdits();
+  if (!Object.keys(map).length) return records;
+  return records.map(r => {
+    const overrides = map[r.id];
+    if (!overrides) return r;
+    return { ...r, payload: { ...r.payload, ...overrides } };
+  });
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void }) {
@@ -191,7 +217,8 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
       const res = await authedFetch('/api/ingest/pull', { cache: 'no-store' });
       const data: PullResult & { error?: string } = await res.json();
       if (!res.ok || data.error) { setErrorMsg(data.error ?? 'Failed to fetch queue'); setPhase('error'); return; }
-      setRecords(data.records ?? []);
+      // Merge any locally-persisted edits back over the freshly-fetched records
+      setRecords(mergeEdits(data.records ?? []));
       setPhase('preview');
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Network error');
@@ -209,6 +236,7 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
       });
       const data: ApplyResult & { error?: string } = await res.json();
       if (!res.ok || data.error) { setErrorMsg(data.error ?? 'Import failed'); setPhase('error'); return; }
+      clearEdits(); // imported — edits no longer needed
       setResult(data);
       setPhase('done');
     } catch (err) {
@@ -218,6 +246,7 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
   }
 
   function reset() {
+    clearEdits();
     setPhase('idle'); setRecords([]); setResult(null); setErrorMsg('');
     setClearResult(null); setConfirmClear(false);
     setSelectedIds(new Set()); setEditingCell(null); setOverwriteWarning(null);
@@ -243,6 +272,10 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
         const idsSet = new Set(ids);
         setRecords(prev => prev.filter(r => !idsSet.has(r.id)));
         setSelectedIds(prev => { const n = new Set(prev); for (const id of ids) n.delete(id); return n; });
+        // Remove discarded records from persisted edits
+        const map = loadEdits();
+        for (const id of ids) delete map[id];
+        saveEdits(map);
       } else {
         const d = await res.json();
         setErrorMsg(d.error ?? 'Discard failed');
@@ -304,11 +337,15 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
     if (!editingCell) return;
     const val = (newValue ?? editingCell.value).trim();
     if (!val) { setEditingCell(null); return; }
+    const parsed: unknown = NUMERIC_FIELDS.has(editingCell.field) ? Number(val) : val;
     setRecords(prev => prev.map(r => {
       if (r.id !== editingCell.id) return r;
-      const parsed: unknown = NUMERIC_FIELDS.has(editingCell.field) ? Number(val) : val;
       return { ...r, payload: { ...r.payload, [editingCell.field]: parsed } };
     }));
+    // Persist edit so it survives re-fetch and page refresh
+    const map = loadEdits();
+    map[editingCell.id] = { ...(map[editingCell.id] ?? {}), [editingCell.field]: parsed };
+    saveEdits(map);
     setEditingCell(null);
   }
 
