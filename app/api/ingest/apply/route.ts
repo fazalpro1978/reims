@@ -183,6 +183,18 @@ export async function POST(req: NextRequest) {
         .map((r: { name: string; moci_id: string }) => [r.name.toLowerCase().trim(), r.moci_id]),
     );
 
+    // ── 0b. Build zone_code → map_url lookup ────────────────────────────────
+    // Used to auto-populate location_map_url when the payload omits it.
+    const { data: zoneRows } = await admin
+      .from('cr_zone_codes')
+      .select('zone_code, map_url')
+      .not('map_url', 'is', null);
+    const zoneMapUrlMap = new Map<number, string>(
+      (zoneRows ?? [])
+        .filter((z: { zone_code: number; map_url: string | null }) => z.map_url)
+        .map((z: { zone_code: number; map_url: string }) => [z.zone_code, z.map_url]),
+    );
+
     // ── 1. Upsert into public.units ─────────────────────────────────────────
     // Strip payload fields that don't exist in the units table before writing
     const rows = records.map((r) => {
@@ -213,6 +225,13 @@ export async function POST(req: NextRequest) {
         const moci = realtorMociMap.get(key);
         if (moci) payload.realtor_moci = moci;
       }
+
+      // Auto-populate location_map_url from zone registry when absent
+      if (!payload.location_map_url && payload.zone_code) {
+        const mapUrl = zoneMapUrlMap.get(Number(payload.zone_code));
+        if (mapUrl) payload.location_map_url = mapUrl;
+      }
+
       return payload;
     });
     const unitCodes = rows
