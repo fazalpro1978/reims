@@ -546,25 +546,25 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
 
                 {/* ── Record table ── */}
                 <div className="rounded-xl border border-[#1e1e1e] w-full overflow-x-auto">
-                  <table className="table-fixed text-[11px]" style={{ minWidth: 1300 }}>
+                  <table className="table-fixed w-full text-[11px]">
                     <colgroup>
-                      <col style={{ width:  32 }} />{/* Checkbox */}
-                      <col style={{ width:  54 }} />{/* Match */}
-                      <col style={{ width:  86 }} />{/* Realtor */}
-                      <col style={{ width: 112 }} />{/* Property */}
-                      <col style={{ width: 104 }} />{/* Smart Code */}
-                      <col style={{ width:  44 }} />{/* Unit */}
-                      <col style={{ width:  52 }} />{/* Zone # */}
-                      <col style={{ width: 116 }} />{/* Zone */}
-                      <col style={{ width:  92 }} />{/* Type */}
-                      <col style={{ width:  74 }} />{/* Config */}
-                      <col style={{ width:  52 }} />{/* Bath */}
-                      <col style={{ width:  70 }} />{/* Kitchen */}
-                      <col style={{ width:  62 }} />{/* Parking */}
-                      <col style={{ width: 112 }} />{/* Furnishing */}
-                      <col style={{ width:  90 }} />{/* Rent/mo */}
-                      <col style={{ width:  62 }} />{/* Status */}
-                      <col style={{ width:  72 }} />{/* Source File */}
+                      <col style={{ width: '2%'  }} />{/* Checkbox */}
+                      <col style={{ width: '4%'  }} />{/* Match */}
+                      <col style={{ width: '7%'  }} />{/* Realtor */}
+                      <col style={{ width: '10%' }} />{/* Property */}
+                      <col style={{ width: '8%'  }} />{/* Smart Code */}
+                      <col style={{ width: '3%'  }} />{/* Unit */}
+                      <col style={{ width: '4%'  }} />{/* Zone # */}
+                      <col style={{ width: '10%' }} />{/* Zone */}
+                      <col style={{ width: '7%'  }} />{/* Type */}
+                      <col style={{ width: '5%'  }} />{/* Config */}
+                      <col style={{ width: '4%'  }} />{/* Bath */}
+                      <col style={{ width: '5%'  }} />{/* Kitchen */}
+                      <col style={{ width: '4%'  }} />{/* Parking */}
+                      <col style={{ width: '9%'  }} />{/* Furnishing */}
+                      <col style={{ width: '8%'  }} />{/* Rent/mo */}
+                      <col style={{ width: '5%'  }} />{/* Status */}
+                      <col style={{ width: '5%'  }} />{/* Source File */}
                     </colgroup>
                     <thead>
                       <tr className="border-b border-[#1e1e1e] bg-[#0d0d0d]">
