@@ -175,6 +175,8 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
   const [discarding, setDiscarding] = useState(false);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [overwriteWarning, setOverwriteWarning] = useState<OverwriteWarning | null>(null);
+  const [partialResult, setPartialResult] = useState<(ApplyResult & { count: number }) | null>(null);
+  const [importingSelected, setImportingSelected] = useState(false);
 
   // ── Run grouping ──────────────────────────────────────────────────────────
 
@@ -245,10 +247,40 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
     }
   }
 
+  async function importSelected() {
+    if (selectedIds.size === 0 || importingSelected) return;
+    const toImport = records.filter(r => selectedIds.has(r.id));
+    setImportingSelected(true);
+    setPartialResult(null);
+    try {
+      const res = await authedFetch('/api/ingest/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ records: toImport }),
+      });
+      const data: ApplyResult & { error?: string } = await res.json();
+      if (!res.ok || data.error) { setErrorMsg(data.error ?? 'Import failed'); setPhase('error'); return; }
+      // Remove imported records from queue; keep the rest
+      const importedIds = new Set(toImport.map(r => r.id));
+      setRecords(prev => prev.filter(r => !importedIds.has(r.id)));
+      setSelectedIds(new Set());
+      // Clean up localStorage for the imported records
+      const map = loadEdits();
+      importedIds.forEach(id => { delete map[id]; });
+      saveEdits(map);
+      setPartialResult({ ...data, count: toImport.length });
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Network error');
+      setPhase('error');
+    } finally {
+      setImportingSelected(false);
+    }
+  }
+
   function reset() {
     clearEdits();
     setPhase('idle'); setRecords([]); setResult(null); setErrorMsg('');
-    setClearResult(null); setConfirmClear(false);
+    setClearResult(null); setConfirmClear(false); setPartialResult(null); setImportingSelected(false);
     setSelectedIds(new Set()); setEditingCell(null); setOverwriteWarning(null);
   }
 
@@ -469,17 +501,27 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                       Cancel
                     </button>
                     {selectedIds.size > 0 && (
-                      <button
-                        onClick={discardSelected}
-                        disabled={discarding}
-                        className="px-4 py-1.5 text-xs border border-[#ef4444]/40 bg-[#ef4444]/10 text-[#ef4444] font-bold rounded-lg hover:bg-[#ef4444]/20 transition-colors disabled:opacity-50"
-                      >
-                        {discarding ? 'Discarding…' : `Discard Selected (${selectedIds.size})`}
-                      </button>
+                      <>
+                        <button
+                          onClick={discardSelected}
+                          disabled={discarding || importingSelected}
+                          className="px-4 py-1.5 text-xs border border-[#ef4444]/40 bg-[#ef4444]/10 text-[#ef4444] font-bold rounded-lg hover:bg-[#ef4444]/20 transition-colors disabled:opacity-50"
+                        >
+                          {discarding ? 'Discarding…' : `Discard Selected (${selectedIds.size})`}
+                        </button>
+                        <button
+                          onClick={importSelected}
+                          disabled={importingSelected || discarding}
+                          className="px-4 py-1.5 text-xs border border-[#c9a84c]/40 bg-[#c9a84c]/10 text-[#c9a84c] font-bold rounded-lg hover:bg-[#c9a84c]/20 transition-colors disabled:opacity-50"
+                        >
+                          {importingSelected ? 'Importing…' : `Import Selected (${selectedIds.size})`}
+                        </button>
+                      </>
                     )}
                     <button
                       onClick={importAll}
-                      className="px-5 py-1.5 bg-[#c9a84c] hover:bg-[#dfc070] text-[#0f0f0f] text-xs font-bold rounded-lg transition-colors"
+                      disabled={importingSelected}
+                      className="px-5 py-1.5 bg-[#c9a84c] hover:bg-[#dfc070] text-[#0f0f0f] text-xs font-bold rounded-lg transition-colors disabled:opacity-50"
                     >
                       Import All {records.length} →
                     </button>
@@ -543,6 +585,24 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                   </div>
                 )}
                 </div>{/* end sticky header */}
+
+                {/* ── Partial import result banner ── */}
+                {partialResult && (
+                  <div className="rounded-lg border border-[#22c55e]/20 bg-[#22c55e]/5 px-4 py-3 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth={2.5} strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+                      <span className="text-xs text-[#22c55e] font-semibold">
+                        {partialResult.count} record{partialResult.count !== 1 ? 's' : ''} imported
+                      </span>
+                      <span className="text-[10px] text-[#555]">
+                        {partialResult.inserted > 0 && `${partialResult.inserted} inserted`}
+                        {partialResult.inserted > 0 && partialResult.updated > 0 && ' · '}
+                        {partialResult.updated > 0 && `${partialResult.updated} updated`}
+                      </span>
+                    </div>
+                    <button onClick={() => setPartialResult(null)} className="text-[10px] text-[#444] hover:text-[#666] transition-colors">dismiss</button>
+                  </div>
+                )}
 
                 {/* ── Record table ── */}
                 <div className="rounded-xl border border-[#1e1e1e] w-full overflow-x-auto">
