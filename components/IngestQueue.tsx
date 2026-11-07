@@ -748,7 +748,7 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                 className="w-full text-left px-3 py-2 rounded-lg bg-[#1a1a1a] hover:bg-[#c9a84c]/10 border border-[#2a2a2a] hover:border-[#c9a84c]/30 transition-colors group"
               >
                 <p className="text-xs font-medium text-white group-hover:text-[#c9a84c] transition-colors">Edit from current value</p>
-                <p className="text-[10px] text-[#555] mt-0.5">Pre-fills the editor with the existing value — refine rather than retype.</p>
+                <p className="text-[10px] text-[#555] mt-0.5">Pre-fills the editor with the existing value — edit or replace it freely.</p>
               </button>
               <button
                 onClick={() => confirmOverwrite('blank')}
