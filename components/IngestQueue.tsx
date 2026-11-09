@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { authedFetch } from '../lib/authedFetch';
 import { useAuth } from '../contexts/AuthContext';
 import TopBar from './TopBar';
+import { exportQueuePdf, exportQueueXls, exportQueueXlsx } from '../lib/ingestExport';
 
 type VettedRecord = {
   id: string;
@@ -177,6 +178,22 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
   const [overwriteWarning, setOverwriteWarning] = useState<OverwriteWarning | null>(null);
   const [partialResult, setPartialResult] = useState<(ApplyResult & { count: number }) | null>(null);
   const [importingSelected, setImportingSelected] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exporting, setExporting] = useState<'pdf' | 'xls' | 'xlsx' | null>(null);
+
+  async function exportQueue(fmt: 'pdf' | 'xls' | 'xlsx') {
+    setExportOpen(false);
+    setExporting(fmt);
+    try {
+      if (fmt === 'pdf') await exportQueuePdf(records);
+      else if (fmt === 'xls') await exportQueueXls(records);
+      else await exportQueueXlsx(records);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? `Export failed: ${err.message}` : 'Export failed');
+    } finally {
+      setExporting(null);
+    }
+  }
 
   // ── Run grouping ──────────────────────────────────────────────────────────
 
@@ -535,6 +552,36 @@ export default function IngestQueue({ onMenuClick }: { onMenuClick?: () => void 
                           {importingSelected ? 'Importing…' : `Import Selected (${selectedIds.size})`}
                         </button>
                       </>
+                    )}
+                    {canOverwrite && (
+                      <div className="relative">
+                        <button
+                          onClick={() => setExportOpen(o => !o)}
+                          disabled={exporting !== null || records.length === 0}
+                          className="px-3 py-1.5 text-xs border border-[#2a2a2a] text-[#bbb] font-semibold rounded-lg hover:border-[#c9a84c]/50 hover:text-[#c9a84c] transition-colors disabled:opacity-50"
+                        >
+                          {exporting ? `Exporting ${exporting.toUpperCase()}…` : 'Export ▾'}
+                        </button>
+                        {exportOpen && (
+                          <>
+                            <div className="fixed inset-0 z-30" onClick={() => setExportOpen(false)} />
+                            <div className="absolute right-0 mt-1 w-44 z-40 rounded-lg border border-[#2a2a2a] bg-[#141414] shadow-xl overflow-hidden">
+                              {([
+                                ['pdf',  'PDF (.pdf)'],
+                                ['xls',  'Excel 97-2003 (.xls)'],
+                                ['xlsx', 'Excel (.xlsx)'],
+                              ] as const).map(([f, label]) => (
+                                <button
+                                  key={f}
+                                  onClick={() => exportQueue(f)}
+                                  className="block w-full text-left px-3 py-2 text-xs text-[#ccc] hover:bg-[#1e1e1e] hover:text-[#c9a84c]"
+                                >{label}</button>
+                              ))}
+                              <p className="px-3 py-1.5 text-[9px] text-[#555] border-t border-[#222]">All {records.length} queue records, incl. inline edits</p>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     )}
                     <button
                       onClick={importAll}
