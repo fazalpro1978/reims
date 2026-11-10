@@ -392,7 +392,8 @@ export async function POST(req: NextRequest) {
     const operationalRows = rows.filter(
       (r) =>
         (typeof r.contact_details === 'string' && (r.contact_details as string).trim()) ||
-        (typeof r.operator_remarks === 'string' && (r.operator_remarks as string).trim()),
+        (typeof r.operator_remarks === 'string' && (r.operator_remarks as string).trim()) ||
+        (typeof r.maintenance_notes === 'string' && (r.maintenance_notes as string).trim()),
     );
     if (operationalRows.length > 0) {
       const opCodes = operationalRows
@@ -448,6 +449,11 @@ export async function POST(req: NextRequest) {
         // operator_remarks → unit_operational.operator_remarks
         if (typeof row.operator_remarks === 'string' && row.operator_remarks.trim()) {
           upsertPayload.operator_remarks = row.operator_remarks.trim();
+        }
+
+        // maintenance_notes → unit_operational.maintenance_notes (Current Notes)
+        if (typeof row.maintenance_notes === 'string' && row.maintenance_notes.trim()) {
+          upsertPayload.maintenance_notes = row.maintenance_notes.trim();
         }
 
         if (Object.keys(upsertPayload).length > 1) {

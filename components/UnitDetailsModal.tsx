@@ -999,7 +999,7 @@ function PropertyTab({ unit, unitUuid, isAdmin, onRequestAdmin, onStatusSaved, o
             {([
               'Balcony', 'Barbecue Area', 'Built-in Wardrobes', 'Central A/C',
               'Covered Parking', 'Private Gym', 'Private Jacuzzi', 'Kitchen Appliances',
-              'Maids Room', 'Pets Allowed', 'Private Garden', 'Private Pool',
+              'Maids Room', 'Store Room', 'Pets Allowed', 'Private Garden', 'Private Pool',
               'Shared Pool', 'Study', 'View of Water', 'Security',
               'Concierge', 'Shared Spa', 'Shared Gym', 'Maid Service',
               'Walk-in Closet', 'View of Landmark', "Children's Play Area",
