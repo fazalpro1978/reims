@@ -110,10 +110,18 @@ function coerceNumeric(v: unknown): number {
 function normaliseEnums(row: Record<string, unknown>): Record<string, unknown> {
   const out = { ...row };
 
+  // AXIOM carries month_free_days as a count of free MONTHS (e.g. 1, 1.5, 2); REIMS stores DAYS (integer, credit = rent / 30 x days).
+  // Counts up to 12 are converted; larger values are assumed to already be days.
+  if ('month_free_days' in out) {
+    const n = Number(out.month_free_days);
+    if (Number.isFinite(n) && n > 0 && n <= 12) out.month_free_days = Math.round(n * 30);
+  }
+
   // Coerce present numeric values (guards against freeform text)
   for (const col of NUMERIC_COLUMNS) {
     if (col in out) out[col] = coerceNumeric(out[col]);
   }
+  if ('month_free_days' in out) out.month_free_days = Math.round(Number(out.month_free_days));
   // Fill in defaults for absent NOT NULL numeric columns so bulk insert
   // never sends null and lets the DB default apply
   for (const col of Object.keys(NUMERIC_DEFAULTS)) {
