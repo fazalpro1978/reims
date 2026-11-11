@@ -12,7 +12,7 @@ export type ExportRecord = {
 type Col = { label: string; width: number; get: (r: ExportRecord) => string | number };
 
 const BOOL_FIELDS = new Set([
-  'parking', 'month_free_applicable', 'pro_rata_applicable', 'kahramaa_applicable',
+  'parking', 'agency_fee_applicable', 'month_free_applicable', 'pro_rata_applicable', 'kahramaa_applicable',
   'water_electricity_limit_applicable', 'qatar_cool_applicable', 'marafeq_applicable',
 ]);
 
@@ -73,6 +73,12 @@ export const COLUMNS: Col[] = [
   p('view', 'View', 14),
   p('amenities', 'Amenities', 24),
   p('contact_details', 'Contact', 22),
+  p('operator_remarks', 'Operator Remarks', 48),
+  p('maintenance_notes', 'Maintenance Notes', 22),
+  p('agency_fee_applicable', 'Agency Fee Applicable', 11),
+  p('agency_fee_amount', 'Agency Fee Amount', 12),
+  p('agency_fee_paid_by', 'Agency Fee Paid By', 18),
+  p('zone_source', 'Source Zone', 20),
   p('notes', 'Notes', 40),
   p('location_map_url', 'Map URL', 30),
   p('media_url', 'Media URL', 30),

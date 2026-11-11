@@ -393,7 +393,8 @@ export async function POST(req: NextRequest) {
       (r) =>
         (typeof r.contact_details === 'string' && (r.contact_details as string).trim()) ||
         (typeof r.operator_remarks === 'string' && (r.operator_remarks as string).trim()) ||
-        (typeof r.maintenance_notes === 'string' && (r.maintenance_notes as string).trim()),
+        (typeof r.maintenance_notes === 'string' && (r.maintenance_notes as string).trim()) ||
+        r.agency_fee_applicable !== undefined && r.agency_fee_applicable !== null,
     );
     if (operationalRows.length > 0) {
       const opCodes = operationalRows
@@ -454,6 +455,21 @@ export async function POST(req: NextRequest) {
         // maintenance_notes → unit_operational.maintenance_notes (Current Notes)
         if (typeof row.maintenance_notes === 'string' && row.maintenance_notes.trim()) {
           upsertPayload.maintenance_notes = row.maintenance_notes.trim();
+        }
+
+        // agency commission → unit_commissions (applicable flag, amount, Paid By dropdown)
+        if (row.agency_fee_applicable !== undefined && row.agency_fee_applicable !== null) {
+          const applicable = row.agency_fee_applicable === true || String(row.agency_fee_applicable).toLowerCase() === 'true';
+          const amount = Number(row.agency_fee_amount);
+          const PAID_BY = ['Developer', 'Real Estate Company', 'Agent', 'Client', 'Other'];
+          const paidBy = PAID_BY.find(p => p.toLowerCase() === String(row.agency_fee_paid_by ?? '').trim().toLowerCase());
+          const { error: comErr } = await admin.from('unit_commissions').upsert({
+            unit_id: unitId,
+            agency_fee_applicable: applicable,
+            agency_fee_amount: applicable && Number.isFinite(amount) && amount >= 0 && row.agency_fee_amount !== '' && row.agency_fee_amount != null ? amount : null,
+            paid_by: applicable ? (paidBy ?? null) : null,
+          }, { onConflict: 'unit_id' });
+          if (comErr) errors.push(`unit_commissions upsert ${unitId}: ${comErr.message}`);
         }
 
         if (Object.keys(upsertPayload).length > 1) {
