@@ -13,7 +13,7 @@ export async function authorizeInquiry(admin: SupabaseClient, auth: AuthResult, 
   if (!inq) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   let agentCode: string | null = null;
-  if (auth.role === 'staff') {
+  if (auth.role !== 'superuser' && auth.role !== 'administrator') {
     const { data: agentRow } = await admin.from('cr_agents').select('agent_code').eq('email', auth.email).maybeSingle();
     agentCode = agentRow?.agent_code ?? null;
   }

@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   // For staff and external roles: filter to own inquiries only
   let staffOrFilter: string | null = null;
-  if (auth.auth.role === 'staff') {
+  if (auth.auth.role !== 'superuser' && auth.auth.role !== 'administrator') {
     const { data: agentRow } = await admin
       .from('cr_agents')
       .select('agent_code')
@@ -29,8 +29,6 @@ export async function GET(req: NextRequest) {
     staffOrFilter = code
       ? `staff_email.eq.${auth.auth.email},assigned_agent.eq.${code},created_by_email.eq.${auth.auth.email}`
       : `staff_email.eq.${auth.auth.email},created_by_email.eq.${auth.auth.email}`;
-  } else if (isExternal(auth.auth.role)) {
-    staffOrFilter = `staff_email.eq.${auth.auth.email}`;
   }
 
   // Aggregate stats — scoped to the caller's own records for staff
