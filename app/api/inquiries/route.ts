@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireAuth, isExternal } from '@/lib/serverAuth';
+import { logInquiryEvent } from '@/lib/inquiryEvents';
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -127,6 +128,8 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
+
+    await logInquiryEvent(admin, data.id, 'created', { name: auth.auth.fullName, email: auth.auth.email }, { ref_no: data.ref_no });
 
     void Promise.resolve(
       admin.from('notifications').insert({

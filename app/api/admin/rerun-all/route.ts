@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { runMatchingEngine, UnitRow } from '@/lib/matchingEngine';
+import { logInquiryEvent } from '@/lib/inquiryEvents';
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -61,10 +62,21 @@ export async function POST(req: NextRequest) {
         }
 
         // Update match metadata
-        await admin.from('inquiries').update({
-          last_matched_at: new Date().toISOString(),
-          match_count:     results.length,
+        // Scheduled (cron) run — no signed-in user, so it is attributed to the system.
+        const upd = await admin.from('inquiries').update({
+          last_matched_at:       new Date().toISOString(),
+          match_count:           results.length,
+          last_matched_by_name:  'System (scheduled re-run)',
+          last_matched_by_email: null,
         }).eq('id', inquiry.id);
+        if (upd.error) {
+          await admin.from('inquiries').update({
+            last_matched_at: new Date().toISOString(),
+            match_count:     results.length,
+          }).eq('id', inquiry.id);
+        }
+        await logInquiryEvent(admin, inquiry.id, 'match_bulk',
+          { name: 'System (scheduled re-run)', email: null }, { matched: results.length });
 
         summary.push({
           ref_no:  inquiry.ref_no,

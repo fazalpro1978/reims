@@ -56,6 +56,8 @@ interface Inquiry {
   follow_up_date?: string;
   notes?: string;
   last_matched_at?: string;
+  last_matched_by_name?: string | null;
+  last_matched_by_email?: string | null;
   match_count: number;
   created_at: string;
   created_by_name?: string | null;
@@ -2352,6 +2354,20 @@ function CommentThread({ inquiryId, currentUserId, isSuperuser }: {
   );
 }
 
+// "11/23/2026, 8:40:27 AM · by Abdulrahman Muhassin (AM)" — name from the audit record, agent code looked up by email.
+function stampWithUser(
+  iso: string | null | undefined,
+  name: string | null | undefined,
+  email: string | null | undefined,
+  agents: { email?: string | null; agent_code: string }[],
+): string | null {
+  if (!iso) return null;
+  const when = new Date(iso).toLocaleString();
+  if (!name) return when;
+  const code = email ? agents.find(a => (a.email ?? '').toLowerCase() === email.toLowerCase())?.agent_code : null;
+  return `${when} · by ${name}${code ? ` (${code})` : ''}`;
+}
+
 // ─── Ledger ───────────────────────────────────────────────────────────────────
 
 const TERMINAL_STATUSES = new Set(['won', 'lost', 'cancelled', 'closed']);
@@ -2375,6 +2391,7 @@ function Ledger({ inquiryId, status, isSuperuser, refreshKey }: {
   refreshKey?: number;
 }) {
   const [entries, setEntries] = useState<UnitLogEntry[]>([]);
+  const [events,  setEvents]  = useState<{ id: string; event_type: string; actor_name: string | null; actor_code: string | null; details: Record<string, unknown>; created_at: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const isTerminal = TERMINAL_STATUSES.has(status);
   const isLocked   = isTerminal && !isSuperuser;
@@ -2385,7 +2402,22 @@ function Ledger({ inquiryId, status, isSuperuser, refreshKey }: {
       .then(r => r.json())
       .then(d => setEntries(d.logs ?? []))
       .finally(() => setLoading(false));
+    authedFetch(`/api/inquiries/${inquiryId}/events`)
+      .then(r => r.json())
+      .then(d => setEvents(d.events ?? []))
+      .catch(() => setEvents([]));
   }, [inquiryId, refreshKey]);
+
+  const EVENT_LABEL: Record<string, string> = {
+    created: 'Inquiry created', match_auto: 'Automatic matching run',
+    match_manual: 'Manual matching re-run', match_bulk: 'Scheduled matching re-run',
+  };
+  const eventLines = events.map(ev => {
+    const { date, time } = ledgerFmt(ev.created_at);
+    const who = ev.actor_name ? `${ev.actor_name}${ev.actor_code ? ` (${ev.actor_code})` : ''}` : '—';
+    const n = typeof ev.details?.matched === 'number' ? ` · ${ev.details.matched} match${ev.details.matched === 1 ? '' : 'es'}` : '';
+    return { id: ev.id, at: ev.created_at, line: `—, —, ${who}, ${date}, ${time} : '${EVENT_LABEL[ev.event_type] ?? ev.event_type}${n}'` };
+  });
 
   const handleDelete = async (id: string) => {
     const res = await authedFetch(`/api/synergy/unit-logs?id=${id}`, { method: 'DELETE' });
@@ -2406,10 +2438,13 @@ function Ledger({ inquiryId, status, isSuperuser, refreshKey }: {
         <div className="flex items-center justify-center py-4">
           <div className="w-4 h-4 border-2 border-[#c9a84c] border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : entries.length === 0 ? (
+      ) : entries.length === 0 && eventLines.length === 0 ? (
         <p className="text-[11px] text-[#444] italic">No diary entries yet.</p>
       ) : (
         <div className="space-y-1.5">
+          {eventLines.map(e => (
+            <p key={`ev-${e.id}`} className="font-mono text-[10px] text-[#5a6a7a] leading-relaxed break-all">{e.line}</p>
+          ))}
           {entries.map(e => {
             const { date, time } = ledgerFmt(e.created_at);
             const initials   = ledgerInitials(e.author_name);
@@ -2859,8 +2894,8 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
                   {/* Read-only audit fields */}
                   <div className="pt-2 space-y-1 border-t border-[#1a1a1a]">
                     {[
-                      ['Last Matched', inquiry.last_matched_at ? new Date(inquiry.last_matched_at).toLocaleString() : '—'],
-                      ['Created',      new Date(inquiry.created_at).toLocaleString()],
+                      ['Last Matched', stampWithUser(inquiry.last_matched_at, inquiry.last_matched_by_name, inquiry.last_matched_by_email, agents) ?? '—'],
+                      ['Created',      stampWithUser(inquiry.created_at, inquiry.created_by_name, inquiry.created_by_email, agents)],
                     ].map(([k, v]) => (
                       <div key={k} className="flex gap-4">
                         <span className="text-[#444] text-xs w-24 shrink-0">{k}</span>
@@ -2890,8 +2925,8 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
                     ['Bills',        inquiry.bills_included],
                     ['Move-in',      inquiry.move_in_date],
                     ['Follow-up',    inquiry.follow_up_date],
-                    ['Last Matched', inquiry.last_matched_at ? new Date(inquiry.last_matched_at).toLocaleString() : null],
-                    ['Created',      new Date(inquiry.created_at).toLocaleString()],
+                    ['Last Matched', stampWithUser(inquiry.last_matched_at, inquiry.last_matched_by_name, inquiry.last_matched_by_email, agents)],
+                    ['Created',      stampWithUser(inquiry.created_at, inquiry.created_by_name, inquiry.created_by_email, agents)],
                   ].map(([k, v]) => v != null ? (
                     <div key={k as string} className="flex gap-4">
                       <span className="text-[#555] w-28 shrink-0">{k}</span>
@@ -3134,7 +3169,7 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
       setInquiries(prev => [data.inquiry, ...prev]);
       setShowForm(false);
 
-      authedFetch(`/api/inquiries/${data.inquiry.id}/match`, { method: 'POST' })
+      authedFetch(`/api/inquiries/${data.inquiry.id}/match?trigger=auto`, { method: 'POST' })
         .finally(() => load());
     } catch {
       setFormError('Network error — please check your connection and try again.');

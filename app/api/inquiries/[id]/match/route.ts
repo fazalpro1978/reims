@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { runMatchingEngine, UnitRow } from '@/lib/matchingEngine';
 import { requireAuth, isExternal, isThirdParty } from '@/lib/serverAuth';
 import { authorizeInquiry } from '@/lib/inquiryAccessServer';
+import { logInquiryEvent } from '@/lib/inquiryEvents';
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -103,10 +104,25 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     // Update inquiry metadata
-    await admin.from('inquiries').update({
-      last_matched_at: new Date().toISOString(),
-      match_count:     results.length,
+    // Attribution always comes from the authenticated session, never from the request.
+    const upd = await admin.from('inquiries').update({
+      last_matched_at:       new Date().toISOString(),
+      match_count:           results.length,
+      last_matched_by_name:  auth.auth.fullName,
+      last_matched_by_email: auth.auth.email,
     }).eq('id', params.id);
+    if (upd.error) {
+      // columns missing (migration not run yet) — keep the timestamp working
+      await admin.from('inquiries').update({
+        last_matched_at: new Date().toISOString(),
+        match_count:     results.length,
+      }).eq('id', params.id);
+    }
+    // `?trigger=auto` is sent by the creation flow; anything else is a manual re-run.
+    const trigger = new URL(req.url).searchParams.get('trigger') === 'auto' ? 'match_auto' : 'match_manual';
+    await logInquiryEvent(admin, params.id, trigger,
+      { name: auth.auth.fullName, email: auth.auth.email },
+      { matched: results.length, tier1: results.filter(r => r.tier === 1).length });
 
     // Notify if new matches found
     if (results.length > 0) {
