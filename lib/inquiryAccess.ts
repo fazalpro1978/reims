@@ -26,3 +26,19 @@ export function inquiryRole(
 
 export const isInquiryParty = (inq: InquiryParties, myEmail?: string | null, myAgentCode?: string | null) =>
   inquiryRole(inq, myEmail, myAgentCode) !== null;
+
+// Whether a signed-in user may read or act on one inquiry (server-side check used by the single-inquiry APIs).
+//  superuser / administrator : any inquiry
+//  staff                     : only inquiries they are a party to (owner, handler or consultant)
+//  agent / broker / third_party : only inquiries assigned to them as handler (same scope as the list)
+export function canAccessInquiry(
+  role: string,
+  inq: InquiryParties,
+  myEmail?: string | null,
+  myAgentCode?: string | null,
+): boolean {
+  if (role === 'superuser' || role === 'administrator') return true;
+  if (role === 'staff') return isInquiryParty(inq, myEmail, myAgentCode);
+  if (role === 'agent' || role === 'broker' || role === 'third_party') return !!myEmail && lc(inq.staff_email) === lc(myEmail);
+  return false;
+}

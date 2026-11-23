@@ -650,7 +650,7 @@ function AIExtractPanel({ onExtract }: { onExtract: (data: Record<string, string
     try {
       let res: Response;
       if (mode === 'text') {
-        res = await fetch('/api/inquiries/extract', {
+        res = await authedFetch('/api/inquiries/extract', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text }),
@@ -659,7 +659,7 @@ function AIExtractPanel({ onExtract }: { onExtract: (data: Record<string, string
         if (!imageFile) { setError('Please select an image first.'); setLoading(false); return; }
         const form = new FormData();
         form.append('image', imageFile);
-        res = await fetch('/api/inquiries/extract', { method: 'POST', body: form });
+        res = await authedFetch('/api/inquiries/extract', { method: 'POST', body: form });
       }
       const data = await res.json();
       if (!res.ok || data.error) { setError(data.error ?? 'Extraction failed'); return; }

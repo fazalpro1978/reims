@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { requireAuth } from '@/lib/serverAuth';
 
 const EXTRACT_PROMPT = `You are a real estate inquiry parser for a Qatar property management system. Extract client details and property requirements from the provided text or image.
 
@@ -32,6 +33,8 @@ Mapping rules:
 - notes: any amenities, special requests, or important context not captured in other fields`;
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff', 'agent', 'broker', 'third_party']);
+  if (!auth.ok) return auth.response;
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(
       { error: 'AI extraction is not configured. Add ANTHROPIC_API_KEY to your environment.' },

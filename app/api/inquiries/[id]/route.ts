@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { requireAuth } from '@/lib/serverAuth';
 import { Resend } from 'resend';
 import { isInquiryParty } from '@/lib/inquiryAccess';
+import { authorizeInquiry } from '@/lib/inquiryAccessServer';
 import fs from 'fs';
 import path from 'path';
 
@@ -15,7 +16,12 @@ const admin = createClient(
 
 const UNIT_JOIN = '*, assigned_unit:units!assigned_unit_id(id, unit_code, unit_no, property, smart_code, zone, type, config, furnishing, rent), assigned_unit2:units!assigned_unit_id_2(id, unit_code, unit_no, property, smart_code), assigned_unit3:units!assigned_unit_id_3(id, unit_code, unit_no, property, smart_code)';
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff', 'agent', 'broker', 'third_party']);
+  if (!auth.ok) return auth.response;
+  const denied = await authorizeInquiry(admin, auth.auth, params.id);
+  if (denied) return denied;
+
   const { data, error } = await admin
     .from('inquiries')
     .select(UNIT_JOIN)
