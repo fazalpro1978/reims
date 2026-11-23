@@ -4,6 +4,7 @@ import TopBar from './TopBar';
 import UnitDetailsModal from './UnitDetailsModal';
 import { supabase } from '../lib/supabase/client';
 import { authedFetch } from '../lib/authedFetch';
+import { isInquiryParty } from '../lib/inquiryAccess';
 import { useAuth } from '../contexts/AuthContext';
 import { generatePublicShareText } from '../lib/shareUtils';
 import {
@@ -102,6 +103,7 @@ interface Notification {
 interface AgentProfile {
   agent_code: string;
   full_name: string;
+  email?: string | null;
 }
 
 interface StaffProfile {
@@ -392,8 +394,8 @@ function StaffSearch({
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    authedFetch('/api/admin/users').then(r => r.json()).then(d => {
-      setStaff((d.users ?? []).filter((u: { role: string; is_active: boolean }) => ['superuser', 'administrator', 'staff'].includes(u.role) && u.is_active));
+    authedFetch('/api/staff').then(r => r.json()).then(d => {
+      setStaff((d.staff ?? []) as StaffProfile[]);
     }).catch(() => {});
   }, []);
 
@@ -2442,6 +2444,9 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
   const { role, can, user } = useAuth();
   const isAdmin     = role === 'superuser' || role === 'administrator';
   const canUnitCode = can('synergy.unit_code');
+  // The owner (creator), the assigned handler and the assigned consultant may reassign the handler and the consultant
+  const myAgentCode = agents.find(a => (a.email ?? '').toLowerCase() === (user?.email ?? '').toLowerCase())?.agent_code ?? null;
+  const canReassign = isAdmin || (role === 'staff' && isInquiryParty(inquiry, user?.email, myAgentCode));
 
   const [tab, setTab]               = useState<'matches' | 'details'>('matches');
   const [matchingStale, setMatchingStale] = useState(false);
@@ -2627,7 +2632,7 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
                   <span className="font-mono text-[9px] font-bold text-[#22c55e]">{a.agent_code}</span>
                 </div>
                 <span className="text-xs text-[#ccc] truncate flex-1">{a.full_name}</span>
-                {isAdmin && (
+                {canReassign && (
                   <button
                     onClick={() => assignAgent('')}
                     className="text-[10px] text-[#555] hover:text-[#f43f5e] transition-colors px-2 py-1 shrink-0"
@@ -2637,7 +2642,7 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
                 )}
               </div>
             );
-          })() : isAdmin ? (
+          })() : canReassign ? (
             <div className="flex-1">
               <AgentSearch
                 agents={agents}
@@ -2654,7 +2659,7 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
         {/* Persistent handler strip */}
         <div className="px-5 py-2.5 border-b border-[#1a1a1a] shrink-0 flex items-center gap-3">
           <span className="text-[10px] text-[#555] uppercase tracking-wider shrink-0 w-[72px]">Handler</span>
-          {isAdmin ? (
+          {canReassign ? (
             staffEmail ? (
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <div className="w-6 h-6 rounded-full bg-[#c9a84c22] border border-[#c9a84c44] flex items-center justify-center shrink-0">
@@ -3096,9 +3101,10 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
 
   const openForm = () => { setFormError(null); setExtractedFields({}); setExtractRevision(0); setShowForm(true); };
 
-  // Guard: staff can only open their own inquiries
+  // Guard: staff can only open inquiries they are a party to (owner, handler or assigned consultant)
+  const myAgentCode = agents.find(a => (a.email ?? '').toLowerCase() === (user?.email ?? '').toLowerCase())?.agent_code ?? null;
   const handleSelectInquiry = (inquiry: Inquiry) => {
-    if (isStaff && inquiry.staff_email && inquiry.staff_email !== user?.email) {
+    if (isStaff && agents.length > 0 && inquiry.staff_email && !isInquiryParty(inquiry, user?.email, myAgentCode)) {
       setGuardrail(inquiry);
       return;
     }

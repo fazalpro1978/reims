@@ -27,8 +27,8 @@ export async function GET(req: NextRequest) {
       .maybeSingle();
     const code = agentRow?.agent_code;
     staffOrFilter = code
-      ? `staff_email.eq.${auth.auth.email},assigned_agent.eq.${code}`
-      : `staff_email.eq.${auth.auth.email}`;
+      ? `staff_email.eq.${auth.auth.email},assigned_agent.eq.${code},created_by_email.eq.${auth.auth.email}`
+      : `staff_email.eq.${auth.auth.email},created_by_email.eq.${auth.auth.email}`;
   } else if (isExternal(auth.auth.role)) {
     staffOrFilter = `staff_email.eq.${auth.auth.email}`;
   }

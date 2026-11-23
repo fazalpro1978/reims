@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireAuth } from '@/lib/serverAuth';
 import { Resend } from 'resend';
+import { isInquiryParty } from '@/lib/inquiryAccess';
 import fs from 'fs';
 import path from 'path';
 
@@ -44,7 +45,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       }
     }
 
-    // Staff can only patch their own inquiries (as handler OR as consultant)
+    // Staff can only patch inquiries they are a party to: owner (creator), handler or consultant
     if (auth.auth.role === 'staff') {
       const { data: agentRow } = await admin
         .from('cr_agents')
@@ -55,14 +56,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
       const { data: existing } = await admin
         .from('inquiries')
-        .select('staff_email, assigned_agent')
+        .select('staff_email, assigned_agent, created_by_email')
         .eq('id', params.id)
         .single();
 
-      const isHandler    = existing?.staff_email === auth.auth.email;
-      const isConsultant = staffCode && existing?.assigned_agent === staffCode;
-
-      if (!isHandler && !isConsultant) {
+      if (!existing || !isInquiryParty(existing, auth.auth.email, staffCode)) {
         return NextResponse.json({ error: 'Forbidden — contact an Administrator to reassign this inquiry' }, { status: 403 });
       }
     }
@@ -73,11 +71,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       'status', 'assigned_agent',
       'assigned_unit_id', 'assigned_unit_id_2', 'assigned_unit_id_3',
       'follow_up_date', 'move_in_date', 'bills_included', 'size', 'notes',
+      // a party to the inquiry may hand it to another handler or consultant
+      'staff_email', 'staff_name', 'staff_assigned_at',
     ];
-    // SU/AD can also edit core client/inquiry fields and reassign the staff owner
+    // SU/AD can also edit core client/inquiry fields
     const adminPatchable = [
       ...staffPatchable,
-      'staff_email', 'staff_name', 'staff_assigned_at',
       'client_name', 'client_phone', 'client_email', 'client_nationality',
       'listing_type', 'property_type', 'config', 'furnishing', 'source',
       'budget_min', 'budget_max', 'bathrooms_min', 'preferred_zones',
