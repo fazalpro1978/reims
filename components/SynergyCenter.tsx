@@ -2176,6 +2176,7 @@ function CommentThread({ inquiryId, currentUserId, isSuperuser }: {
   const [draft,     setDraft]     = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error,     setError]     = useState<string | null>(null);
+  const [notice,    setNotice]    = useState<string | null>(null);
   const [mentionUsers, setMentionUsers] = useState<MentionUser[]>([]);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -2248,6 +2249,8 @@ function CommentThread({ inquiryId, currentUserId, isSuperuser }: {
       setComments(prev => [...prev, json.comment]);
       setDraft('');
       setMentionQuery(null);
+      const skipped: string[] = json.skippedMentions ?? [];
+      setNotice(skipped.length ? `Not notified — cannot view this inquiry: ${skipped.join(', ')}. Ask an Administrator to assign them first.` : null);
     }
   };
 
@@ -2333,6 +2336,7 @@ function CommentThread({ inquiryId, currentUserId, isSuperuser }: {
           className="w-full bg-[#111] border border-[#2a2a2a] text-[#e0e0e0] text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#c9a84c55] placeholder-[#444] resize-none"
         />
         {error && <p className="text-[10px] text-[#f43f5e] mt-1">{error}</p>}
+        {notice && !error && <p className="text-[10px] text-amber-400 mt-1">{notice}</p>}
         <div className="flex items-center justify-between mt-1.5">
           <span className="text-[9px] text-[#444]">⌘↵ to send · @Name to mention</span>
           <button

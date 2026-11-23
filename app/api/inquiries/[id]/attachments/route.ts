@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireAuth } from '@/lib/serverAuth';
+import { authorizeInquiry } from '@/lib/inquiryAccessServer';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +24,8 @@ export async function GET(
     'superuser', 'administrator', 'staff', 'agent', 'broker', 'third_party',
   ]);
   if (!auth.ok) return auth.response;
+  const denied = await authorizeInquiry(admin, auth.auth, params.id);
+  if (denied) return denied;
 
   const { data, error } = await admin
     .from('inquiry_attachments')
@@ -47,6 +50,8 @@ export async function POST(
     'superuser', 'administrator', 'staff', 'agent', 'broker',
   ]);
   if (!auth.ok) return auth.response;
+  const denied = await authorizeInquiry(admin, auth.auth, params.id);
+  if (denied) return denied;
 
   const formData = await req.formData().catch(() => null);
   if (!formData) {

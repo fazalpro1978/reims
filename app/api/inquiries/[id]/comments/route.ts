@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireAuth } from '@/lib/serverAuth';
+import { authorizeInquiry } from '@/lib/inquiryAccessServer';
+import { canAccessInquiry } from '@/lib/inquiryAccess';
 import { Resend } from 'resend';
 
 export const dynamic = 'force-dynamic';
@@ -166,6 +168,8 @@ export async function GET(
     'superuser', 'administrator', 'staff', 'agent', 'broker', 'third_party',
   ]);
   if (!auth.ok) return auth.response;
+  const denied = await authorizeInquiry(admin, auth.auth, params.id);
+  if (denied) return denied;
 
   const { data, error } = await admin
     .from('inquiry_comments')
@@ -186,6 +190,8 @@ export async function POST(
     'superuser', 'administrator', 'staff', 'agent', 'broker',
   ]);
   if (!auth.ok) return auth.response;
+  const denied = await authorizeInquiry(admin, auth.auth, params.id);
+  if (denied) return denied;
 
   const body = await req.json().catch(() => ({})) as { body?: string };
   if (!body.body?.trim()) {
@@ -195,21 +201,27 @@ export async function POST(
   // Fetch inquiry for metadata
   const { data: inq } = await admin
     .from('inquiries')
-    .select('ref_no, client_name, status')
+    .select('ref_no, client_name, status, staff_email, assigned_agent, created_by_email')
     .eq('id', params.id)
     .single();
 
   // Parse @mentions and resolve to staff profiles
   const mentionedNames = parseMentionNames(body.body);
   let mentionedProfiles: { id: string; email: string; full_name: string | null; phone: string | null }[] = [];
+  const skippedMentions: string[] = [];
 
   if (mentionedNames.length > 0) {
     const { data: profiles } = await admin
       .from('profiles')
-      .select('id, email, full_name, phone')
+      .select('id, email, full_name, phone, role, agent_code')
       .in('full_name', mentionedNames)
       .eq('is_active', true);
-    mentionedProfiles = profiles ?? [];
+    // Only people who may view this inquiry (administrators, superusers, owner, handler, assigned consultant) are notified:
+    // emailing the comment text to anyone else would bypass the access rule.
+    for (const p of (profiles ?? []) as { id: string; email: string; full_name: string | null; phone: string | null; role: string; agent_code: string | null }[]) {
+      if (inq && canAccessInquiry(p.role, inq, p.email, p.agent_code)) mentionedProfiles.push({ id: p.id, email: p.email, full_name: p.full_name, phone: p.phone });
+      else skippedMentions.push(p.full_name ?? p.email);
+    }
   }
 
   // Insert comment
@@ -264,5 +276,5 @@ export async function POST(
     );
   }
 
-  return NextResponse.json({ comment }, { status: 201 });
+  return NextResponse.json({ comment, skippedMentions }, { status: 201 });
 }

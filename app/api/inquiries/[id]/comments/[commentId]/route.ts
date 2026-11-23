@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireAuth } from '@/lib/serverAuth';
+import { authorizeInquiry } from '@/lib/inquiryAccessServer';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,8 @@ export async function DELETE(
     'superuser', 'administrator', 'staff', 'agent', 'broker',
   ]);
   if (!auth.ok) return auth.response;
+  const denied = await authorizeInquiry(admin, auth.auth, params.id);
+  if (denied) return denied;
 
   const { data: row, error: fetchErr } = await admin
     .from('inquiry_comments')

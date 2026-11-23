@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { runMatchingEngine, UnitRow } from '@/lib/matchingEngine';
 import { requireAuth, isExternal, isThirdParty } from '@/lib/serverAuth';
+import { authorizeInquiry } from '@/lib/inquiryAccessServer';
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -50,6 +51,8 @@ function scrubMatch(m: Record<string, unknown>, role: string) {
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const auth = await requireAuth(req, ['superuser','administrator','staff','agent','broker','third_party']);
   if (!auth.ok) return auth.response;
+  const denied = await authorizeInquiry(admin, auth.auth, params.id);
+  if (denied) return denied;
 
   try {
     // Load inquiry — ownership enforced: external roles can only re-run their own
@@ -131,6 +134,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const auth = await requireAuth(req, ['superuser','administrator','staff','agent','broker','third_party']);
   if (!auth.ok) return auth.response;
+  const denied = await authorizeInquiry(admin, auth.auth, params.id);
+  if (denied) return denied;
 
   const { data, error } = await admin
     .from('inquiry_matches')
