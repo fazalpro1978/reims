@@ -42,3 +42,24 @@ export function canAccessInquiry(
   if (role === 'agent' || role === 'broker' || role === 'third_party') return !!myEmail && lc(inq.staff_email) === lc(myEmail);
   return false;
 }
+
+// Whether a user may change who an inquiry is assigned to (consultant and/or handler).
+//  superuser / administrator : always
+//  staff                     : only as the inquiry owner (creator) or its handler.
+//                              The assigned consultant can view and comment but NOT reassign.
+//  everyone else             : never
+export function canReassignInquiry(
+  role: string,
+  inq: InquiryParties,
+  myEmail?: string | null,
+  myAgentCode?: string | null,
+): boolean {
+  if (role === 'superuser' || role === 'administrator') return true;
+  if (role === 'staff') {
+    const r = inquiryRole(inq, myEmail, myAgentCode);
+    return r === 'owner' || r === 'handler';
+  }
+  return false;
+}
+
+export const REASSIGN_FIELDS = ['assigned_agent', 'staff_email', 'staff_name', 'staff_assigned_at'] as const;

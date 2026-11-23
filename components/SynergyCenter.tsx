@@ -4,7 +4,7 @@ import TopBar from './TopBar';
 import UnitDetailsModal from './UnitDetailsModal';
 import { supabase } from '../lib/supabase/client';
 import { authedFetch } from '../lib/authedFetch';
-import { isInquiryParty } from '../lib/inquiryAccess';
+import { isInquiryParty, canReassignInquiry } from '../lib/inquiryAccess';
 import { useAuth } from '../contexts/AuthContext';
 import { generatePublicShareText } from '../lib/shareUtils';
 import {
@@ -2450,7 +2450,8 @@ function InquiryDrawer({ inquiry, onClose, onUpdate, agents, onAgentAdded }: {
   const canUnitCode = can('synergy.unit_code');
   // The owner (creator), the assigned handler and the assigned consultant may reassign the handler and the consultant
   const myAgentCode = agents.find(a => (a.email ?? '').toLowerCase() === (user?.email ?? '').toLowerCase())?.agent_code ?? null;
-  const canReassign = isAdmin || (role === 'staff' && isInquiryParty(inquiry, user?.email, myAgentCode));
+  // Only admin/superuser, the handler or the owner may reassign; the assigned consultant (staff) may not.
+  const canReassign = canReassignInquiry(role ?? '', inquiry, user?.email, myAgentCode);
 
   const [tab, setTab]               = useState<'matches' | 'details'>('matches');
   const [matchingStale, setMatchingStale] = useState(false);
@@ -3620,6 +3621,12 @@ export default function SynergyCenter({ onMenuClick, initialRef }: { onMenuClick
           inquiry={selected}
           onClose={() => setSelected(null)}
           onUpdate={updated => {
+            // A handler who hands the inquiry on may no longer be a party to it — close it instead of leaving a dead drawer.
+            if (isStaff && agents.length > 0 && !isInquiryParty(updated, user?.email, myAgentCode)) {
+              setSelected(null);
+              setInquiries(prev => prev.filter(i => i.id !== updated.id));
+              return;
+            }
             setSelected(updated);
             setInquiries(prev => prev.map(i => i.id === updated.id ? updated : i));
           }}

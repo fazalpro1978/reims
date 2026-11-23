@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireAuth } from '@/lib/serverAuth';
 import { Resend } from 'resend';
-import { isInquiryParty } from '@/lib/inquiryAccess';
+import { isInquiryParty, canReassignInquiry, REASSIGN_FIELDS } from '@/lib/inquiryAccess';
 import { authorizeInquiry } from '@/lib/inquiryAccessServer';
 import fs from 'fs';
 import path from 'path';
@@ -68,6 +68,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
       if (!existing || !isInquiryParty(existing, auth.auth.email, staffCode)) {
         return NextResponse.json({ error: 'Forbidden — contact an Administrator to reassign this inquiry' }, { status: 403 });
+      }
+      // The assigned consultant may view/update the inquiry but not reassign it.
+      if (REASSIGN_FIELDS.some(f => f in body) && !canReassignInquiry('staff', existing, auth.auth.email, staffCode)) {
+        return NextResponse.json({ error: 'Only the inquiry owner, its handler, an Administrator or a Superuser can reassign this inquiry' }, { status: 403 });
       }
     }
 
