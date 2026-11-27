@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/serverAuth';
 import { createClient } from '@supabase/supabase-js';
 
 const admin = createClient(
@@ -104,7 +105,10 @@ async function fetchListingMeta(url: string): Promise<{
   }
 }
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  // Triggers an outbound fetch + bulk writes — Administrator / Superuser only
+  const auth = await requireAuth(req, ['superuser', 'administrator']);
+  if (!auth.ok) return auth.response;
   try {
     // Step 1: Fetch broker page
     const brokerHtml = await fetch(BROKER_URL, { headers: HEADERS, next: { revalidate: 0 } }).then(r => r.text());

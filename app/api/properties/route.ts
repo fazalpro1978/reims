@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAuth } from '@/lib/serverAuth';
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -7,6 +8,8 @@ const admin = createClient(
 );
 
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff', 'agent', 'broker']);
+  if (!auth.ok) return auth.response;
   const { searchParams } = req.nextUrl;
   const source      = searchParams.get('source');
   const listingType = searchParams.get('listing_type');
@@ -24,6 +27,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
+  if (!auth.ok) return auth.response;
   try {
     const body = await req.json();
 

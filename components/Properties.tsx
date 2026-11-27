@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { authedFetch } from '../lib/authedFetch';
 import TopBar from './TopBar';
+import DemandReadiness from './DemandReadiness';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -25,18 +26,25 @@ interface Property {
   description: string | null;
   images: string[];
   amenities: string[];
-  source: 'propertyfinder' | 'instagram' | 'tiktok' | 'manual';
+  source: 'propertyfinder' | 'instagram' | 'tiktok' | 'manual' | 'inventory';
   source_url: string | null;
   source_ref: string | null;
   status: 'active' | 'leased' | 'sold' | 'inactive';
   featured: boolean;
   synced_at: string | null;
+  master_code?: string | null;
+  smart_code?: string | null;
+  contact_name?: string | null;
+  contact_phone?: string | null;
+  media_link?: string | null;
+  title_ar?: string | null;
+  description_ar?: string | null;
   created_at: string;
   updated_at: string;
 }
 
 type ListingType = 'all' | 'rent' | 'sale';
-type SourceFilter = 'all' | 'propertyfinder' | 'instagram' | 'tiktok' | 'manual';
+type SourceFilter = 'all' | 'propertyfinder' | 'instagram' | 'tiktok' | 'manual' | 'inventory';
 type StatusFilter = 'all' | 'active' | 'leased' | 'sold' | 'inactive';
 
 interface FormState {
@@ -53,7 +61,7 @@ interface FormState {
   zone: string;
   compound: string;
   description: string;
-  source: 'propertyfinder' | 'instagram' | 'tiktok' | 'manual';
+  source: 'propertyfinder' | 'instagram' | 'tiktok' | 'manual' | 'inventory';
   source_url: string;
   status: 'active' | 'leased' | 'sold' | 'inactive';
 }
@@ -72,6 +80,7 @@ const SOURCE_META: Record<Property['source'], { label: string; color: string; bg
   instagram:      { label: 'Instagram',      color: '#f472b6', bg: '#2d0a1e' },
   tiktok:         { label: 'TikTok',         color: '#38bdf8', bg: '#0c1a26' },
   manual:         { label: 'Manual',         color: '#c9a84c', bg: '#1a1305' },
+  inventory:      { label: 'Inventory',      color: '#60a5fa', bg: '#0a1626' },
 };
 
 const STATUS_META: Record<Property['status'], { label: string; color: string }> = {
@@ -583,6 +592,22 @@ function PropertyDrawer({ p, onClose, onEdit, onDelete }: {
             </div>
           )}
 
+          {(p.master_code || p.smart_code || p.contact_name || p.contact_phone || p.media_link) && (
+            <div style={{ marginTop: 12, padding: 12, background: '#0d0d0d', borderRadius: 8, fontSize: 12, color: '#888', lineHeight: 1.7 }}>
+              {p.master_code && <div style={{ fontFamily: 'monospace', color: '#60a5fa' }}>{p.master_code}</div>}
+              {p.smart_code && <div style={{ fontFamily: 'monospace', color: '#4ade80' }}>{p.smart_code}</div>}
+              {(p.contact_name || p.contact_phone) && <div>Contact: {[p.contact_name, p.contact_phone].filter(Boolean).join(' · ')}</div>}
+              {p.media_link && <a href={p.media_link} target="_blank" rel="noopener noreferrer" style={{ color: '#38bdf8' }}>🔗 Pictures</a>}
+            </div>
+          )}
+
+          {(p.title_ar || p.description_ar) && (
+            <div dir="rtl" style={{ marginTop: 12, padding: 12, background: '#0d0d0d', borderRadius: 8 }}>
+              {p.title_ar && <p style={{ fontSize: 13, color: '#ccc', fontWeight: 700, margin: '0 0 6px' }}>{p.title_ar}</p>}
+              {p.description_ar && <p style={{ fontSize: 12, color: '#888', lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}>{p.description_ar}</p>}
+            </div>
+          )}
+
           {p.source_url && (
             <a href={p.source_url} target="_blank" rel="noopener noreferrer"
               style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12,
@@ -625,6 +650,7 @@ export default function Properties({ onMenuClick }: { onMenuClick?: () => void }
   const [editing, setEditing]       = useState<Property | null>(null);
   const [drawer, setDrawer]         = useState<Property | null>(null);
   const [lastSync, setLastSync]     = useState<string | null>(null);
+  const [view, setView]             = useState<'listings' | 'demand'>('listings');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -632,7 +658,7 @@ export default function Properties({ onMenuClick }: { onMenuClick?: () => void }
     if (sourceF !== 'all') params.set('source', sourceF);
     if (typeF   !== 'all') params.set('listing_type', typeF);
     if (statusF !== 'all') params.set('status', statusF);
-    const res = await fetch(`/api/properties?${params}`);
+    const res = await authedFetch(`/api/properties?${params}`);
     const json = await res.json();
     setProperties(json.properties ?? []);
     // Last sync time from PF listings
@@ -649,7 +675,7 @@ export default function Properties({ onMenuClick }: { onMenuClick?: () => void }
   const syncPF = async () => {
     setSyncing(true); setSyncMsg('');
     try {
-      const res  = await fetch('/api/properties/sync-pf', { method: 'POST' });
+      const res  = await authedFetch('/api/properties/sync-pf', { method: 'POST' });
       const json = await res.json();
       if (!res.ok) { setSyncMsg(`Error: ${json.error}`); return; }
       setSyncMsg(json.message ?? `Synced ${json.synced} listings`);
@@ -679,7 +705,7 @@ export default function Properties({ onMenuClick }: { onMenuClick?: () => void }
       status:        form.status,
       images:        images ?? [],
     };
-    const res = await fetch('/api/properties', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const res = await authedFetch('/api/properties', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
     await load();
   };
@@ -704,7 +730,7 @@ export default function Properties({ onMenuClick }: { onMenuClick?: () => void }
       source_url:    str(form.source_url),
       status:        form.status,
     };
-    const res = await fetch(`/api/properties/${editing.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const res = await authedFetch(`/api/properties/${editing.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
     setEditing(null); setDrawer(null); await load();
   };
@@ -712,7 +738,7 @@ export default function Properties({ onMenuClick }: { onMenuClick?: () => void }
   const deleteProperty = async (id: string) => {
     if (!confirm('Delete this listing?')) return;
     try {
-      const res = await fetch(`/api/properties/${id}`, { method: 'DELETE' });
+      const res = await authedFetch(`/api/properties/${id}`, { method: 'DELETE' });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
         setSyncMsg(`Delete failed: ${j.error ?? `HTTP ${res.status}`}`);
@@ -733,7 +759,7 @@ export default function Properties({ onMenuClick }: { onMenuClick?: () => void }
       .some(v => v?.toLowerCase().includes(q));
   });
 
-  const sources: SourceFilter[] = ['all', 'propertyfinder', 'instagram', 'tiktok', 'manual'];
+  const sources: SourceFilter[] = ['all', 'propertyfinder', 'instagram', 'tiktok', 'manual', 'inventory'];
   const types:   ListingType[]  = ['all', 'rent', 'sale'];
   const statuses: StatusFilter[] = ['all', 'active', 'leased', 'sold', 'inactive'];
 
@@ -773,6 +799,17 @@ export default function Properties({ onMenuClick }: { onMenuClick?: () => void }
           </div>
         </div>
 
+        {/* View tabs */}
+        <div className="flex gap-1 border-b border-[#1a1a1a]">
+          {([['listings', 'Listings'], ['demand', 'Demand & Readiness']] as const).map(([id, label]) => (
+            <button key={id} onClick={() => setView(id)}
+              className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors ${view === id ? 'border-[#c9a84c] text-[#c9a84c]' : 'border-transparent text-[#666] hover:text-[#aaa]'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {view === 'demand' ? <DemandReadiness onPromoted={load} /> : (<>
         {/* Filters */}
         <div className="flex flex-wrap gap-2 items-center pb-2 border-b border-[#1a1a1a]">
           <div className="relative mr-2">
@@ -822,6 +859,7 @@ export default function Properties({ onMenuClick }: { onMenuClick?: () => void }
             ))}
           </div>
         )}
+        </>)}
       </main>
 
       {/* Modals */}

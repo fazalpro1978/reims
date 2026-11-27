@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { requireAuth } from '@/lib/serverAuth';
 
 export async function POST(req: NextRequest) {
+  // Spends Anthropic credits — signed-in staff and above only
+  const auth = await requireAuth(req, ['superuser', 'administrator', 'staff']);
+  if (!auth.ok) return auth.response;
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 503 });
   }
